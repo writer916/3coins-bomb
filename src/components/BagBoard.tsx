@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { bagSrc, type BagId } from '../game/assets'
 import { getFormation, type BagCount } from '../game/formations'
 import './BagBoard.css'
@@ -8,9 +9,16 @@ type BagBoardProps = {
   hiddenBagIds?: ReadonlySet<BagId>
   /** Preview / gameplay: one click or tap selects a visible bag. */
   onBagTap?: (bagId: BagId) => void
+  /** Overlay layer (e.g. COIN FX) — same coordinate space as bags. */
+  children?: ReactNode
 }
 
-export function BagBoard({ bagCount, hiddenBagIds, onBagTap }: BagBoardProps) {
+export function BagBoard({
+  bagCount,
+  hiddenBagIds,
+  onBagTap,
+  children,
+}: BagBoardProps) {
   const slots = getFormation(bagCount)
 
   return (
@@ -55,6 +63,7 @@ export function BagBoard({ bagCount, hiddenBagIds, onBagTap }: BagBoardProps) {
           </div>
         )
       })}
+      {children}
     </div>
   )
 }

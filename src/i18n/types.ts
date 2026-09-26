@@ -18,4 +18,6 @@ export type AppStrings = {
   roundBombed: string
   capturedCoins: (count: number) => string
   dash: string
+  soundOn: string
+  soundOff: string
 }

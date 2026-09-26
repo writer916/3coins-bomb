@@ -1,0 +1,45 @@
+.coin-open-fx {
+  position: absolute;
+  pointer-events: none;
+  /* Centered on formation slot like .bag-slot */
+  width: 0;
+  height: 0;
+}
+
+.coin-open-fx-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  will-change: transform, opacity;
+}
+
+/*
+  Coin ≈ 1/4 of bag edge. Bag uses --bag-size on .bag-board;
+  fall back so FX still sizes if mounted without a board var.
+*/
+.coin-open-fx-img {
+  display: block;
+  width: calc(var(--bag-size, 5.5rem) * 0.26);
+  height: auto;
+  aspect-ratio: 1 / 1;
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-drag: none;
+  filter: drop-shadow(0 2px 3px rgb(0 0 0 / 0.45));
+}
+
+.coin-open-fx-label {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(0.95rem, 3.8vw, 1.2rem);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #f2e6d0;
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.65);
+  line-height: 1;
+}
+
+.coin-open-fx-label--strong {
+  font-size: clamp(1.1rem, 4.4vw, 1.4rem);
+  color: #ffe9b8;
+}

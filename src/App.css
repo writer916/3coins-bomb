@@ -12,6 +12,42 @@
   color: #e8dcc8;
 }
 
+.app-topbar {
+  align-self: stretch;
+  display: flex;
+  justify-content: flex-end;
+  margin: -0.25rem 0 0.35rem;
+  min-height: 2.75rem;
+}
+
+.sound-toggle {
+  box-sizing: border-box;
+  width: 2.75rem;
+  height: 2.75rem;
+  margin: 0;
+  padding: 0;
+  border: 1px solid #5a4a38;
+  border-radius: 0.35rem;
+  background: #2a221a;
+  color: #c4a574;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.sound-toggle:focus-visible {
+  outline: 2px solid #c4a574;
+  outline-offset: 2px;
+}
+
+.sound-toggle-glyph {
+  display: flex;
+  line-height: 0;
+  opacity: 0.9;
+}
+
 .app-header {
   flex-shrink: 0;
   margin-bottom: 0.5rem;

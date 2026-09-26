@@ -17,4 +17,6 @@ export const ja: AppStrings = {
   roundBombed: 'BOMB',
   capturedCoins: (count) => `${count} COINS`,
   dash: '—',
+  soundOn: 'Sound on',
+  soundOff: 'Sound off',
 }
