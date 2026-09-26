@@ -34,11 +34,14 @@
   align-self: stretch;
   display: flex;
   justify-content: flex-end;
+  align-items: center;
+  gap: 0.4rem;
   margin: 0 0 0.1rem;
   min-height: 2.25rem;
 }
 
-.sound-toggle {
+.sound-toggle,
+.lang-toggle {
   box-sizing: border-box;
   width: 2.25rem;
   height: 2.25rem;
@@ -56,13 +59,15 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-.sound-toggle:focus-visible {
+.sound-toggle:focus-visible,
+.lang-toggle:focus-visible {
   outline: 2px solid #c4a574;
   outline-offset: 2px;
   opacity: 0.9;
 }
 
-.sound-toggle-glyph {
+.sound-toggle-glyph,
+.lang-toggle-glyph {
   display: flex;
   line-height: 0;
   opacity: 0.85;
@@ -79,6 +84,24 @@
   font-weight: 700;
   letter-spacing: 0.06em;
   line-height: 1.05;
+}
+
+/* Title doubles as TOP return on SOLO / coming — keep brand look */
+.brand-title--link {
+  display: inline-block;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.brand-title--link:focus-visible {
+  outline: 2px solid #c4a574;
+  outline-offset: 3px;
 }
 
 /*
@@ -288,6 +311,131 @@
   opacity: 1;
 }
 
+/* ——— TOP: mode select (app front door) ——— */
+.app--top,
+.app--coming {
+  justify-content: flex-start;
+}
+
+.mode-select {
+  box-sizing: border-box;
+  flex: 1 1 auto;
+  align-self: stretch;
+  width: 100%;
+  max-width: 22rem;
+  margin: 0 auto;
+  padding: clamp(1.4rem, 6vh, 2.8rem) 0 clamp(1.2rem, 5vh, 2.4rem);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: clamp(0.85rem, 2.8vh, 1.35rem);
+}
+
+.mode-card {
+  box-sizing: border-box;
+  width: 100%;
+  margin: 0;
+  padding: 0.95rem 1rem 1.05rem;
+  border: 1px solid #5a4a38;
+  border-radius: 0.35rem;
+  background: #241c16;
+  color: #f2e6d0;
+  font: inherit;
+  text-align: center;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 4.4rem;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mode-card:focus-visible {
+  outline: 2px solid #c4a574;
+  outline-offset: 2px;
+}
+
+.mode-card:active {
+  background: #2a221a;
+}
+
+.mode-card-heading {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem 0.55rem;
+}
+
+.mode-card-title {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(1.25rem, 5vw, 1.55rem);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1.1;
+}
+
+.mode-card-desc {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(0.78rem, 3.2vw, 0.92rem);
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  line-height: 1.35;
+  color: #c4b49a;
+  max-width: 18rem;
+}
+
+/* Small auxiliary chip — same UI family as RESET, not a button */
+.mode-badge {
+  box-sizing: border-box;
+  display: inline-block;
+  flex-shrink: 0;
+  margin: 0;
+  padding: 0.08rem 0.32rem;
+  border: 1px solid #5a4a38;
+  border-radius: 0.2rem;
+  background: #241c16;
+  color: #c4a574;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 0.56rem;
+  font-weight: 400;
+  letter-spacing: 0.07em;
+  line-height: 1.2;
+  opacity: 0.9;
+  pointer-events: none;
+  user-select: none;
+}
+
+.coming-soon {
+  flex: 1 1 auto;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
+  padding: 2rem 1rem 3rem;
+}
+
+.coming-soon-mode {
+  margin: 0;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(1.2rem, 4.8vw, 1.45rem);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #f2e6d0;
+}
+
+.coming-soon-label {
+  margin: 0;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(0.95rem, 3.8vw, 1.15rem);
+  letter-spacing: 0.12em;
+  color: #c4a574;
+  opacity: 0.9;
+}
+
 @media (max-width: 340px) {
   .field-action {
     width: min(100%, 17rem);
@@ -332,5 +480,21 @@
     min-width: 2.05rem;
     padding: 0.06rem 0.26rem;
     font-size: 0.52rem;
+  }
+
+  .mode-select {
+    max-width: 100%;
+    gap: 0.7rem;
+    padding-top: 1rem;
+  }
+
+  .mode-card {
+    padding: 0.8rem 0.75rem 0.9rem;
+    min-height: 4rem;
+  }
+
+  .mode-badge {
+    font-size: 0.52rem;
+    padding: 0.06rem 0.26rem;
   }
 }

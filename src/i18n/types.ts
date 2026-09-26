@@ -24,10 +24,24 @@ export type AppStrings = {
   dash: string
   soundOn: string
   soundOff: string
+  /** Aria/title for language toggle control. */
+  languageToggle: string
+  languageToggleHint: string
   /** Label for cumulative settled ROUND count (solo). */
   soloRoundsLabel: string
   /** Label for cumulative captured COINS (solo). */
   soloCoinsLabel: string
   reset: string
   resetConfirm: string
+  /** Mode select — brand names may stay EN across locales. */
+  modeSoloName: string
+  modeSoloDesc: string
+  modeDuelName: string
+  modeDuelDesc: string
+  modeGroupName: string
+  modeGroupDesc: string
+  modeGroupBadge: string
+  comingSoon: string
+  /** Accessible name when brand title returns to mode select. */
+  backToTop: string
 }

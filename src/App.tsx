@@ -3,6 +3,8 @@ import { BagBoard } from './components/BagBoard'
 import { BombOpenFx } from './components/BombOpenFx'
 import { CoinOpenFx } from './components/CoinOpenFx'
 import { EmptyOpenFx } from './components/EmptyOpenFx'
+import { LanguageToggle } from './components/LanguageToggle'
+import { ModeSelect, type PlayMode } from './components/ModeSelect'
 import { RevealBoard } from './components/RevealBoard'
 import { SoundToggle } from './components/SoundToggle'
 import type { BagId } from './game/assets'
@@ -16,6 +18,7 @@ import {
 } from './game/coinFx'
 import { bagsForCount } from './game/formations'
 import type { BagContents, HiddenHand } from './game/hand'
+import { nextLocale, readLocale, writeLocale } from './game/locale'
 import { openedBagIds } from './game/open'
 import {
   buildRevealPlan,
@@ -43,8 +46,10 @@ import {
   type SoloRoundResult,
   type SoloStats,
 } from './game/soloStats'
-import { DEFAULT_LOCALE, getStrings } from './i18n'
+import { getStrings, type LocaleId } from './i18n'
 import './App.css'
+
+type AppScreen = 'top' | 'solo' | 'coming'
 
 type DevRoundApi = {
   getRound: () => RoundState
@@ -92,7 +97,10 @@ function soloResultFromEndedRound(state: RoundState): SoloRoundResult | null {
 }
 
 function App() {
-  const t = getStrings(DEFAULT_LOCALE)
+  const [screen, setScreen] = useState<AppScreen>('top')
+  const [comingMode, setComingMode] = useState<PlayMode | null>(null)
+  const [locale, setLocale] = useState<LocaleId>(() => readLocale())
+  const t = getStrings(locale)
   const [round, setRound] = useState<RoundState>(() => createActiveRound())
   const [soundOn, setSoundOn] = useState(() => readSoundEnabled())
   const [soloStats, setSoloStats] = useState<SoloStats>(() => readSoloStats())
@@ -347,6 +355,29 @@ function App() {
     })
   }, [])
 
+  const handleLanguageToggle = useCallback(() => {
+    setLocale((prev) => {
+      const next = nextLocale(prev)
+      writeLocale(next)
+      return next
+    })
+  }, [])
+
+  const goTop = useCallback(() => {
+    setComingMode(null)
+    setScreen('top')
+  }, [])
+
+  const handleModeSelect = useCallback((mode: PlayMode) => {
+    if (mode === 'solo') {
+      setComingMode(null)
+      setScreen('solo')
+      return
+    }
+    setComingMode(mode)
+    setScreen('coming')
+  }, [])
+
   const handleCoinFxSample = useCallback((sample: CoinFxSample) => {
     setFxSample(sample)
   }, [])
@@ -406,30 +437,94 @@ function App() {
   // Georgia oldstyle "3" sits optically lower than caps — split for micro lift.
   const brandTitleMatch = /^(\d)(\s.+)$/.exec(t.brandTitle)
 
+  const brandTitleNode = brandTitleMatch ? (
+    <>
+      <span className="brand-title-digit">{brandTitleMatch[1]}</span>
+      <span className="brand-title-rest">{brandTitleMatch[2]}</span>
+    </>
+  ) : (
+    t.brandTitle
+  )
+
+  const topControls = (
+    <div className="app-topbar">
+      <LanguageToggle
+        ariaLabel={`${t.languageToggle} (${locale.toUpperCase()})`}
+        title={t.languageToggleHint}
+        onToggle={handleLanguageToggle}
+      />
+      <SoundToggle
+        enabled={soundOn}
+        onToggle={handleSoundToggle}
+        labelOn={t.soundOn}
+        labelOff={t.soundOff}
+      />
+    </div>
+  )
+
+  if (screen === 'top') {
+    return (
+      <main className="app app--top">
+        <div className="field-header">
+          {topControls}
+          <header className="app-header">
+            <h1 className="brand-title" aria-label={t.brandTitle}>
+              {brandTitleNode}
+            </h1>
+          </header>
+        </div>
+        <ModeSelect t={t} onSelect={handleModeSelect} />
+      </main>
+    )
+  }
+
+  if (screen === 'coming') {
+    const modeName =
+      comingMode === 'duel'
+        ? t.modeDuelName
+        : comingMode === 'group'
+          ? t.modeGroupName
+          : ''
+    return (
+      <main className="app app--coming">
+        <div className="field-header">
+          {topControls}
+          <header className="app-header">
+            <button
+              type="button"
+              className="brand-title brand-title--link"
+              aria-label={t.backToTop}
+              title={t.backToTop}
+              onClick={goTop}
+            >
+              {brandTitleNode}
+            </button>
+          </header>
+        </div>
+        <div className="coming-soon">
+          {modeName ? <p className="coming-soon-mode">{modeName}</p> : null}
+          <p className="coming-soon-label">{t.comingSoon}</p>
+        </div>
+      </main>
+    )
+  }
+
   return (
     <main className="app">
-      {/* GROUP A: BRAND — title + SOUND (SOUND position unchanged) */}
+      {/* GROUP A: BRAND — title (→ TOP) + LANGUAGE + SOUND */}
       <div className="field-header">
-        <div className="app-topbar">
-          <SoundToggle
-            enabled={soundOn}
-            onToggle={handleSoundToggle}
-            labelOn={t.soundOn}
-            labelOff={t.soundOff}
-          />
-        </div>
+        {topControls}
 
         <header className="app-header">
-          <h1 className="brand-title" aria-label={t.brandTitle}>
-            {brandTitleMatch ? (
-              <>
-                <span className="brand-title-digit">{brandTitleMatch[1]}</span>
-                <span className="brand-title-rest">{brandTitleMatch[2]}</span>
-              </>
-            ) : (
-              t.brandTitle
-            )}
-          </h1>
+          <button
+            type="button"
+            className="brand-title brand-title--link"
+            aria-label={t.backToTop}
+            title={t.backToTop}
+            onClick={goTop}
+          >
+            {brandTitleNode}
+          </button>
         </header>
       </div>
 

@@ -21,6 +21,7 @@
     "verify:reveal": "tsx scripts/verify-reveal.ts",
     "verify:solo-stats": "tsx scripts/verify-solo-stats.ts",
     "verify:empty": "tsx scripts/verify-empty-fx.ts",
+    "verify:locale": "tsx scripts/verify-locale.ts",
     "preview": "vite preview"
   },
   "dependencies": {
