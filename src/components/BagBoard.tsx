@@ -1,6 +1,10 @@
 import type { ReactNode } from 'react'
 import { bagSrc, type BagId } from '../game/assets'
-import { getFormation, type BagCount } from '../game/formations'
+import {
+  bagSlotDepthZIndex,
+  getFormation,
+  type BagCount,
+} from '../game/formations'
 import './BagBoard.css'
 
 type BagBoardProps = {
@@ -9,7 +13,7 @@ type BagBoardProps = {
   hiddenBagIds?: ReadonlySet<BagId>
   /** Preview / gameplay: one click or tap selects a visible bag. */
   onBagTap?: (bagId: BagId) => void
-  /** Overlay layer (e.g. COIN FX) — same coordinate space as bags. */
+  /** Overlay layer (e.g. COIN / BOMB FX) — same coordinate space as bags. */
   children?: ReactNode
 }
 
@@ -39,8 +43,8 @@ export function BagBoard({
             style={{
               left: `${slot.x}%`,
               top: `${slot.y}%`,
-              // Front (larger y) paints above back so light overlaps read naturally
-              zIndex: Math.round(slot.y),
+              // Front (larger y) paints above back — shared with BOMB depth.
+              zIndex: bagSlotDepthZIndex(slot.y),
             }}
             data-bag-id={slot.bagId}
           >

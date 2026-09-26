@@ -1,0 +1,56 @@
+/*
+  Same positioning model as .bag-slot:
+  - formation % at center
+  - explicit width
+  - translate(-50%, -50%) then visual/collision nudge
+*/
+.bomb-open-fx {
+  position: absolute;
+  pointer-events: none;
+  --bomb-ox: 0px;
+  --bomb-oy: 0px;
+  transform: translate(-50%, -50%) translate(var(--bomb-ox), var(--bomb-oy));
+  will-change: transform, opacity;
+}
+
+.bomb-open-fx--shake {
+  animation: bomb-micro-shake 55ms linear infinite;
+}
+
+/*
+  Bomb ≈ half a bag edge — size locked at 52% of --bag-size.
+*/
+.bomb-open-fx-img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1 / 1;
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-drag: none;
+  filter: drop-shadow(0 2px 3px rgb(0 0 0 / 0.45));
+  pointer-events: none;
+}
+
+@keyframes bomb-micro-shake {
+  0% {
+    transform: translate(-50%, -50%) translate(var(--bomb-ox), var(--bomb-oy))
+      translate(0, 0);
+  }
+  25% {
+    transform: translate(-50%, -50%) translate(var(--bomb-ox), var(--bomb-oy))
+      translate(-1.4px, 0.6px);
+  }
+  50% {
+    transform: translate(-50%, -50%) translate(var(--bomb-ox), var(--bomb-oy))
+      translate(1.4px, -0.6px);
+  }
+  75% {
+    transform: translate(-50%, -50%) translate(var(--bomb-ox), var(--bomb-oy))
+      translate(-0.9px, -0.5px);
+  }
+  100% {
+    transform: translate(-50%, -50%) translate(var(--bomb-ox), var(--bomb-oy))
+      translate(0.9px, 0.5px);
+  }
+}

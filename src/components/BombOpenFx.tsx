@@ -1,0 +1,118 @@
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { bombSrc, type BagId } from '../game/assets'
+import { planBombFx, sampleBombFx, type BombFxSample } from '../game/bombFx'
+import { BOMB_SIZE_FRAC_OF_BAG, resolveBombPlacement } from '../game/bombPlacement'
+import { bagDepthZIndex, type BagCount } from '../game/formations'
+import './BombOpenFx.css'
+
+type BombOpenFxProps = {
+  bagId: BagId
+  bagCount: BagCount
+  /** Opened / hidden bags — neighbors for collision are the rest. */
+  hiddenBagIds: ReadonlySet<BagId>
+  onSample?: (sample: BombFxSample) => void
+  onComplete: () => void
+}
+
+/**
+ * BOMB reveal at the opened bag’s visual center — no upward flight.
+ * Visual only; ROUND is already bombed by game logic.
+ */
+export function BombOpenFx({
+  bagId,
+  bagCount,
+  hiddenBagIds,
+  onSample,
+  onComplete,
+}: BombOpenFxProps) {
+  const plan = useMemo(() => planBombFx(bagId), [bagId])
+  const [sample, setSample] = useState<BombFxSample>(() => sampleBombFx(plan, 0))
+  const completedRef = useRef(false)
+  const onCompleteRef = useRef(onComplete)
+  const onSampleRef = useRef(onSample)
+
+  useEffect(() => {
+    onCompleteRef.current = onComplete
+    onSampleRef.current = onSample
+  }, [onComplete, onSample])
+
+  const remainingBagIds = useMemo(() => {
+    const all: BagId[] = []
+    for (let i = 1; i <= bagCount; i++) {
+      const id = `bag-${i}` as BagId
+      if (!hiddenBagIds.has(id)) all.push(id)
+    }
+    return all
+  }, [bagCount, hiddenBagIds])
+
+  const placement = useMemo(
+    () =>
+      resolveBombPlacement({
+        bagId,
+        bagCount,
+        remainingBagIds,
+      }),
+    [bagId, bagCount, remainingBagIds],
+  )
+
+  const depthZ = useMemo(
+    () => bagDepthZIndex(bagCount, bagId),
+    [bagCount, bagId],
+  )
+
+  useEffect(() => {
+    completedRef.current = false
+    const started = performance.now()
+    let raf = 0
+
+    const tick = (now: number) => {
+      const elapsed = now - started
+      const next = sampleBombFx(plan, elapsed)
+      setSample(next)
+      onSampleRef.current?.(next)
+      if (next.finished) {
+        if (!completedRef.current) {
+          completedRef.current = true
+          onCompleteRef.current()
+        }
+        return
+      }
+      raf = requestAnimationFrame(tick)
+    }
+
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [plan])
+
+  if (sample.finished) return null
+
+  const ox = `calc(var(--bag-size) * ${placement.offsetXBag})`
+  const oy = `calc(var(--bag-size) * ${placement.offsetYBag})`
+
+  return (
+    <div
+      className={
+        sample.shaking ? 'bomb-open-fx bomb-open-fx--shake' : 'bomb-open-fx'
+      }
+      data-bag-id={bagId}
+      style={{
+        left: `${placement.slotX}%`,
+        top: `${placement.slotY}%`,
+        // Inherit opened bag depth — never boost above front-row bags.
+        zIndex: depthZ,
+        width: `calc(var(--bag-size) * ${BOMB_SIZE_FRAC_OF_BAG})`,
+        ['--bomb-ox' as string]: ox,
+        ['--bomb-oy' as string]: oy,
+        opacity: sample.opacity,
+      }}
+      aria-hidden="true"
+    >
+      <img
+        className="bomb-open-fx-img"
+        src={bombSrc(sample.frame)}
+        alt=""
+        draggable={false}
+      />
+    </div>
+  )
+}

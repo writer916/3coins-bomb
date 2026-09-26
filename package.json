@@ -13,6 +13,7 @@
     "verify:round": "tsx scripts/verify-round.ts",
     "verify:fx": "tsx scripts/verify-fx.ts",
     "verify:audio": "tsx scripts/verify-audio.ts",
+    "verify:bomb": "tsx scripts/verify-bomb-fx.ts",
     "preview": "vite preview"
   },
   "dependencies": {

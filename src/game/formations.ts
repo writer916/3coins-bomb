@@ -91,6 +91,24 @@ export function getFormation(bagCount: BagCount): readonly FormationSlot[] {
   return FORMATIONS[bagCount]
 }
 
+/**
+ * Paint order for a bag (and FX that inherit its depth).
+ * Larger formation Y = front row = higher z-index.
+ * Same rule for bags and BOMB so opened back-row bombs stay behind front bags.
+ */
+export function bagSlotDepthZIndex(formationY: number): number {
+  return Math.round(formationY)
+}
+
+/** Depth for a bag id in a formation — source of truth for BOMB z-index too. */
+export function bagDepthZIndex(bagCount: BagCount, bagId: BagId): number {
+  const slot = getFormation(bagCount).find((s) => s.bagId === bagId)
+  if (!slot) {
+    throw new Error(`bagDepthZIndex: ${bagId} not in ${bagCount}-bag formation`)
+  }
+  return bagSlotDepthZIndex(slot.y)
+}
+
 /** Bags used for a given count — always bag-1 … bag-N in order. */
 export function bagsForCount(bagCount: BagCount): readonly BagId[] {
   return BAG_IDS.slice(0, bagCount)

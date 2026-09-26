@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { BagBoard } from './components/BagBoard'
+import { BombOpenFx } from './components/BombOpenFx'
 import { CoinOpenFx } from './components/CoinOpenFx'
 import { SoundToggle } from './components/SoundToggle'
 import type { BagId } from './game/assets'
+import { unlockCoinAudio } from './game/coinAudio'
 import {
   visualHiddenBagIds,
   type CoinFxSample,
@@ -19,7 +21,6 @@ import {
   type RoundState,
 } from './game/round'
 import { readSoundEnabled, writeSoundEnabled } from './game/sound'
-import { unlockCoinAudio } from './game/coinAudio'
 import { DEFAULT_LOCALE, getStrings } from './i18n'
 import './App.css'
 
@@ -35,6 +36,11 @@ type ActiveCoinFx = {
   runId: number
 }
 
+type ActiveBombFx = {
+  bagId: BagId
+  runId: number
+}
+
 declare global {
   interface Window {
     __3cbDev?: DevRoundApi
@@ -46,10 +52,11 @@ function App() {
   const [round, setRound] = useState<RoundState>(() => createActiveRound())
   const [soundOn, setSoundOn] = useState(() => readSoundEnabled())
   const [coinFx, setCoinFx] = useState<ActiveCoinFx | null>(null)
+  const [bombFx, setBombFx] = useState<ActiveBombFx | null>(null)
   const [fxSample, setFxSample] = useState<CoinFxSample | null>(null)
   /** Sync guard so double-taps before re-render cannot open twice. */
   const openedGuardRef = useRef<Set<BagId>>(new Set())
-  /** Short lock while COIN FX runs — prevents mixed bag origins. */
+  /** Short lock while open FX runs — prevents mixed bag origins. */
   const fxLockRef = useRef(false)
   const roundRef = useRef(round)
   const fxRunIdRef = useRef(0)
@@ -58,24 +65,28 @@ function App() {
     roundRef.current = round
   }, [round])
 
-  const clearCoinFx = useCallback(() => {
+  const clearOpenFx = useCallback(() => {
     fxLockRef.current = false
     setCoinFx(null)
+    setBombFx(null)
     setFxSample(null)
   }, [])
 
   const opened = useMemo(() => openedBagIds(round.history), [round.history])
 
   const hiddenBagIds = useMemo(() => {
+    // BOMB: bag gone immediately (opened already includes bagId).
+    if (bombFx) return opened
+
     if (!coinFx) return opened
     if (fxSample && fxSample.bagId === coinFx.bagId) {
       return visualHiddenBagIds(opened, fxSample)
     }
-    // FX scheduled but first sample not yet applied — keep bag briefly.
+    // COIN FX scheduled but first sample not yet applied — keep bag briefly.
     const next = new Set(opened)
     next.delete(coinFx.bagId)
     return next
-  }, [opened, coinFx, fxSample])
+  }, [opened, coinFx, bombFx, fxSample])
 
   const handleBagTap = useCallback((bagId: BagId) => {
     if (fxLockRef.current) return
@@ -97,9 +108,19 @@ function App() {
       fxLockRef.current = true
       fxRunIdRef.current += 1
       setFxSample(null)
+      setBombFx(null)
       setCoinFx({
         bagId,
         coinCount: contents.coinCount,
+        runId: fxRunIdRef.current,
+      })
+    } else if (contents.kind === 'bomb') {
+      fxLockRef.current = true
+      fxRunIdRef.current += 1
+      setFxSample(null)
+      setCoinFx(null)
+      setBombFx({
+        bagId,
         runId: fxRunIdRef.current,
       })
     }
@@ -114,9 +135,9 @@ function App() {
 
   const handleNewRound = useCallback(() => {
     openedGuardRef.current = new Set()
-    clearCoinFx()
+    clearOpenFx()
     setRound(createActiveRound())
-  }, [clearCoinFx])
+  }, [clearOpenFx])
 
   const handleSoundToggle = useCallback(() => {
     unlockCoinAudio()
@@ -127,13 +148,17 @@ function App() {
     })
   }, [])
 
-  const handleFxSample = useCallback((sample: CoinFxSample) => {
+  const handleCoinFxSample = useCallback((sample: CoinFxSample) => {
     setFxSample(sample)
   }, [])
 
-  const handleFxComplete = useCallback(() => {
-    clearCoinFx()
-  }, [clearCoinFx])
+  const handleCoinFxComplete = useCallback(() => {
+    clearOpenFx()
+  }, [clearOpenFx])
+
+  const handleBombFxComplete = useCallback(() => {
+    clearOpenFx()
+  }, [clearOpenFx])
 
   useEffect(() => {
     if (!import.meta.env.DEV) return
@@ -141,19 +166,19 @@ function App() {
       getRound: () => roundRef.current,
       startWithHand: (hand) => {
         openedGuardRef.current = new Set()
-        clearCoinFx()
+        clearOpenFx()
         setRound(createActiveRound(hand))
       },
       newRound: () => {
         openedGuardRef.current = new Set()
-        clearCoinFx()
+        clearOpenFx()
         setRound(createActiveRound())
       },
     }
     return () => {
       delete window.__3cbDev
     }
-  }, [clearCoinFx])
+  }, [clearOpenFx])
 
   const resultLine = (() => {
     if (!round.lastReveal) return t.dash
@@ -174,7 +199,10 @@ function App() {
     return `${t.roundCashedOut}\n${t.capturedCoins(round.capturedCoins ?? 0)}`
   })()
 
-  const canTapBags = isRoundActive(round) && !coinFx
+  // ROUND already ended on bomb; also block while any open FX runs.
+  const canTapBags = isRoundActive(round) && !coinFx && !bombFx
+  // Avoid stacking end copy over the local bomb reveal.
+  const showEndSummary = endSummary !== null && !bombFx
 
   return (
     <main className="app">
@@ -212,7 +240,7 @@ function App() {
         {resultLine}
       </p>
 
-      {endSummary ? (
+      {showEndSummary ? (
         <p className="round-end" aria-live="polite">
           {endSummary}
         </p>
@@ -225,13 +253,22 @@ function App() {
       >
         {coinFx ? (
           <CoinOpenFx
-            key={coinFx.runId}
+            key={`coin-${coinFx.runId}`}
             bagId={coinFx.bagId}
             bagCount={round.hand.bagCount}
             coinCount={coinFx.coinCount}
             soundEnabled={soundOn}
-            onSample={handleFxSample}
-            onComplete={handleFxComplete}
+            onSample={handleCoinFxSample}
+            onComplete={handleCoinFxComplete}
+          />
+        ) : null}
+        {bombFx ? (
+          <BombOpenFx
+            key={`bomb-${bombFx.runId}`}
+            bagId={bombFx.bagId}
+            bagCount={round.hand.bagCount}
+            hiddenBagIds={hiddenBagIds}
+            onComplete={handleBombFxComplete}
           />
         ) : null}
       </BagBoard>
