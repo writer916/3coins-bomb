@@ -497,4 +497,612 @@
     font-size: 0.52rem;
     padding: 0.06rem 0.26rem;
   }
+
+  .duel-bag-slot {
+    max-width: 100%;
+  }
+
+  .num-stepper-value {
+    font-size: 1.45rem;
+  }
+}
+
+
+/* ——— DUEL placement flow ——— */
+.app--duel {
+  justify-content: flex-start;
+}
+
+.duel-flow {
+  box-sizing: border-box;
+  flex: 1 1 auto;
+  align-self: stretch;
+  width: 100%;
+  max-width: 24rem;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 0;
+  justify-content: flex-start;
+  gap: 0.85rem;
+  padding: 0.25rem 0 1.25rem;
+}
+
+/*
+  ROUND + BAG setup: shared coordinate shell.
+  Top+mid spacers share free band so the module sits in the visual middle
+  between ROUND (or DUEL) and the locked button dock. Bottom spacer pins
+  CONTINUE/SET at ~451 @ 375×667.
+*/
+.duel-flow--setup {
+  gap: 0;
+  padding-bottom: max(0.65rem, env(safe-area-inset-bottom, 0px));
+  justify-content: flex-start;
+}
+
+.duel-setup-hero {
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: clamp(1.05rem, 3.2vh, 1.65rem);
+  width: 100%;
+  min-height: 0;
+  margin-top: 0;
+  padding: 0;
+}
+
+.duel-setup-spacer {
+  width: 100%;
+  pointer-events: none;
+}
+
+/*
+  Visual middle between ROUND and SET (not the old low ~271 or high ~121).
+  Top flex > mid so ROUND clears; mid still leaves clear air above locked SET.
+  Tuned against 375×667 screenshots (large stepper digit reads heavy).
+*/
+.duel-setup-spacer--top {
+  flex: 1.65 1 0;
+  min-height: 3.5rem;
+}
+
+.duel-setup-spacer--mid {
+  flex: 1 1 0;
+  min-height: 1.15rem;
+}
+
+/*
+  Locked bottom band from measure (98.313px @ 667vh ≈ 14.74vh).
+  Keeps CONTINUE/SET · TOP/BACK Y unchanged.
+*/
+.duel-setup-spacer--bottom {
+  flex: 0 0 auto;
+  height: 14.74vh;
+  min-height: 5.5rem;
+}
+
+/*
+  Shared DUEL instruction style (setup now; place Tap/READY later).
+  Brighter than muted chrome so the next action is obvious.
+*/
+.duel-instruction {
+  margin: 0;
+  max-width: 18.5rem;
+  align-self: center;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(1.08rem, 4.4vw, 1.3rem);
+  line-height: 1.35;
+  letter-spacing: 0.02em;
+  color: #f2e6d0;
+  text-align: center;
+}
+
+/*
+  Setup button dock — Y aims near place-screen NEXT ROUND (~457 @ 375×667).
+  Stack stays intact (44px / 8.8px gap).
+*/
+.duel-btn-area {
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  margin-top: clamp(1.35rem, 4vh, 1.9rem);
+  margin-bottom: 0;
+  padding: 0;
+}
+
+/*
+  Digits: same stack as SOLO `.score-num` (no new fonts).
+*/
+.duel-num {
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    'Helvetica Neue',
+    Arial,
+    sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+  ROUND → BagBoard → instruction (BagBoard group) → mid spacer → buttons
+  pinned so RESET aligns with setup CONTINUE/SET (~451 @ 375×667).
+  Board slot size/top must stay fixed (compensate round-h ↔ gap).
+*/
+.duel-flow--place {
+  --duel-slot-round-h: 1.55rem; /* match setup status band for ROUND style */
+  --duel-slot-board-h: min(42vh, 17.5rem);
+  --duel-slot-instruction-h: 2.65rem; /* JA 2-line without Y shift */
+  --duel-slot-buttons-h: 9.35rem; /* 3 × 2.75rem + 2 × 0.55rem */
+  gap: 0.35rem;
+  /* Match .duel-flow / setup so ROUND does not jump on SET. */
+  padding-top: 0.25rem;
+  padding-bottom: max(0.65rem, env(safe-area-inset-bottom, 0px));
+}
+
+/* Restore BagBoard top ≈108.26 after matching setup padding-top (was +0.406rem place-only). */
+.duel-flow--place .duel-slot-board {
+  margin-top: 0.406rem;
+}
+
+/*
+  Place has 3 buttons (setup has 2). Tune bottom band so RESET top
+  matches CONTINUE/SET (451.094), not the 2-btn stack end.
+*/
+.duel-flow--place > .duel-setup-spacer--bottom {
+  height: 5.99vh;
+  min-height: 2.35rem;
+}
+
+/*
+  Quiet mode chip — same on setup and place so SET transition does not jump.
+*/
+.duel-setup-heading {
+  font-size: clamp(0.92rem, 3.4vw, 1.1rem);
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  color: #9a8468;
+  opacity: 0.78;
+  line-height: 1.1;
+  cursor: default;
+}
+
+/* Shared with ROUND/BAG config — ROUND label sits here without shifting hint. */
+.duel-status-slot {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 1.35rem;
+  margin: 0;
+  flex: 0 0 auto;
+}
+
+.duel-flow--setup .duel-status-slot {
+  min-height: 1.55rem;
+}
+
+.duel-setup-hint {
+  margin: 0;
+  max-width: 16rem;
+  align-self: center;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(0.88rem, 3.4vw, 1rem);
+  line-height: 1.35;
+  letter-spacing: 0.02em;
+  color: #c4b49a;
+  text-align: center;
+}
+
+.duel-field--stack-actions {
+  min-height: 0;
+  margin-top: 0.15rem;
+}
+
+.duel-btn-stack {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.55rem;
+  min-width: 8.5rem;
+  width: max-content;
+  max-width: 100%;
+  flex-shrink: 0;
+}
+
+.duel-btn-stack .duel-btn {
+  width: 100%;
+  min-width: 0;
+  white-space: nowrap;
+  flex: 0 0 auto;
+  flex-shrink: 0;
+}
+
+/*
+  Place buttons: keep former “RESET ROUND” stack width so shortening the
+  label to RESET does not shrink the shared button box.
+*/
+.duel-flow--place .duel-btn-stack {
+  min-width: 9.007rem; /* ≈144.12px @ 16px root */
+}
+
+.duel-slot {
+  box-sizing: border-box;
+  width: 100%;
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.duel-slot-round {
+  height: var(--duel-slot-round-h);
+  min-height: var(--duel-slot-round-h);
+}
+
+.duel-slot-instruction {
+  height: var(--duel-slot-instruction-h);
+  min-height: var(--duel-slot-instruction-h);
+  overflow: visible;
+}
+
+/* Pull instruction into BagBoard empty margin — BagBoard group, not button chrome. */
+.duel-flow--place .duel-slot-instruction {
+  margin-top: -3.1rem;
+  justify-content: flex-start;
+}
+
+/* Place reuses shared .duel-instruction (same as Choose the number of …). */
+
+/*
+  Button slot must NOT clip borders (overflow:hidden on .duel-slot was
+  shaving ~1px off RESET/BACK edges → looked shorter than CONTINUE).
+*/
+.duel-slot-buttons {
+  height: var(--duel-slot-buttons-h);
+  min-height: var(--duel-slot-buttons-h);
+  max-height: none;
+  justify-content: flex-start;
+  overflow: visible;
+}
+
+.duel-slot-board {
+  height: var(--duel-slot-board-h);
+  min-height: var(--duel-slot-board-h);
+  position: relative;
+  justify-content: flex-start;
+  overflow: visible;
+}
+
+.duel-btn-ghost {
+  display: block;
+  box-sizing: border-box;
+  height: 2.75rem;
+  min-height: 2.75rem;
+  min-width: 8.5rem;
+  width: 100%;
+  visibility: hidden;
+  pointer-events: none;
+  flex-shrink: 0;
+}
+
+.duel-round-index {
+  margin: 0;
+  display: inline-flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: baseline;
+  justify-content: center;
+  /* Holds “ROUND 20 / 20” without reflow when digits grow. */
+  min-width: 11.5rem;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(0.95rem, 3.6vw, 1.1rem);
+  letter-spacing: 0.06em;
+  color: #c4b49a;
+  text-align: center;
+  line-height: 1.2;
+}
+
+/* Setup + place share strong ROUND (setup visual hierarchy). */
+.duel-flow--setup .duel-round-index,
+.duel-flow--place .duel-round-index {
+  min-width: 12.5rem;
+  font-size: clamp(1.15rem, 4.4vw, 1.38rem);
+  letter-spacing: 0.07em;
+  color: #f2e6d0;
+}
+
+.duel-flow--setup .duel-round-index .duel-num,
+.duel-flow--place .duel-round-index .duel-num {
+  font-size: inherit;
+  font-weight: 700;
+  color: #f5ebd8;
+  letter-spacing: 0.02em;
+}
+
+.duel-round-index__word {
+  flex-shrink: 0;
+}
+
+.duel-round-index__nums {
+  display: inline-block;
+  box-sizing: content-box;
+  min-width: 5.6ch;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+}
+
+.duel-round-index .duel-num {
+  font-size: inherit;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.duel-status-line {
+  margin: 0;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(0.88rem, 3.4vw, 1rem);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #c4b49a;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.duel-field {
+  box-sizing: border-box;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.duel-field--actions {
+  min-height: 3.1rem;
+  margin-top: 0.15rem;
+}
+
+.duel-field--stepper {
+  min-height: 6.8rem;
+}
+
+.num-stepper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.num-stepper-label {
+  margin: 0;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(0.92rem, 3.5vw, 1.05rem);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: #c4b49a;
+}
+
+.num-stepper-label .duel-num {
+  font-size: 1.05em;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.num-stepper-body {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.num-stepper-value {
+  margin: 0;
+  min-width: 2.75rem;
+  text-align: center;
+  font-size: clamp(2.35rem, 9vw, 3rem);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  color: #f5ebd8;
+  line-height: 1;
+}
+
+.num-stepper-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.num-stepper-btn {
+  box-sizing: border-box;
+  width: 2.35rem;
+  height: 1.55rem;
+  margin: 0;
+  padding: 0;
+  border: 1px solid #5a4a38;
+  border-radius: 0.25rem;
+  background: #241c16;
+  color: #c4a574;
+  font-size: 0.7rem;
+  line-height: 1;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.num-stepper-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.num-stepper-btn:focus-visible {
+  outline: 2px solid #c4a574;
+  outline-offset: 2px;
+}
+
+.duel-btn {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* Match CONTINUE’s generous rendered box (not a cramped 2.4rem content box). */
+  height: 2.75rem;
+  min-height: 2.75rem;
+  max-height: 2.75rem;
+  min-width: 8.5rem;
+  margin: 0;
+  padding: 0 0.85rem;
+  border: 1px solid #c4a574;
+  border-radius: 0.35rem;
+  background: #2a221a;
+  color: #f2e6d0;
+  font: inherit;
+  font-size: 0.92rem;
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: 0.06em;
+  text-align: center;
+  white-space: nowrap;
+  cursor: pointer;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.duel-btn--primary {
+  border-color: #c4a574;
+}
+
+.duel-btn:disabled {
+  opacity: 0.38;
+  color: #9a8b74;
+  border-color: #6a5a48;
+  background: #221c16;
+  cursor: default;
+}
+
+.duel-btn:focus-visible {
+  outline: 2px solid #c4a574;
+  outline-offset: 2px;
+}
+
+.duel-slot-board .bag-board {
+  max-height: 100%;
+}
+
+.duel-bag-placeholder {
+  width: min(100%, 22rem);
+  height: 100%;
+  max-height: 100%;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.duel-complete-summary,
+.duel-locked-label {
+  margin: 0;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(1.05rem, 4vw, 1.3rem);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #f2e6d0;
+  text-align: center;
+}
+
+@media (max-height: 600px) {
+  .duel-flow {
+    gap: 0.55rem;
+    padding-bottom: 0.5rem;
+  }
+
+  .duel-flow--setup {
+    gap: 0;
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
+  }
+
+  .duel-setup-hero {
+    margin-top: 0;
+    gap: clamp(0.7rem, 2.6vh, 1.05rem);
+    padding: 0;
+  }
+
+  .duel-setup-spacer--top {
+    flex: 1.65 1 0;
+    min-height: 1.85rem;
+  }
+
+  .duel-setup-spacer--mid {
+    flex: 1 1 0;
+    min-height: 0.75rem;
+  }
+
+  .duel-setup-spacer--bottom {
+    height: 14.74vh;
+    min-height: 4.35rem;
+  }
+
+  .duel-btn-area {
+    margin-top: clamp(0.9rem, 3vh, 1.25rem);
+    margin-bottom: 0;
+    padding: 0;
+  }
+
+  .duel-instruction {
+    font-size: clamp(1rem, 4vw, 1.15rem);
+  }
+
+  .app--duel .duel-setup-heading {
+    font-size: clamp(0.85rem, 3.2vw, 1rem);
+  }
+
+  .duel-flow--setup .duel-round-index,
+  .duel-flow--place .duel-round-index {
+    font-size: clamp(1.05rem, 4vw, 1.22rem);
+  }
+
+  .duel-flow--place {
+    --duel-slot-round-h: 1.35rem;
+    --duel-slot-board-h: min(34vh, 13rem);
+    --duel-slot-instruction-h: 2.45rem;
+    --duel-slot-buttons-h: 9.35rem;
+    gap: 0.15rem;
+    padding-top: 0.25rem;
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
+  }
+
+  .duel-flow--place .duel-slot-board {
+    margin-top: 0.406rem;
+  }
+
+  .duel-flow--place > .duel-setup-spacer--bottom {
+    height: 5.99vh;
+    min-height: 2.2rem;
+  }
+
+  .duel-flow--place .duel-slot-instruction {
+    margin-top: -2.35rem;
+  }
+
+  .duel-field--stepper {
+    min-height: 5.6rem;
+  }
+
+  .num-stepper {
+    gap: 0.45rem;
+  }
+
+  .num-stepper-value {
+    font-size: clamp(1.95rem, 8vw, 2.35rem);
+  }
 }

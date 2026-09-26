@@ -44,4 +44,27 @@ export type AppStrings = {
   comingSoon: string
   /** Accessible name when brand title returns to mode select. */
   backToTop: string
+  /** DUEL placement flow. */
+  duelRoundsHint: string
+  duelRoundsLabel: string
+  duelContinue: string
+  duelTop: string
+  duelBagsHint: string
+  duelBagsLabel: string
+  duelSet: string
+  duelPlaceBomb: string
+  duelPlaceCoins: string
+  duelReady: string
+  duelResetRound: string
+  duelNextRound: string
+  duelComplete: string
+  duelStartOver: string
+  duelLock: string
+  duelPlacementsLocked: string
+  duelBack: string
+  duelRoundProgress: (current: number, total: number) => string
+  duelRoundsReady: (total: number) => string
+  duelStartOverConfirm: string
+  duelLockConfirm: string
+  duelBackConfirm: string
 }

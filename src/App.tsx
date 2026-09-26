@@ -5,6 +5,7 @@ import { CoinOpenFx } from './components/CoinOpenFx'
 import { EmptyOpenFx } from './components/EmptyOpenFx'
 import { LanguageToggle } from './components/LanguageToggle'
 import { ModeSelect, type PlayMode } from './components/ModeSelect'
+import { DuelFlow } from './components/DuelFlow'
 import { RevealBoard } from './components/RevealBoard'
 import { SoundToggle } from './components/SoundToggle'
 import type { BagId } from './game/assets'
@@ -49,7 +50,7 @@ import {
 import { getStrings, type LocaleId } from './i18n'
 import './App.css'
 
-type AppScreen = 'top' | 'solo' | 'coming'
+type AppScreen = 'top' | 'solo' | 'coming' | 'duel'
 
 type DevRoundApi = {
   getRound: () => RoundState
@@ -374,6 +375,11 @@ function App() {
       setScreen('solo')
       return
     }
+    if (mode === 'duel') {
+      setComingMode(null)
+      setScreen('duel')
+      return
+    }
     setComingMode(mode)
     setScreen('coming')
   }, [])
@@ -480,11 +486,7 @@ function App() {
 
   if (screen === 'coming') {
     const modeName =
-      comingMode === 'duel'
-        ? t.modeDuelName
-        : comingMode === 'group'
-          ? t.modeGroupName
-          : ''
+      comingMode === 'group' ? t.modeGroupName : ''
     return (
       <main className="app app--coming">
         <div className="field-header">
@@ -505,6 +507,22 @@ function App() {
           {modeName ? <p className="coming-soon-mode">{modeName}</p> : null}
           <p className="coming-soon-label">{t.comingSoon}</p>
         </div>
+      </main>
+    )
+  }
+
+  if (screen === 'duel') {
+    return (
+      <main className="app app--duel">
+        <div className="field-header">
+          {topControls}
+          <header className="app-header">
+            <h1 className="brand-title duel-setup-heading" aria-label={t.modeDuelName}>
+              {t.modeDuelName}
+            </h1>
+          </header>
+        </div>
+        <DuelFlow t={t} onGoTop={goTop} />
       </main>
     )
   }

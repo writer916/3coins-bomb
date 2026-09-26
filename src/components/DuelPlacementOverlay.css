@@ -1,0 +1,30 @@
+.duel-place-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.duel-place-bomb,
+.duel-place-coin {
+  position: absolute;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+}
+
+.duel-place-coin {
+  --duel-ox: 0px;
+  --duel-oy: 0px;
+  transform: translate(-50%, -50%) translate(var(--duel-ox), var(--duel-oy));
+}
+
+.duel-place-img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1 / 1;
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-drag: none;
+  filter: drop-shadow(0 2px 3px rgb(0 0 0 / 0.45));
+  pointer-events: none;
+}
