@@ -509,27 +509,20 @@ function App() {
         </div>
       </div>
 
-      {/* GROUP C: SESSION SCORE — symmetric rails keep SCORE on true center */}
+      {/* GROUP C: SESSION SCORE — one flex row (ROUNDS / COINS / RESET) fits viewport */}
       <div className="group-session" aria-live="polite">
-        <div className="score-anchor">
-          <div className="score-rail score-rail--start" aria-hidden="true">
-            <span className="reset-btn reset-sizer">{t.reset}</span>
-          </div>
-          <div className="score-main">
-            <p className="score-item">
-              <span className="score-label">{t.soloRoundsLabel}</span>
-              <span className="score-num">{soloStats.rounds}</span>
-            </p>
-            <p className="score-item">
-              <span className="score-label">{t.soloCoinsLabel}</span>
-              <span className="score-num">{soloStats.capturedCoins}</span>
-            </p>
-          </div>
-          <div className="score-rail score-rail--end">
-            <button type="button" className="reset-btn" onClick={handleReset}>
-              {t.reset}
-            </button>
-          </div>
+        <div className="score-row">
+          <p className="score-item">
+            <span className="score-label">{t.soloRoundsLabel}</span>
+            <span className="score-num">{soloStats.rounds}</span>
+          </p>
+          <p className="score-item">
+            <span className="score-label">{t.soloCoinsLabel}</span>
+            <span className="score-num">{soloStats.capturedCoins}</span>
+          </p>
+          <button type="button" className="reset-btn" onClick={handleReset}>
+            {t.reset}
+          </button>
         </div>
       </div>
     </main>
