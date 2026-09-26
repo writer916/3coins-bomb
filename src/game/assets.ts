@@ -38,3 +38,18 @@ export function bombSrc(bombId: BombId): string {
 export function coinChimeSrc(): string {
   return `${AUDIO_ASSET_BASE}/coin-chime.mp3`
 }
+
+/** BOMB open pop (fade-start cue). */
+export function bombPopSrc(): string {
+  return `${AUDIO_ASSET_BASE}/bomb-pop.mp3`
+}
+
+/** Shared bag-open cloth SE (all result kinds). */
+export function bagOpenSrc(): string {
+  return `${AUDIO_ASSET_BASE}/bag-open.mp3`
+}
+
+/** 3 COINS cleared confirm SE. */
+export function threeCoinsSrc(): string {
+  return `${AUDIO_ASSET_BASE}/three-coins.mp3`
+}

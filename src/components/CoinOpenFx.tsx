@@ -8,6 +8,12 @@ import {
   type FxCoinCount,
 } from '../game/coinFx'
 import { resolveCoinChimeRequest } from '../game/coinSfx'
+import { playThreeCoins } from '../game/threeCoinsAudio'
+import {
+  resolveThreeCoinsSeRequest,
+  shouldConsumeThreeCoinsCue,
+  threeCoinsCueAtMs,
+} from '../game/threeCoinsSfx'
 import { getFormation, type BagCount } from '../game/formations'
 import './CoinOpenFx.css'
 
@@ -15,6 +21,11 @@ type CoinOpenFxProps = {
   bagId: BagId
   bagCount: BagCount
   coinCount: FxCoinCount
+  /**
+   * True when this open caused ROUND cleared (provisional reached 3).
+   * Gates 3 COINS confirm SE only — ROUND already settled in game logic.
+   */
+  clearsRound: boolean
   /** Current SOUND ON/OFF — gates chimes without touching ROUND. */
   soundEnabled: boolean
   onSample?: (sample: CoinFxSample) => void
@@ -24,20 +35,26 @@ type CoinOpenFxProps = {
 /**
  * Local COIN burst above the opened bag. Visual only — does not mutate ROUND.
  * Remount via `key` when a new open starts.
- * Chimes fire when +N advances; audio failures are swallowed.
+ * Chimes fire when +N advances; optional 3 COINS SE after last chime + delay.
  */
 export function CoinOpenFx({
   bagId,
   bagCount,
   coinCount,
+  clearsRound,
   soundEnabled,
   onSample,
   onComplete,
 }: CoinOpenFxProps) {
   const plan = useMemo(() => planCoinFx(bagId, coinCount), [bagId, coinCount])
+  const threeCueAt = useMemo(
+    () => (clearsRound ? threeCoinsCueAtMs(plan) : null),
+    [clearsRound, plan],
+  )
   const [sample, setSample] = useState<CoinFxSample>(() => sampleCoinFx(plan, 0))
   const completedRef = useRef(false)
   const prevDisplayRef = useRef<number | null>(null)
+  const threeFiredRef = useRef(false)
   const soundEnabledRef = useRef(soundEnabled)
   const onCompleteRef = useRef(onComplete)
   const onSampleRef = useRef(onSample)
@@ -56,6 +73,7 @@ export function CoinOpenFx({
   useEffect(() => {
     completedRef.current = false
     prevDisplayRef.current = null
+    threeFiredRef.current = false
     const started = performance.now()
     let raf = 0
 
@@ -75,6 +93,29 @@ export function CoinOpenFx({
         prevDisplayRef.current = next.displayTotal
       }
 
+      if (threeCueAt !== null) {
+        const three = resolveThreeCoinsSeRequest(
+          clearsRound,
+          soundEnabledRef.current,
+          threeFiredRef.current,
+          elapsed,
+          threeCueAt,
+        )
+        if (
+          shouldConsumeThreeCoinsCue(
+            clearsRound,
+            threeFiredRef.current,
+            elapsed,
+            threeCueAt,
+          )
+        ) {
+          threeFiredRef.current = true
+        }
+        if (three.play) {
+          playThreeCoins({ soundEnabled: true })
+        }
+      }
+
       setSample(next)
       onSampleRef.current?.(next)
       if (next.finished) {
@@ -89,7 +130,7 @@ export function CoinOpenFx({
 
     raf = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(raf)
-  }, [plan])
+  }, [plan, clearsRound, threeCueAt])
 
   if (!slot || sample.finished) return null
 

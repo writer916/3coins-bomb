@@ -1,4 +1,6 @@
 import { coinChimeSrc } from './assets'
+import { warmBagOpenAudio } from './bagAudio'
+import { warmThreeCoinsAudio } from './threeCoinsAudio'
 import { isSoundEnabled } from './sound'
 
 /** Playback volume (source file unchanged). Tunable later after listening. */
@@ -57,11 +59,16 @@ export function unlockCoinAudio(): void {
           /* ignore */
         }
       }
+      // Preload bag-open / three-coins off the open critical path (never sync load→play).
+      warmBagOpenAudio()
+      warmThreeCoinsAudio()
     }
     if (result && typeof result.then === 'function') {
       void result.then(warm).catch(() => {
         /* still mark warmed so later plays may succeed after gesture */
         p.unlocked = true
+        warmBagOpenAudio()
+        warmThreeCoinsAudio()
       })
     } else {
       warm()

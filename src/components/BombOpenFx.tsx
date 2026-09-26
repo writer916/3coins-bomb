@@ -1,7 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { bombSrc, type BagId } from '../game/assets'
+import { playBombPop, warmBombAudio } from '../game/bombAudio'
 import { planBombFx, sampleBombFx, type BombFxSample } from '../game/bombFx'
 import { BOMB_SIZE_FRAC_OF_BAG, resolveBombPlacement } from '../game/bombPlacement'
+import {
+  bombSoundCueFromPlan,
+  resolveBombPopRequest,
+  shouldConsumeBombPopCue,
+} from '../game/bombSfx'
 import { bagDepthZIndex, type BagCount } from '../game/formations'
 import './BombOpenFx.css'
 
@@ -10,24 +16,30 @@ type BombOpenFxProps = {
   bagCount: BagCount
   /** Opened / hidden bags — neighbors for collision are the rest. */
   hiddenBagIds: ReadonlySet<BagId>
+  /** Current SOUND ON/OFF — gates pop without touching ROUND. */
+  soundEnabled: boolean
   onSample?: (sample: BombFxSample) => void
   onComplete: () => void
 }
 
 /**
  * BOMB reveal at the opened bag’s visual center — no upward flight.
- * Visual only; ROUND is already bombed by game logic.
+ * Visual only for ROUND (already bombed); optional fade-start pop SE.
  */
 export function BombOpenFx({
   bagId,
   bagCount,
   hiddenBagIds,
+  soundEnabled,
   onSample,
   onComplete,
 }: BombOpenFxProps) {
   const plan = useMemo(() => planBombFx(bagId), [bagId])
+  const cue = useMemo(() => bombSoundCueFromPlan(plan), [plan])
   const [sample, setSample] = useState<BombFxSample>(() => sampleBombFx(plan, 0))
   const completedRef = useRef(false)
+  const popFiredRef = useRef(false)
+  const soundEnabledRef = useRef(soundEnabled)
   const onCompleteRef = useRef(onComplete)
   const onSampleRef = useRef(onSample)
 
@@ -35,6 +47,14 @@ export function BombOpenFx({
     onCompleteRef.current = onComplete
     onSampleRef.current = onSample
   }, [onComplete, onSample])
+
+  useEffect(() => {
+    soundEnabledRef.current = soundEnabled
+  }, [soundEnabled])
+
+  useEffect(() => {
+    warmBombAudio()
+  }, [])
 
   const remainingBagIds = useMemo(() => {
     const all: BagId[] = []
@@ -62,12 +82,27 @@ export function BombOpenFx({
 
   useEffect(() => {
     completedRef.current = false
+    popFiredRef.current = false
     const started = performance.now()
     let raf = 0
 
     const tick = (now: number) => {
       const elapsed = now - started
       const next = sampleBombFx(plan, elapsed)
+
+      const pop = resolveBombPopRequest(
+        soundEnabledRef.current,
+        popFiredRef.current,
+        elapsed,
+        cue.atMs,
+      )
+      if (shouldConsumeBombPopCue(popFiredRef.current, elapsed, cue.atMs)) {
+        popFiredRef.current = true
+      }
+      if (pop.play) {
+        playBombPop({ soundEnabled: true })
+      }
+
       setSample(next)
       onSampleRef.current?.(next)
       if (next.finished) {
@@ -82,7 +117,7 @@ export function BombOpenFx({
 
     raf = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(raf)
-  }, [plan])
+  }, [plan, cue.atMs])
 
   if (sample.finished) return null
 

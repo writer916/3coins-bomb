@@ -6,6 +6,8 @@ import { EmptyOpenFx } from './components/EmptyOpenFx'
 import { SoundToggle } from './components/SoundToggle'
 import type { BagId } from './game/assets'
 import { unlockCoinAudio } from './game/coinAudio'
+import { playBagOpen, warmBagOpenAudio } from './game/bagAudio'
+import { resolveBagOpenSeRequest } from './game/bagSfx'
 import {
   visualHiddenBagIds,
   type CoinFxSample,
@@ -34,6 +36,8 @@ type DevRoundApi = {
 type ActiveCoinFx = {
   bagId: BagId
   coinCount: FxCoinCount
+  /** This open caused phase=cleared (3 COINS). */
+  clearsRound: boolean
   runId: number
 }
 
@@ -67,10 +71,15 @@ function App() {
   const fxLockRef = useRef(false)
   const roundRef = useRef(round)
   const fxRunIdRef = useRef(0)
+  const soundOnRef = useRef(soundOn)
 
   useEffect(() => {
     roundRef.current = round
   }, [round])
+
+  useEffect(() => {
+    soundOnRef.current = soundOn
+  }, [soundOn])
 
   const clearOpenFx = useCallback(() => {
     fxLockRef.current = false
@@ -100,6 +109,8 @@ function App() {
     if (fxLockRef.current) return
     if (openedGuardRef.current.has(bagId)) return
 
+    // Unlock + async warm (coin + bag preload). Do NOT sync-load bag here —
+    // load() immediately before playBagOpen races and stalls currentTime.
     unlockCoinAudio()
 
     const prev = roundRef.current
@@ -111,6 +122,11 @@ function App() {
     openedGuardRef.current.add(bagId)
     setRound(result.state)
 
+    const bagSe = resolveBagOpenSeRequest(soundOnRef.current, true)
+    if (bagSe.play) {
+      playBagOpen({ soundEnabled: true })
+    }
+
     const contents = result.reveal.contents
     if (contents.kind === 'coins') {
       fxLockRef.current = true
@@ -121,6 +137,7 @@ function App() {
       setCoinFx({
         bagId,
         coinCount: contents.coinCount,
+        clearsRound: result.state.phase === 'cleared',
         runId: fxRunIdRef.current,
       })
     } else if (contents.kind === 'bomb') {
@@ -161,6 +178,7 @@ function App() {
 
   const handleSoundToggle = useCallback(() => {
     unlockCoinAudio()
+    warmBagOpenAudio()
     setSoundOn((prev) => {
       const next = !prev
       writeSoundEnabled(next)
@@ -281,6 +299,7 @@ function App() {
             bagId={coinFx.bagId}
             bagCount={round.hand.bagCount}
             coinCount={coinFx.coinCount}
+            clearsRound={coinFx.clearsRound}
             soundEnabled={soundOn}
             onSample={handleCoinFxSample}
             onComplete={handleCoinFxComplete}
@@ -292,6 +311,7 @@ function App() {
             bagId={bombFx.bagId}
             bagCount={round.hand.bagCount}
             hiddenBagIds={hiddenBagIds}
+            soundEnabled={soundOn}
             onComplete={handleBombFxComplete}
           />
         ) : null}
