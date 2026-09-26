@@ -7,6 +7,10 @@ export type AppStrings = {
   topBlurb: string
   bagsMeta: (count: number) => string
   newRound: string
+  /** End-of-ROUND optional full-hand answer. */
+  reveal: string
+  /** End-of-ROUND primary advance (same flow as newRound for solo). */
+  nextRound: string
   cashOut: string
   provisionalCoins: (count: number) => string
   resultEmpty: string

@@ -1,0 +1,27 @@
+.reveal-board {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.reveal-coin,
+.reveal-bomb {
+  position: absolute;
+  pointer-events: none;
+  --reveal-ox: 0px;
+  --reveal-oy: 0px;
+  transform: translate(-50%, -50%) translate(var(--reveal-ox), var(--reveal-oy));
+}
+
+.reveal-coin-img,
+.reveal-bomb-img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1 / 1;
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-drag: none;
+  filter: drop-shadow(0 2px 3px rgb(0 0 0 / 0.45));
+  pointer-events: none;
+}

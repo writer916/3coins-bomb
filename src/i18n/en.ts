@@ -6,6 +6,8 @@ export const en: AppStrings = {
   topBlurb: '',
   bagsMeta: (count) => `${count} bags`,
   newRound: 'New ROUND',
+  reveal: 'REVEAL',
+  nextRound: 'NEXT ROUND →',
   cashOut: 'CASH OUT',
   provisionalCoins: (count) => `COINS ${count}`,
   resultEmpty: 'EMPTY',

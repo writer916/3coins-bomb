@@ -3,6 +3,7 @@ import { BagBoard } from './components/BagBoard'
 import { BombOpenFx } from './components/BombOpenFx'
 import { CoinOpenFx } from './components/CoinOpenFx'
 import { EmptyOpenFx } from './components/EmptyOpenFx'
+import { RevealBoard } from './components/RevealBoard'
 import { SoundToggle } from './components/SoundToggle'
 import type { BagId } from './game/assets'
 import { unlockCoinAudio } from './game/coinAudio'
@@ -13,8 +14,14 @@ import {
   type CoinFxSample,
   type FxCoinCount,
 } from './game/coinFx'
+import { bagsForCount } from './game/formations'
 import type { HiddenHand } from './game/hand'
 import { openedBagIds } from './game/open'
+import {
+  buildRevealPlan,
+  canRequestReveal,
+  canShowEndActions,
+} from './game/reveal'
 import {
   applyOpenBag,
   canCashOut,
@@ -31,6 +38,9 @@ type DevRoundApi = {
   getRound: () => RoundState
   startWithHand: (hand: HiddenHand) => void
   newRound: () => void
+  /** DEV: jump to FULL REVEAL for a fixed hand (no FX / no SE). */
+  previewFullReveal: (hand: HiddenHand) => void
+  getRevealed: () => boolean
 }
 
 type ActiveCoinFx = {
@@ -65,17 +75,24 @@ function App() {
   const [bombFx, setBombFx] = useState<ActiveBombFx | null>(null)
   const [emptyFx, setEmptyFx] = useState<ActiveEmptyFx | null>(null)
   const [fxSample, setFxSample] = useState<CoinFxSample | null>(null)
+  /** FULL REVEAL toggled after ROUND end (optional). */
+  const [revealed, setRevealed] = useState(false)
   /** Sync guard so double-taps before re-render cannot open twice. */
   const openedGuardRef = useRef<Set<BagId>>(new Set())
   /** Short lock while open FX runs — prevents mixed bag origins. */
   const fxLockRef = useRef(false)
   const roundRef = useRef(round)
+  const revealedRef = useRef(revealed)
   const fxRunIdRef = useRef(0)
   const soundOnRef = useRef(soundOn)
 
   useEffect(() => {
     roundRef.current = round
   }, [round])
+
+  useEffect(() => {
+    revealedRef.current = revealed
+  }, [revealed])
 
   useEffect(() => {
     soundOnRef.current = soundOn
@@ -91,7 +108,15 @@ function App() {
 
   const opened = useMemo(() => openedBagIds(round.history), [round.history])
 
+  const allBagIds = useMemo(
+    () => new Set(bagsForCount(round.hand.bagCount)),
+    [round.hand.bagCount],
+  )
+
   const hiddenBagIds = useMemo(() => {
+    // FULL REVEAL: every bag image gone — contents overlay only.
+    if (revealed) return allBagIds
+
     // BOMB / EMPTY: bag gone immediately (opened already includes bagId).
     if (bombFx || emptyFx) return opened
 
@@ -103,7 +128,16 @@ function App() {
     const next = new Set(opened)
     next.delete(coinFx.bagId)
     return next
-  }, [opened, coinFx, bombFx, emptyFx, fxSample])
+  }, [revealed, allBagIds, opened, coinFx, bombFx, emptyFx, fxSample])
+
+  const openFxActive = coinFx !== null || bombFx !== null || emptyFx !== null
+  const showEndActions = canShowEndActions(round.phase, openFxActive)
+  const showRevealBtn = canRequestReveal(round.phase, openFxActive, revealed)
+
+  const revealPlan = useMemo(
+    () => (revealed ? buildRevealPlan(round.hand, round.history) : null),
+    [revealed, round.hand, round.history],
+  )
 
   const handleBagTap = useCallback((bagId: BagId) => {
     if (fxLockRef.current) return
@@ -173,8 +207,17 @@ function App() {
   const handleNewRound = useCallback(() => {
     openedGuardRef.current = new Set()
     clearOpenFx()
+    setRevealed(false)
     setRound(createActiveRound())
   }, [clearOpenFx])
+
+  const handleReveal = useCallback(() => {
+    if (!canRequestReveal(roundRef.current.phase, fxLockRef.current, revealedRef.current)) {
+      return
+    }
+    // Instant, silent — no SE / no FX.
+    setRevealed(true)
+  }, [])
 
   const handleSoundToggle = useCallback(() => {
     unlockCoinAudio()
@@ -206,15 +249,32 @@ function App() {
     if (!import.meta.env.DEV) return
     window.__3cbDev = {
       getRound: () => roundRef.current,
+      getRevealed: () => revealedRef.current,
       startWithHand: (hand) => {
         openedGuardRef.current = new Set()
         clearOpenFx()
+        setRevealed(false)
         setRound(createActiveRound(hand))
       },
       newRound: () => {
         openedGuardRef.current = new Set()
         clearOpenFx()
+        setRevealed(false)
         setRound(createActiveRound())
+      },
+      previewFullReveal: (hand) => {
+        openedGuardRef.current = new Set()
+        clearOpenFx()
+        // Settled cashed-out shell so end actions / reveal UI appear without FX.
+        setRound({
+          hand,
+          history: [],
+          lastReveal: null,
+          phase: 'cashed-out',
+          provisionalCoins: 1,
+          capturedCoins: 1,
+        })
+        setRevealed(true)
       },
     }
     return () => {
@@ -264,9 +324,11 @@ function App() {
 
       <p className="round-meta">{t.bagsMeta(round.hand.bagCount)}</p>
 
-      <button type="button" className="dev-btn" onClick={handleNewRound}>
-        {t.newRound}
-      </button>
+      {isRoundActive(round) ? (
+        <button type="button" className="dev-btn" onClick={handleNewRound}>
+          {t.newRound}
+        </button>
+      ) : null}
 
       <p className="provisional" aria-live="polite">
         {t.provisionalCoins(round.provisionalCoins)}
@@ -288,11 +350,33 @@ function App() {
         </p>
       ) : null}
 
+      {showEndActions ? (
+        <div className="end-actions">
+          {showRevealBtn ? (
+            <button
+              type="button"
+              className="dev-btn end-action-reveal"
+              onClick={handleReveal}
+            >
+              {t.reveal}
+            </button>
+          ) : null}
+          <button
+            type="button"
+            className="dev-btn end-action-next"
+            onClick={handleNewRound}
+          >
+            {t.nextRound}
+          </button>
+        </div>
+      ) : null}
+
       <BagBoard
         bagCount={round.hand.bagCount}
         hiddenBagIds={hiddenBagIds}
         onBagTap={canTapBags ? handleBagTap : undefined}
       >
+        {revealPlan ? <RevealBoard plan={revealPlan} /> : null}
         {coinFx ? (
           <CoinOpenFx
             key={`coin-${coinFx.runId}`}

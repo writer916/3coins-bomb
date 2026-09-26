@@ -118,3 +118,24 @@
   letter-spacing: 0.06em;
   color: #c4a574;
 }
+
+.end-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 0.55rem 0.75rem;
+  margin: 0 0 0.75rem;
+}
+
+.end-action-reveal {
+  background: transparent;
+  border-color: #5a4a38;
+  color: #c4a574;
+}
+
+.end-action-next {
+  border-color: #c4a574;
+  background: #2a221a;
+  color: #f2e6d0;
+}
