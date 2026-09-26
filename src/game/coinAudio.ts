@@ -1,0 +1,120 @@
+import { coinChimeSrc } from './assets'
+import { isSoundEnabled } from './sound'
+
+/** Playback volume (source file unchanged). Tunable later after listening. */
+export const COIN_CHIME_VOLUME = 0.32
+
+const POOL_SIZE = 3
+
+type AudioPool = {
+  elements: HTMLAudioElement[]
+  index: number
+  unlocked: boolean
+}
+
+let pool: AudioPool | null = null
+
+function getPool(): AudioPool | null {
+  if (typeof Audio === 'undefined') return null
+  if (pool) return pool
+  try {
+    const elements: HTMLAudioElement[] = []
+    for (let i = 0; i < POOL_SIZE; i++) {
+      const a = new Audio(coinChimeSrc())
+      a.preload = 'auto'
+      a.volume = COIN_CHIME_VOLUME
+      elements.push(a)
+    }
+    pool = { elements, index: 0, unlocked: false }
+    return pool
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Warm / unlock audio after a user gesture (tap). Safe no-op on failure.
+ * Required for mobile browsers that block autoplay.
+ * Uses a silent probe — never plays the coin chime asset itself.
+ */
+export function unlockCoinAudio(): void {
+  try {
+    const p = getPool()
+    if (!p || p.unlocked) return
+
+    // Minimal silent wav — unlocks autoplay without sounding the chime.
+    const silent = new Audio(
+      'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA=',
+    )
+    silent.volume = 0
+    const result = silent.play()
+    const warm = () => {
+      p.unlocked = true
+      for (const el of p.elements) {
+        try {
+          el.load()
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+    if (result && typeof result.then === 'function') {
+      void result.then(warm).catch(() => {
+        /* still mark warmed so later plays may succeed after gesture */
+        p.unlocked = true
+      })
+    } else {
+      warm()
+    }
+  } catch {
+    /* ignore — game must continue */
+  }
+}
+
+/**
+ * Play one coin chime. Overlapping calls use a small Audio pool (no wait).
+ * Never throws; never touches ROUND state.
+ */
+export function playCoinChime(options?: {
+  soundEnabled?: boolean
+  volume?: number
+}): void {
+  try {
+    const enabled =
+      options?.soundEnabled !== undefined
+        ? options.soundEnabled
+        : isSoundEnabled()
+    if (!enabled) return
+
+    const p = getPool()
+    if (!p) return
+
+    const audio = p.elements[p.index % p.elements.length]
+    p.index = (p.index + 1) % p.elements.length
+    if (!audio) return
+
+    audio.volume = options?.volume ?? COIN_CHIME_VOLUME
+    try {
+      audio.currentTime = 0
+    } catch {
+      /* some browsers throw if not loaded yet */
+    }
+    const result = audio.play()
+    if (result && typeof result.catch === 'function') {
+      void result.catch(() => {
+        /* autoplay / decode errors — ignore */
+      })
+    }
+  } catch {
+    /* ignore — game must continue */
+  }
+}
+
+/** Test helper: run a play callback without letting errors escape. */
+export function safeRunAudio(play: () => void): void {
+  try {
+    play()
+  } catch {
+    /* ignore */
+  }
+}

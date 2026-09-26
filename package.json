@@ -12,6 +12,7 @@
     "verify:open": "tsx scripts/verify-open.ts",
     "verify:round": "tsx scripts/verify-round.ts",
     "verify:fx": "tsx scripts/verify-fx.ts",
+    "verify:audio": "tsx scripts/verify-audio.ts",
     "preview": "vite preview"
   },
   "dependencies": {

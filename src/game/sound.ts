@@ -1,6 +1,6 @@
 /**
- * SOUND ON/OFF preference (no audio playback yet).
- * Future SFX should call `isSoundEnabled()` before playing.
+ * SOUND ON/OFF preference.
+ * SFX (e.g. coin chime) should gate on `isSoundEnabled()` / caller-passed flag.
  */
 
 export const SOUND_STORAGE_KEY = '3cb.soundEnabled'

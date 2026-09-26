@@ -19,6 +19,7 @@ import {
   type RoundState,
 } from './game/round'
 import { readSoundEnabled, writeSoundEnabled } from './game/sound'
+import { unlockCoinAudio } from './game/coinAudio'
 import { DEFAULT_LOCALE, getStrings } from './i18n'
 import './App.css'
 
@@ -80,6 +81,8 @@ function App() {
     if (fxLockRef.current) return
     if (openedGuardRef.current.has(bagId)) return
 
+    unlockCoinAudio()
+
     const prev = roundRef.current
     if (!isRoundActive(prev)) return
 
@@ -116,6 +119,7 @@ function App() {
   }, [clearCoinFx])
 
   const handleSoundToggle = useCallback(() => {
+    unlockCoinAudio()
     setSoundOn((prev) => {
       const next = !prev
       writeSoundEnabled(next)
@@ -225,6 +229,7 @@ function App() {
             bagId={coinFx.bagId}
             bagCount={round.hand.bagCount}
             coinCount={coinFx.coinCount}
+            soundEnabled={soundOn}
             onSample={handleFxSample}
             onComplete={handleFxComplete}
           />

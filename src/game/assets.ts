@@ -1,6 +1,7 @@
 /** Public URLs for approved 3CB game art. Do not rewrite or replace these files. */
 
 export const GAME_ASSET_BASE = '/assets/game'
+export const AUDIO_ASSET_BASE = '/assets/audio'
 
 export const BAG_IDS = [
   'bag-1',
@@ -31,4 +32,9 @@ export function coinSrc(coinId: CoinId): string {
 
 export function bombSrc(bombId: BombId): string {
   return `${GAME_ASSET_BASE}/${bombId}.webp`
+}
+
+/** Shared COIN open chime (same file for ×1 / ×2 / ×3). */
+export function coinChimeSrc(): string {
+  return `${AUDIO_ASSET_BASE}/coin-chime.mp3`
 }
