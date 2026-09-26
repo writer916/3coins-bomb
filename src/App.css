@@ -40,7 +40,7 @@
 
 .dev-btn {
   min-height: 2.4rem;
-  margin-bottom: 0.55rem;
+  margin-bottom: 0.45rem;
   padding: 0.35rem 0.85rem;
   border: 1px solid #5a4a38;
   border-radius: 0.35rem;
@@ -56,10 +56,29 @@
   outline-offset: 2px;
 }
 
+.cash-out-btn {
+  border-color: #c4a574;
+}
+
+.provisional {
+  margin: 0 0 0.35rem;
+  font-size: 0.95rem;
+  letter-spacing: 0.06em;
+  opacity: 0.85;
+}
+
 .open-result {
-  margin: 0 0 0.75rem;
+  margin: 0.35rem 0 0.5rem;
   min-height: 1.4em;
   font-size: clamp(1.05rem, 4vw, 1.35rem);
   letter-spacing: 0.08em;
   color: #f2e6d0;
+}
+
+.round-end {
+  margin: 0 0 0.75rem;
+  white-space: pre-line;
+  font-size: clamp(0.95rem, 3.5vw, 1.15rem);
+  letter-spacing: 0.06em;
+  color: #c4a574;
 }

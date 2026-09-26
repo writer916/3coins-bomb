@@ -10,6 +10,7 @@
     "lint": "oxlint",
     "verify:hand": "tsx scripts/verify-hidden-hand.ts",
     "verify:open": "tsx scripts/verify-open.ts",
+    "verify:round": "tsx scripts/verify-round.ts",
     "preview": "vite preview"
   },
   "dependencies": {
