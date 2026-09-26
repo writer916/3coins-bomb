@@ -21,4 +21,8 @@ export const ja: AppStrings = {
   dash: '—',
   soundOn: 'Sound on',
   soundOff: 'Sound off',
+  soloRounds: (count) => `ROUNDS  ${count}`,
+  soloCoins: (count) => `COINS  ${count}`,
+  reset: 'RESET',
+  resetConfirm: '成績を0に戻して新しいROUNDを始めますか？',
 }

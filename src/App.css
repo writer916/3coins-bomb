@@ -139,3 +139,28 @@
   background: #2a221a;
   color: #f2e6d0;
 }
+
+.solo-stats {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 0.35rem 0.85rem;
+  margin: 0 0 0.45rem;
+  font-size: 0.9rem;
+  letter-spacing: 0.06em;
+  opacity: 0.9;
+}
+
+.solo-stats-line {
+  margin: 0;
+}
+
+.reset-btn {
+  min-height: 2rem;
+  margin: 0;
+  padding: 0.2rem 0.65rem;
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  opacity: 0.85;
+}

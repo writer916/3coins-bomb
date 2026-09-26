@@ -21,4 +21,8 @@ export const en: AppStrings = {
   dash: '—',
   soundOn: 'Sound on',
   soundOff: 'Sound off',
+  soloRounds: (count) => `ROUNDS  ${count}`,
+  soloCoins: (count) => `COINS  ${count}`,
+  reset: 'RESET',
+  resetConfirm: 'Reset solo stats to 0 and start a new ROUND?',
 }

@@ -192,7 +192,7 @@ function ok(label: string): void {
     'utf8',
   )
   const tap = appSrc.match(
-    /const handleBagTap = useCallback\(\(bagId: BagId\) => \{[\s\S]*?\n  \}, \[\]\)/,
+    /const handleBagTap = useCallback\(\n?\s*\(bagId: BagId\) => \{[\s\S]*?\n  \}, \[[^\]]*\]\)/,
   )
   if (!tap) fail('handleBagTap block not found')
   else if (tap[0]!.includes('warmBagOpenAudio')) {

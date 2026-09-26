@@ -19,6 +19,7 @@
     "verify:three-coins": "tsx scripts/verify-three-coins.ts",
     "verify:coin-fx-visual": "tsx scripts/verify-coin-fx-visual.ts",
     "verify:reveal": "tsx scripts/verify-reveal.ts",
+    "verify:solo-stats": "tsx scripts/verify-solo-stats.ts",
     "verify:empty": "tsx scripts/verify-empty-fx.ts",
     "preview": "vite preview"
   },

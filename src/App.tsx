@@ -15,7 +15,7 @@ import {
   type FxCoinCount,
 } from './game/coinFx'
 import { bagsForCount } from './game/formations'
-import type { HiddenHand } from './game/hand'
+import type { BagContents, HiddenHand } from './game/hand'
 import { openedBagIds } from './game/open'
 import {
   buildRevealPlan,
@@ -31,6 +31,18 @@ import {
   type RoundState,
 } from './game/round'
 import { readSoundEnabled, writeSoundEnabled } from './game/sound'
+import {
+  applyAcceptedOpenToDraft,
+  commitRoundResultToStats,
+  createInitialSoloRoundDraft,
+  readSoloStats,
+  resetSoloRoundDraft,
+  resetSoloStats,
+  writeSoloStats,
+  type SoloRoundDraft,
+  type SoloRoundResult,
+  type SoloStats,
+} from './game/soloStats'
 import { DEFAULT_LOCALE, getStrings } from './i18n'
 import './App.css'
 
@@ -41,6 +53,8 @@ type DevRoundApi = {
   /** DEV: jump to FULL REVEAL for a fixed hand (no FX / no SE). */
   previewFullReveal: (hand: HiddenHand) => void
   getRevealed: () => boolean
+  getSoloStats: () => SoloStats
+  getSoloRoundDraft: () => SoloRoundDraft
 }
 
 type ActiveCoinFx = {
@@ -67,10 +81,25 @@ declare global {
   }
 }
 
+function soloResultFromEndedRound(state: RoundState): SoloRoundResult | null {
+  if (state.phase === 'bombed') return { kind: 'bombed' }
+  if (state.phase === 'cleared') return { kind: 'cleared' }
+  if (state.phase === 'cashed-out') {
+    const n = state.capturedCoins
+    if (n === 1 || n === 2) return { kind: 'cashed-out', capturedCoins: n }
+  }
+  return null
+}
+
 function App() {
   const t = getStrings(DEFAULT_LOCALE)
   const [round, setRound] = useState<RoundState>(() => createActiveRound())
   const [soundOn, setSoundOn] = useState(() => readSoundEnabled())
+  const [soloStats, setSoloStats] = useState<SoloStats>(() => readSoloStats())
+  /** In-progress ROUND bag tallies — memory only, never localStorage. */
+  const [soloRoundDraft, setSoloRoundDraft] = useState<SoloRoundDraft>(() =>
+    createInitialSoloRoundDraft(),
+  )
   const [coinFx, setCoinFx] = useState<ActiveCoinFx | null>(null)
   const [bombFx, setBombFx] = useState<ActiveBombFx | null>(null)
   const [emptyFx, setEmptyFx] = useState<ActiveEmptyFx | null>(null)
@@ -83,6 +112,10 @@ function App() {
   const fxLockRef = useRef(false)
   const roundRef = useRef(round)
   const revealedRef = useRef(revealed)
+  const soloStatsRef = useRef(soloStats)
+  const soloRoundDraftRef = useRef(soloRoundDraft)
+  /** One commit per settled ROUND — reset on NEXT / RESET / DEV start. */
+  const roundStatsCommittedRef = useRef(false)
   const fxRunIdRef = useRef(0)
   const soundOnRef = useRef(soundOn)
 
@@ -95,6 +128,14 @@ function App() {
   }, [revealed])
 
   useEffect(() => {
+    soloStatsRef.current = soloStats
+  }, [soloStats])
+
+  useEffect(() => {
+    soloRoundDraftRef.current = soloRoundDraft
+  }, [soloRoundDraft])
+
+  useEffect(() => {
     soundOnRef.current = soundOn
   }, [soundOn])
 
@@ -105,6 +146,74 @@ function App() {
     setEmptyFx(null)
     setFxSample(null)
   }, [])
+
+  const persistSoloStats = useCallback((next: SoloStats) => {
+    soloStatsRef.current = next
+    writeSoloStats(next)
+    setSoloStats(next)
+  }, [])
+
+  const setDraft = useCallback((next: SoloRoundDraft) => {
+    soloRoundDraftRef.current = next
+    setSoloRoundDraft(next)
+  }, [])
+
+  /**
+   * Accepted open → ROUND draft only. If ROUND just settled, fold draft
+   * into cumulative stats once and persist settled data only.
+   */
+  const recordOpenAndMaybeCommit = useCallback(
+    (contents: BagContents, nextRound: RoundState) => {
+      const nextDraft = applyAcceptedOpenToDraft(soloRoundDraftRef.current, contents)
+      soloRoundDraftRef.current = nextDraft
+      setSoloRoundDraft(nextDraft)
+
+      if (nextRound.phase === 'active' || roundStatsCommittedRef.current) return
+
+      const result = soloResultFromEndedRound(nextRound)
+      if (!result) return
+      const committed = commitRoundResultToStats(
+        soloStatsRef.current,
+        nextDraft,
+        result,
+        false,
+      )
+      if (!committed.ok) return
+      roundStatsCommittedRef.current = true
+      persistSoloStats(committed.stats)
+    },
+    [persistSoloStats],
+  )
+
+  const commitEndedRoundOnce = useCallback(
+    (ended: RoundState) => {
+      if (ended.phase === 'active' || roundStatsCommittedRef.current) return
+      const result = soloResultFromEndedRound(ended)
+      if (!result) return
+      const committed = commitRoundResultToStats(
+        soloStatsRef.current,
+        soloRoundDraftRef.current,
+        result,
+        false,
+      )
+      if (!committed.ok) return
+      roundStatsCommittedRef.current = true
+      persistSoloStats(committed.stats)
+    },
+    [persistSoloStats],
+  )
+
+  const beginFreshRound = useCallback(
+    (hand?: HiddenHand) => {
+      openedGuardRef.current = new Set()
+      clearOpenFx()
+      setRevealed(false)
+      roundStatsCommittedRef.current = false
+      setDraft(resetSoloRoundDraft())
+      setRound(createActiveRound(hand))
+    },
+    [clearOpenFx, setDraft],
+  )
 
   const opened = useMemo(() => openedBagIds(round.history), [round.history])
 
@@ -139,83 +248,92 @@ function App() {
     [revealed, round.hand, round.history],
   )
 
-  const handleBagTap = useCallback((bagId: BagId) => {
-    if (fxLockRef.current) return
-    if (openedGuardRef.current.has(bagId)) return
+  const handleBagTap = useCallback(
+    (bagId: BagId) => {
+      if (fxLockRef.current) return
+      if (openedGuardRef.current.has(bagId)) return
 
-    // Unlock + async warm (coin + bag preload). Do NOT sync-load bag here —
-    // load() immediately before playBagOpen races and stalls currentTime.
-    unlockCoinAudio()
+      // Unlock + async warm (coin + bag preload). Do NOT sync-load bag here —
+      // load() immediately before playBagOpen races and stalls currentTime.
+      unlockCoinAudio()
 
-    const prev = roundRef.current
-    if (!isRoundActive(prev)) return
+      const prev = roundRef.current
+      if (!isRoundActive(prev)) return
 
-    const result = applyOpenBag(prev, bagId)
-    if (!result.ok) return
+      const result = applyOpenBag(prev, bagId)
+      if (!result.ok) return
 
-    openedGuardRef.current.add(bagId)
-    setRound(result.state)
+      openedGuardRef.current.add(bagId)
+      setRound(result.state)
+      recordOpenAndMaybeCommit(result.reveal.contents, result.state)
 
-    const bagSe = resolveBagOpenSeRequest(soundOnRef.current, true)
-    if (bagSe.play) {
-      playBagOpen({ soundEnabled: true })
-    }
+      const bagSe = resolveBagOpenSeRequest(soundOnRef.current, true)
+      if (bagSe.play) {
+        playBagOpen({ soundEnabled: true })
+      }
 
-    const contents = result.reveal.contents
-    if (contents.kind === 'coins') {
-      fxLockRef.current = true
-      fxRunIdRef.current += 1
-      setFxSample(null)
-      setBombFx(null)
-      setEmptyFx(null)
-      setCoinFx({
-        bagId,
-        coinCount: contents.coinCount,
-        clearsRound: result.state.phase === 'cleared',
-        runId: fxRunIdRef.current,
-      })
-    } else if (contents.kind === 'bomb') {
-      fxLockRef.current = true
-      fxRunIdRef.current += 1
-      setFxSample(null)
-      setCoinFx(null)
-      setEmptyFx(null)
-      setBombFx({
-        bagId,
-        runId: fxRunIdRef.current,
-      })
-    } else if (contents.kind === 'empty') {
-      fxLockRef.current = true
-      fxRunIdRef.current += 1
-      setFxSample(null)
-      setCoinFx(null)
-      setBombFx(null)
-      setEmptyFx({
-        bagId,
-        runId: fxRunIdRef.current,
-      })
-    }
-  }, [])
+      const contents = result.reveal.contents
+      if (contents.kind === 'coins') {
+        fxLockRef.current = true
+        fxRunIdRef.current += 1
+        setFxSample(null)
+        setBombFx(null)
+        setEmptyFx(null)
+        setCoinFx({
+          bagId,
+          coinCount: contents.coinCount,
+          clearsRound: result.state.phase === 'cleared',
+          runId: fxRunIdRef.current,
+        })
+      } else if (contents.kind === 'bomb') {
+        fxLockRef.current = true
+        fxRunIdRef.current += 1
+        setFxSample(null)
+        setCoinFx(null)
+        setEmptyFx(null)
+        setBombFx({
+          bagId,
+          runId: fxRunIdRef.current,
+        })
+      } else if (contents.kind === 'empty') {
+        fxLockRef.current = true
+        fxRunIdRef.current += 1
+        setFxSample(null)
+        setCoinFx(null)
+        setBombFx(null)
+        setEmptyFx({
+          bagId,
+          runId: fxRunIdRef.current,
+        })
+      }
+    },
+    [recordOpenAndMaybeCommit],
+  )
 
   const handleCashOut = useCallback(() => {
-    setRound((prev) => {
-      const result = tryCashOut(prev)
-      return result.ok ? result.state : prev
-    })
-  }, [])
+    const prev = roundRef.current
+    const result = tryCashOut(prev)
+    if (!result.ok) return
+    setRound(result.state)
+    commitEndedRoundOnce(result.state)
+  }, [commitEndedRoundOnce])
 
   const handleNewRound = useCallback(() => {
-    openedGuardRef.current = new Set()
-    clearOpenFx()
-    setRevealed(false)
-    setRound(createActiveRound())
-  }, [clearOpenFx])
+    beginFreshRound()
+  }, [beginFreshRound])
+
+  const handleReset = useCallback(() => {
+    if (!window.confirm(t.resetConfirm)) return
+    persistSoloStats(resetSoloStats())
+    setDraft(resetSoloRoundDraft())
+    beginFreshRound()
+  }, [t.resetConfirm, persistSoloStats, setDraft, beginFreshRound])
 
   const handleReveal = useCallback(() => {
     if (!canRequestReveal(roundRef.current.phase, fxLockRef.current, revealedRef.current)) {
       return
     }
-    // Instant, silent — no SE / no FX.
+    // Instant, silent — no SE / no FX / no stats change.
     setRevealed(true)
   }, [])
 
@@ -250,22 +368,21 @@ function App() {
     window.__3cbDev = {
       getRound: () => roundRef.current,
       getRevealed: () => revealedRef.current,
+      getSoloStats: () => soloStatsRef.current,
+      getSoloRoundDraft: () => soloRoundDraftRef.current,
       startWithHand: (hand) => {
-        openedGuardRef.current = new Set()
-        clearOpenFx()
-        setRevealed(false)
-        setRound(createActiveRound(hand))
+        beginFreshRound(hand)
       },
       newRound: () => {
-        openedGuardRef.current = new Set()
-        clearOpenFx()
-        setRevealed(false)
-        setRound(createActiveRound())
+        beginFreshRound()
       },
       previewFullReveal: (hand) => {
         openedGuardRef.current = new Set()
         clearOpenFx()
         // Settled cashed-out shell so end actions / reveal UI appear without FX.
+        // Does NOT commit solo stats (DEV preview only).
+        roundStatsCommittedRef.current = true
+        setDraft(resetSoloRoundDraft())
         setRound({
           hand,
           history: [],
@@ -280,7 +397,7 @@ function App() {
     return () => {
       delete window.__3cbDev
     }
-  }, [clearOpenFx])
+  }, [clearOpenFx, beginFreshRound, setDraft])
 
   const resultLine = (() => {
     if (!round.lastReveal) return t.dash
@@ -321,6 +438,14 @@ function App() {
         <h1>{t.brandTitle}</h1>
         <p className="tagline">{t.brandTagline}</p>
       </header>
+
+      <div className="solo-stats" aria-live="polite">
+        <p className="solo-stats-line">{t.soloRounds(soloStats.rounds)}</p>
+        <p className="solo-stats-line">{t.soloCoins(soloStats.capturedCoins)}</p>
+        <button type="button" className="dev-btn reset-btn" onClick={handleReset}>
+          {t.reset}
+        </button>
+      </div>
 
       <p className="round-meta">{t.bagsMeta(round.hand.bagCount)}</p>
 
