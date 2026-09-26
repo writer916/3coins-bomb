@@ -399,140 +399,139 @@ function App() {
     }
   }, [clearOpenFx, beginFreshRound, setDraft])
 
-  const resultLine = (() => {
-    if (!round.lastReveal) return t.dash
-    const c = round.lastReveal.contents
-    if (c.kind === 'empty') return t.resultEmpty
-    if (c.kind === 'bomb') return t.resultBomb
-    return t.resultCoin(c.coinCount)
-  })()
-
-  const endSummary = (() => {
-    if (round.phase === 'active') return null
-    if (round.phase === 'bombed') {
-      return `${t.roundBombed}\n${t.capturedCoins(0)}`
-    }
-    if (round.phase === 'cleared') {
-      return `${t.roundCleared}\n${t.capturedCoins(3)}`
-    }
-    return `${t.roundCashedOut}\n${t.capturedCoins(round.capturedCoins ?? 0)}`
-  })()
-
   // ROUND already ended on bomb; also block while any open FX runs.
   const canTapBags = isRoundActive(round) && !coinFx && !bombFx && !emptyFx
-  // Avoid stacking end copy over the local bomb reveal.
-  const showEndSummary = endSummary !== null && !bombFx
+  const showCashOut = canCashOut(round) && !showEndActions
+
+  // Georgia oldstyle "3" sits optically lower than caps — split for micro lift.
+  const brandTitleMatch = /^(\d)(\s.+)$/.exec(t.brandTitle)
 
   return (
     <main className="app">
-      <div className="app-topbar">
-        <SoundToggle
-          enabled={soundOn}
-          onToggle={handleSoundToggle}
-          labelOn={t.soundOn}
-          labelOff={t.soundOff}
-        />
-      </div>
-
-      <header className="app-header">
-        <h1>{t.brandTitle}</h1>
-        <p className="tagline">{t.brandTagline}</p>
-      </header>
-
-      <div className="solo-stats" aria-live="polite">
-        <p className="solo-stats-line">{t.soloRounds(soloStats.rounds)}</p>
-        <p className="solo-stats-line">{t.soloCoins(soloStats.capturedCoins)}</p>
-        <button type="button" className="dev-btn reset-btn" onClick={handleReset}>
-          {t.reset}
-        </button>
-      </div>
-
-      <p className="round-meta">{t.bagsMeta(round.hand.bagCount)}</p>
-
-      {isRoundActive(round) ? (
-        <button type="button" className="dev-btn" onClick={handleNewRound}>
-          {t.newRound}
-        </button>
-      ) : null}
-
-      <p className="provisional" aria-live="polite">
-        {t.provisionalCoins(round.provisionalCoins)}
-      </p>
-
-      {canCashOut(round) ? (
-        <button type="button" className="dev-btn cash-out-btn" onClick={handleCashOut}>
-          {t.cashOut}
-        </button>
-      ) : null}
-
-      <p className="open-result" aria-live="polite">
-        {resultLine}
-      </p>
-
-      {showEndSummary ? (
-        <p className="round-end" aria-live="polite">
-          {endSummary}
-        </p>
-      ) : null}
-
-      {showEndActions ? (
-        <div className="end-actions">
-          {showRevealBtn ? (
-            <button
-              type="button"
-              className="dev-btn end-action-reveal"
-              onClick={handleReveal}
-            >
-              {t.reveal}
-            </button>
-          ) : null}
-          <button
-            type="button"
-            className="dev-btn end-action-next"
-            onClick={handleNewRound}
-          >
-            {t.nextRound}
-          </button>
-        </div>
-      ) : null}
-
-      <BagBoard
-        bagCount={round.hand.bagCount}
-        hiddenBagIds={hiddenBagIds}
-        onBagTap={canTapBags ? handleBagTap : undefined}
-      >
-        {revealPlan ? <RevealBoard plan={revealPlan} /> : null}
-        {coinFx ? (
-          <CoinOpenFx
-            key={`coin-${coinFx.runId}`}
-            bagId={coinFx.bagId}
-            bagCount={round.hand.bagCount}
-            coinCount={coinFx.coinCount}
-            clearsRound={coinFx.clearsRound}
-            soundEnabled={soundOn}
-            onSample={handleCoinFxSample}
-            onComplete={handleCoinFxComplete}
+      {/* GROUP A: BRAND — title + SOUND (SOUND position unchanged) */}
+      <div className="field-header">
+        <div className="app-topbar">
+          <SoundToggle
+            enabled={soundOn}
+            onToggle={handleSoundToggle}
+            labelOn={t.soundOn}
+            labelOff={t.soundOff}
           />
-        ) : null}
-        {bombFx ? (
-          <BombOpenFx
-            key={`bomb-${bombFx.runId}`}
-            bagId={bombFx.bagId}
+        </div>
+
+        <header className="app-header">
+          <h1 className="brand-title" aria-label={t.brandTitle}>
+            {brandTitleMatch ? (
+              <>
+                <span className="brand-title-digit">{brandTitleMatch[1]}</span>
+                <span className="brand-title-rest">{brandTitleMatch[2]}</span>
+              </>
+            ) : (
+              t.brandTitle
+            )}
+          </h1>
+        </header>
+      </div>
+
+      {/* GROUP B: CURRENT ROUND — bags + round actions */}
+      <div className="group-round">
+        <div className="field-bag">
+          <BagBoard
             bagCount={round.hand.bagCount}
             hiddenBagIds={hiddenBagIds}
-            soundEnabled={soundOn}
-            onComplete={handleBombFxComplete}
-          />
-        ) : null}
-        {emptyFx ? (
-          <EmptyOpenFx
-            key={`empty-${emptyFx.runId}`}
-            bagId={emptyFx.bagId}
-            bagCount={round.hand.bagCount}
-            onComplete={handleEmptyFxComplete}
-          />
-        ) : null}
-      </BagBoard>
+            onBagTap={canTapBags ? handleBagTap : undefined}
+          >
+            {revealPlan ? <RevealBoard plan={revealPlan} /> : null}
+            {coinFx ? (
+              <CoinOpenFx
+                key={`coin-${coinFx.runId}`}
+                bagId={coinFx.bagId}
+                bagCount={round.hand.bagCount}
+                coinCount={coinFx.coinCount}
+                clearsRound={coinFx.clearsRound}
+                soundEnabled={soundOn}
+                onSample={handleCoinFxSample}
+                onComplete={handleCoinFxComplete}
+              />
+            ) : null}
+            {bombFx ? (
+              <BombOpenFx
+                key={`bomb-${bombFx.runId}`}
+                bagId={bombFx.bagId}
+                bagCount={round.hand.bagCount}
+                hiddenBagIds={hiddenBagIds}
+                soundEnabled={soundOn}
+                onComplete={handleBombFxComplete}
+              />
+            ) : null}
+            {emptyFx ? (
+              <EmptyOpenFx
+                key={`empty-${emptyFx.runId}`}
+                bagId={emptyFx.bagId}
+                bagCount={round.hand.bagCount}
+                onComplete={handleEmptyFxComplete}
+              />
+            ) : null}
+          </BagBoard>
+        </div>
+
+        {/* Fixed height: empty / CASH OUT / REVEAL+NEXT */}
+        <div className="field-action" aria-live="polite">
+          {showCashOut ? (
+            <button type="button" className="dev-btn cash-out-btn" onClick={handleCashOut}>
+              {t.cashOut}
+            </button>
+          ) : null}
+          {showEndActions ? (
+            <div className="end-actions">
+              <div className="end-action-slot">
+                {showRevealBtn ? (
+                  <button
+                    type="button"
+                    className="dev-btn end-action-btn"
+                    onClick={handleReveal}
+                  >
+                    {t.reveal}
+                  </button>
+                ) : null}
+              </div>
+              <div className="end-action-slot">
+                <button
+                  type="button"
+                  className="dev-btn end-action-btn"
+                  onClick={handleNewRound}
+                >
+                  {t.nextRound}
+                </button>
+              </div>
+            </div>
+          ) : null}
+        </div>
+      </div>
+
+      {/* GROUP C: SESSION SCORE — symmetric rails keep SCORE on true center */}
+      <div className="group-session" aria-live="polite">
+        <div className="score-anchor">
+          <div className="score-rail score-rail--start" aria-hidden="true">
+            <span className="reset-btn reset-sizer">{t.reset}</span>
+          </div>
+          <div className="score-main">
+            <p className="score-item">
+              <span className="score-label">{t.soloRoundsLabel}</span>
+              <span className="score-num">{soloStats.rounds}</span>
+            </p>
+            <p className="score-item">
+              <span className="score-label">{t.soloCoinsLabel}</span>
+              <span className="score-num">{soloStats.capturedCoins}</span>
+            </p>
+          </div>
+          <div className="score-rail score-rail--end">
+            <button type="button" className="reset-btn" onClick={handleReset}>
+              {t.reset}
+            </button>
+          </div>
+        </div>
+      </div>
     </main>
   )
 }

@@ -5,85 +5,138 @@
   min-height: 100vh;
   min-height: 100dvh;
   margin: 0;
-  padding: 1rem 0.75rem 1.25rem;
+  padding:
+    max(0.5rem, env(safe-area-inset-top, 0px))
+    0.75rem
+    max(0.65rem, env(safe-area-inset-bottom, 0px));
   text-align: center;
   font-family: Georgia, 'Times New Roman', serif;
   background: #1a1510;
   color: #e8dcc8;
 }
 
+/* ——— GROUP A: BRAND (title + SOUND; SOUND stays top-right) ——— */
+.field-header {
+  flex-shrink: 0;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 0.35rem;
+}
+
 .app-topbar {
   align-self: stretch;
   display: flex;
   justify-content: flex-end;
-  margin: -0.25rem 0 0.35rem;
-  min-height: 2.75rem;
+  margin: 0 0 0.1rem;
+  min-height: 2.25rem;
 }
 
 .sound-toggle {
   box-sizing: border-box;
-  width: 2.75rem;
-  height: 2.75rem;
+  width: 2.25rem;
+  height: 2.25rem;
   margin: 0;
   padding: 0;
-  border: 1px solid #5a4a38;
-  border-radius: 0.35rem;
-  background: #2a221a;
-  color: #c4a574;
+  border: 1px solid #46382c;
+  border-radius: 0.3rem;
+  background: transparent;
+  color: #9a8468;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  opacity: 0.55;
   -webkit-tap-highlight-color: transparent;
 }
 
 .sound-toggle:focus-visible {
   outline: 2px solid #c4a574;
   outline-offset: 2px;
+  opacity: 0.9;
 }
 
 .sound-toggle-glyph {
   display: flex;
   line-height: 0;
-  opacity: 0.9;
+  opacity: 0.85;
 }
 
 .app-header {
   flex-shrink: 0;
-  margin-bottom: 0.5rem;
+  margin: 0;
 }
 
-.app-header h1 {
+.brand-title {
   margin: 0;
   font-size: clamp(1.6rem, 6vw, 2.4rem);
   font-weight: 700;
   letter-spacing: 0.06em;
+  line-height: 1.05;
 }
 
-.tagline {
-  margin: 0.4rem 0 0;
-  font-size: clamp(0.85rem, 3.2vw, 1.05rem);
-  letter-spacing: 0.12em;
-  color: #c4a574;
+/*
+  Georgia’s oldstyle “3” has lower ascent / nonzero descent vs lining caps
+  (measured ~14px ascent vs “C” ≈18px at 25.6px). Lining-nums does not remap
+  Georgia glyphs here — optically lift the lead digit only.
+*/
+.brand-title-digit {
+  display: inline-block;
+  transform: translateY(-0.18em);
 }
 
-.round-meta {
-  margin: 0 0 0.5rem;
-  font-size: 0.85rem;
-  letter-spacing: 0.06em;
-  opacity: 0.7;
+.brand-title-rest {
+  display: inline;
+}
+
+/* ——— GROUP B: CURRENT ROUND (BAG + ACTION, close together) ——— */
+.group-round {
+  flex-shrink: 0;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+.field-bag {
+  flex-shrink: 0;
+  align-self: stretch;
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+/* Fixed height — never collapse via display:none on the field itself.
+   Centered island (not stretch-to-edges): equal side gutters so ACTION reads as
+   viewport-centered, not an edge-anchored full-bleed bar. */
+.field-action {
+  box-sizing: border-box;
+  flex-shrink: 0;
+  align-self: center;
+  width: min(100%, 17.5rem);
+  max-width: 17.5rem;
+  height: 3.05rem;
+  margin: 0.45rem auto 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .dev-btn {
+  box-sizing: border-box;
   min-height: 2.4rem;
-  margin-bottom: 0.45rem;
+  margin: 0;
   padding: 0.35rem 0.85rem;
-  border: 1px solid #5a4a38;
+  border: 1px solid #c4a574;
   border-radius: 0.35rem;
   background: #2a221a;
-  color: #e8dcc8;
+  color: #f2e6d0;
   font: inherit;
   font-size: 0.95rem;
+  font-weight: 400;
+  text-align: center;
   cursor: pointer;
 }
 
@@ -93,74 +146,215 @@
 }
 
 .cash-out-btn {
-  border-color: #c4a574;
-}
-
-.provisional {
-  margin: 0 0 0.35rem;
-  font-size: 0.95rem;
-  letter-spacing: 0.06em;
-  opacity: 0.85;
-}
-
-.open-result {
-  margin: 0.35rem 0 0.5rem;
-  min-height: 1.4em;
-  font-size: clamp(1.05rem, 4vw, 1.35rem);
-  letter-spacing: 0.08em;
-  color: #f2e6d0;
-}
-
-.round-end {
-  margin: 0 0 0.75rem;
-  white-space: pre-line;
-  font-size: clamp(0.95rem, 3.5vw, 1.15rem);
-  letter-spacing: 0.06em;
-  color: #c4a574;
+  min-width: 9.5rem;
 }
 
 .end-actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   align-items: center;
-  gap: 0.55rem 0.75rem;
-  margin: 0 0 0.75rem;
+  column-gap: 0.85rem;
+  width: 100%;
+  margin: 0;
 }
 
-.end-action-reveal {
-  background: transparent;
-  border-color: #5a4a38;
-  color: #c4a574;
+.end-action-slot {
+  display: flex;
+  align-items: center;
+  min-height: 2.4rem;
 }
 
-.end-action-next {
+.end-action-slot:first-child,
+.end-action-slot:last-child {
+  justify-content: stretch;
+}
+
+/* REVEAL / NEXT — identical size & style; text centered in each cell */
+.end-action-btn {
+  width: 100%;
   border-color: #c4a574;
   background: #2a221a;
   color: #f2e6d0;
+  font-size: 0.95rem;
+  font-weight: 400;
+  text-align: center;
 }
 
-.solo-stats {
+/*
+  GROUP C: SESSION SCORE
+  Symmetric left/right rails (ghost RESET | score-main | RESET)
+  keep ROUNDS/COINS on the true center axis and balance visual weight.
+*/
+.group-session {
+  box-sizing: border-box;
+  flex-shrink: 0;
+  align-self: stretch;
+  width: 100%;
+  margin-top: auto;
+  padding-top: clamp(0.75rem, 2.8vh, 1.35rem);
+  padding-bottom: clamp(0.85rem, 5.5vh, 2.85rem);
   display: flex;
-  flex-wrap: wrap;
   justify-content: center;
   align-items: center;
-  gap: 0.35rem 0.85rem;
-  margin: 0 0 0.45rem;
-  font-size: 0.9rem;
-  letter-spacing: 0.06em;
-  opacity: 0.9;
+  min-height: 2.55rem;
 }
 
-.solo-stats-line {
+.score-anchor {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  max-width: 100%;
+}
+
+.score-rail {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+.score-rail--start {
+  justify-content: flex-end;
+  padding-right: 0.9rem;
+}
+
+.score-rail--end {
+  justify-content: flex-start;
+  padding-left: 0.9rem;
+}
+
+.score-main {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: baseline;
+  gap: 0.9rem 1.15rem;
+  color: #f5ebd8;
+}
+
+.score-item {
   margin: 0;
+  display: inline-flex;
+  flex-wrap: nowrap;
+  align-items: baseline;
+  gap: 0.35rem;
+  white-space: nowrap;
+}
+
+.score-label {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(1.05rem, 4.2vw, 1.3rem);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+/*
+  Digits only: system UI sans for clear 0–9 (esp. “2”).
+  3.2ch covers bold tabular “999”.
+*/
+.score-num {
+  display: inline-block;
+  box-sizing: content-box;
+  min-width: 3.2ch;
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    'Helvetica Neue',
+    Arial,
+    sans-serif;
+  font-size: clamp(1.15rem, 4.8vw, 1.45rem);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  text-align: right;
+  line-height: 1;
+  transform: translateY(0.04em);
 }
 
 .reset-btn {
-  min-height: 2rem;
+  box-sizing: border-box;
+  position: static;
   margin: 0;
-  padding: 0.2rem 0.65rem;
-  font-size: 0.8rem;
-  letter-spacing: 0.08em;
+  flex-shrink: 0;
+  min-height: 1.35rem;
+  min-width: 2.2rem;
+  padding: 0.08rem 0.3rem;
+  border: 1px solid #5a4a38;
+  border-radius: 0.2rem;
+  background: #241c16;
+  color: #c4a574;
+  font: inherit;
+  font-size: 0.56rem;
+  font-weight: 400;
+  letter-spacing: 0.07em;
+  cursor: pointer;
   opacity: 0.85;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Invisible twin — same box metrics so left rail mirrors RESET width */
+.reset-sizer {
+  visibility: hidden;
+  pointer-events: none;
+  user-select: none;
+}
+
+.reset-btn:focus-visible {
+  outline: 2px solid #c4a574;
+  outline-offset: 2px;
+  opacity: 1;
+}
+
+@media (max-width: 340px) {
+  .field-action {
+    width: min(100%, 17rem);
+    max-width: 17rem;
+  }
+
+  .end-actions {
+    column-gap: 0.5rem;
+  }
+
+  .dev-btn,
+  .end-action-btn {
+    padding: 0.3rem 0.5rem;
+    font-size: 0.86rem;
+  }
+
+  .cash-out-btn {
+    min-width: 8.25rem;
+  }
+
+  .group-session {
+    padding-top: clamp(0.55rem, 2.2vh, 1rem);
+    padding-bottom: clamp(0.55rem, 4vh, 1.75rem);
+  }
+
+  .score-rail--start {
+    padding-right: 0.65rem;
+  }
+
+  .score-rail--end {
+    padding-left: 0.65rem;
+  }
+
+  .score-main {
+    gap: 0.65rem 0.85rem;
+  }
+
+  .score-label {
+    font-size: clamp(0.95rem, 4.2vw, 1.1rem);
+  }
+
+  .score-num {
+    font-size: clamp(1.05rem, 4.6vw, 1.2rem);
+    min-width: 3.2ch;
+  }
+
+  .reset-btn {
+    min-width: 2.05rem;
+    padding: 0.06rem 0.26rem;
+    font-size: 0.52rem;
+  }
 }

@@ -24,10 +24,10 @@ export type AppStrings = {
   dash: string
   soundOn: string
   soundOff: string
-  /** Cumulative settled ROUND count (solo). */
-  soloRounds: (count: number) => string
-  /** Cumulative captured COINS (solo). */
-  soloCoins: (count: number) => string
+  /** Label for cumulative settled ROUND count (solo). */
+  soloRoundsLabel: string
+  /** Label for cumulative captured COINS (solo). */
+  soloCoinsLabel: string
   reset: string
   resetConfirm: string
 }
