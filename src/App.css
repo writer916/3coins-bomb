@@ -14,7 +14,7 @@
 
 .app-header {
   flex-shrink: 0;
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.5rem;
 }
 
 .app-header h1 {
@@ -31,35 +31,35 @@
   color: #c4a574;
 }
 
-.bag-count-controls {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 0.4rem;
-  margin-bottom: 0.85rem;
-  flex-shrink: 0;
+.round-meta {
+  margin: 0 0 0.5rem;
+  font-size: 0.85rem;
+  letter-spacing: 0.06em;
+  opacity: 0.7;
 }
 
-.bag-count-btn {
-  min-width: 2.4rem;
+.dev-btn {
   min-height: 2.4rem;
-  padding: 0.35rem 0.55rem;
+  margin-bottom: 0.55rem;
+  padding: 0.35rem 0.85rem;
   border: 1px solid #5a4a38;
   border-radius: 0.35rem;
   background: #2a221a;
   color: #e8dcc8;
   font: inherit;
-  font-size: 1rem;
+  font-size: 0.95rem;
   cursor: pointer;
 }
 
-.bag-count-btn--active {
-  border-color: #c4a574;
-  background: #3a3024;
-  color: #f2e6d0;
-}
-
-.bag-count-btn:focus-visible {
+.dev-btn:focus-visible {
   outline: 2px solid #c4a574;
   outline-offset: 2px;
+}
+
+.open-result {
+  margin: 0 0 0.75rem;
+  min-height: 1.4em;
+  font-size: clamp(1.05rem, 4vw, 1.35rem);
+  letter-spacing: 0.08em;
+  color: #f2e6d0;
 }

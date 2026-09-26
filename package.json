@@ -9,6 +9,7 @@
     "typecheck": "tsc -b --pretty false",
     "lint": "oxlint",
     "verify:hand": "tsx scripts/verify-hidden-hand.ts",
+    "verify:open": "tsx scripts/verify-open.ts",
     "preview": "vite preview"
   },
   "dependencies": {
