@@ -17,6 +17,9 @@ dist-ssr
 .env.*
 !.env.example
 
+# Asset handoff archives (do not commit)
+3cb-game-assets.zip
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

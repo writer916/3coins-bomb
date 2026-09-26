@@ -2,32 +2,64 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
   min-height: 100vh;
+  min-height: 100dvh;
   margin: 0;
-  padding: 2rem;
+  padding: 1rem 0.75rem 1.25rem;
   text-align: center;
   font-family: Georgia, 'Times New Roman', serif;
   background: #1a1510;
   color: #e8dcc8;
 }
 
-.app h1 {
+.app-header {
+  flex-shrink: 0;
+  margin-bottom: 0.75rem;
+}
+
+.app-header h1 {
   margin: 0;
-  font-size: clamp(2rem, 6vw, 3.5rem);
+  font-size: clamp(1.6rem, 6vw, 2.4rem);
   font-weight: 700;
   letter-spacing: 0.06em;
 }
 
 .tagline {
-  margin: 0.75rem 0 0;
-  font-size: 1.1rem;
+  margin: 0.4rem 0 0;
+  font-size: clamp(0.85rem, 3.2vw, 1.05rem);
   letter-spacing: 0.12em;
   color: #c4a574;
 }
 
-.note {
-  margin: 2rem 0 0;
-  font-size: 0.85rem;
-  opacity: 0.55;
+.bag-count-controls {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.4rem;
+  margin-bottom: 0.85rem;
+  flex-shrink: 0;
+}
+
+.bag-count-btn {
+  min-width: 2.4rem;
+  min-height: 2.4rem;
+  padding: 0.35rem 0.55rem;
+  border: 1px solid #5a4a38;
+  border-radius: 0.35rem;
+  background: #2a221a;
+  color: #e8dcc8;
+  font: inherit;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.bag-count-btn--active {
+  border-color: #c4a574;
+  background: #3a3024;
+  color: #f2e6d0;
+}
+
+.bag-count-btn:focus-visible {
+  outline: 2px solid #c4a574;
+  outline-offset: 2px;
 }

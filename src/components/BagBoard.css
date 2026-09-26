@@ -1,0 +1,83 @@
+.bag-board {
+  position: relative;
+  width: min(100%, 26rem);
+  /* Tall enough for 2–3 rows on phone; stays within viewport with header */
+  aspect-ratio: 4 / 5;
+  max-height: min(62vh, 34rem);
+  margin: 0 auto;
+}
+
+.bag-slot {
+  position: absolute;
+  /* Center the bag on the formation coordinate */
+  transform: translate(-50%, -50%);
+  width: var(--bag-size);
+  /* Future: opened bags leave this slot empty — do not reflow siblings */
+  /* Hits go through to .bag-hit only (not the full square / transparent padding). */
+  pointer-events: none;
+}
+
+.bag-image {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1 / 1;
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-drag: none;
+  pointer-events: none;
+}
+
+/*
+  Interactive region ≈ opaque bag body (assets have ~6–9% transparent margin).
+  Slightly larger inset than alpha bounds so corners/drawstring padding don't steal taps.
+  Still ≥ ~50px on SE for 8-bag size — usable touch target.
+*/
+.bag-hit {
+  position: absolute;
+  inset: 16% 18% 14% 18%;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 45%;
+  background: transparent;
+  cursor: pointer;
+  pointer-events: auto;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.bag-hit:focus-visible {
+  outline: 2px solid #c4a574;
+  outline-offset: 2px;
+}
+
+/* Slightly larger bags; compact formations free edge margin on SE */
+.bag-board[data-bag-count='3'] {
+  --bag-size: clamp(5.85rem, 30vw, 8rem);
+}
+
+.bag-board[data-bag-count='4'] {
+  --bag-size: clamp(5.1rem, 24.5vw, 7rem);
+}
+
+.bag-board[data-bag-count='5'] {
+  --bag-size: clamp(5.35rem, 27.5vw, 7.4rem);
+}
+
+.bag-board[data-bag-count='6'] {
+  --bag-size: clamp(4.8rem, 23.5vw, 6.6rem);
+}
+
+.bag-board[data-bag-count='7'] {
+  --bag-size: clamp(4.6rem, 22.5vw, 6.35rem);
+}
+
+.bag-board[data-bag-count='8'] {
+  --bag-size: clamp(4.45rem, 21.5vw, 6.15rem);
+}
+
+@media (max-height: 700px) {
+  .bag-board {
+    max-height: min(58vh, 30rem);
+  }
+}
