@@ -1,0 +1,27 @@
+/*
+  Same positioning model as .bag-slot / .bomb-open-fx:
+  - formation % at center
+  - translate(-50%, -50%) then bag visual-center nudge
+*/
+.empty-open-fx {
+  position: absolute;
+  pointer-events: none;
+  --empty-ox: 0px;
+  --empty-oy: 0px;
+  transform: translate(-50%, -50%) translate(var(--empty-ox), var(--empty-oy));
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  white-space: nowrap;
+  text-align: center;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: calc(var(--bag-size) * 0.145);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  line-height: 1;
+  color: #c8c4bc;
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.35);
+  user-select: none;
+  will-change: opacity;
+}

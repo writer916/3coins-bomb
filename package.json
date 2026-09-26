@@ -14,6 +14,7 @@
     "verify:fx": "tsx scripts/verify-fx.ts",
     "verify:audio": "tsx scripts/verify-audio.ts",
     "verify:bomb": "tsx scripts/verify-bomb-fx.ts",
+    "verify:empty": "tsx scripts/verify-empty-fx.ts",
     "preview": "vite preview"
   },
   "dependencies": {
