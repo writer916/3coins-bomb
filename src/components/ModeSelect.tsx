@@ -1,4 +1,5 @@
 import type { AppStrings } from '../i18n'
+import { withDuelNums } from '../ui/withDuelNums'
 
 export type PlayMode = 'solo' | 'duel' | 'group'
 
@@ -9,6 +10,7 @@ type ModeSelectProps = {
 
 /**
  * App front door — three equal mode blocks. No tagline.
+ * Mode titles stay Georgia (same as EN). JA desc digits use `.duel-num`.
  */
 export function ModeSelect({ t, onSelect }: ModeSelectProps) {
   return (
@@ -19,7 +21,7 @@ export function ModeSelect({ t, onSelect }: ModeSelectProps) {
         onClick={() => onSelect('solo')}
       >
         <span className="mode-card-title">{t.modeSoloName}</span>
-        <span className="mode-card-desc">{t.modeSoloDesc}</span>
+        <span className="mode-card-desc">{withDuelNums(t.modeSoloDesc)}</span>
       </button>
 
       <button
@@ -28,7 +30,7 @@ export function ModeSelect({ t, onSelect }: ModeSelectProps) {
         onClick={() => onSelect('duel')}
       >
         <span className="mode-card-title">{t.modeDuelName}</span>
-        <span className="mode-card-desc">{t.modeDuelDesc}</span>
+        <span className="mode-card-desc">{withDuelNums(t.modeDuelDesc)}</span>
       </button>
 
       <button
@@ -40,7 +42,7 @@ export function ModeSelect({ t, onSelect }: ModeSelectProps) {
           <span className="mode-card-title">{t.modeGroupName}</span>
           <span className="mode-badge">{t.modeGroupBadge}</span>
         </span>
-        <span className="mode-card-desc">{t.modeGroupDesc}</span>
+        <span className="mode-card-desc">{withDuelNums(t.modeGroupDesc)}</span>
       </button>
     </nav>
   )

@@ -23,6 +23,7 @@ import {
   type DuelPlacementSession,
 } from '../game/duelPlacement'
 import type { AppStrings } from '../i18n'
+import { withDuelNumsAndBreaks } from '../ui/withDuelNums'
 import { BagBoard } from './BagBoard'
 import { DuelPlacementOverlay } from './DuelPlacementOverlay'
 import { NumberStepper } from './NumberStepper'
@@ -259,11 +260,16 @@ export function DuelFlow({ t, onGoTop }: DuelFlowProps) {
         </p>
         <div className="duel-field duel-field--actions duel-field--stack-actions">
           <div className="duel-btn-stack">
+            {/* Primary confirm first (locale-agnostic layout). */}
+            <button
+              type="button"
+              className="duel-btn duel-btn--primary"
+              onClick={onLock}
+            >
+              {t.duelLock}
+            </button>
             <button type="button" className="duel-btn" onClick={onStartOver}>
               {t.duelStartOver}
-            </button>
-            <button type="button" className="duel-btn duel-btn--primary" onClick={onLock}>
-              {t.duelLock}
             </button>
           </div>
         </div>
@@ -345,7 +351,7 @@ export function DuelFlow({ t, onGoTop }: DuelFlowProps) {
       <div className="duel-slot duel-slot-instruction" data-duel-slot="instruction">
         {placeCopy.instruction ? (
           <p className="duel-instruction" data-duel-metric="place-instruction">
-            {placeCopy.instruction}
+            {withDuelNumsAndBreaks(placeCopy.instruction)}
           </p>
         ) : null}
       </div>

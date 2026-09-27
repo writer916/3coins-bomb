@@ -518,11 +518,7 @@ function App() {
           {topControls}
           <header className="app-header">
             <h1
-              className={
-                locale === 'ja'
-                  ? 'brand-title duel-setup-heading duel-setup-heading--locale-ja'
-                  : 'brand-title duel-setup-heading'
-              }
+              className="brand-title duel-setup-heading"
               aria-label={t.modeDuelName}
             >
               {t.modeDuelName}

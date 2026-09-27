@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { withDuelNums } from '../ui/withDuelNums'
 
 type NumberStepperProps = {
   label: string
@@ -11,19 +11,6 @@ type NumberStepperProps = {
   disabled?: boolean
   /** When false, label text is omitted (height reserved by parent slot). */
   showLabel?: boolean
-}
-
-/** Wrap digit runs in `.duel-num` (SOLO score-num font stack). */
-function withDuelNums(text: string): ReactNode {
-  return text.split(/(\d+)/).map((part, i) =>
-    /^\d+$/.test(part) ? (
-      <span key={i} className="duel-num">
-        {part}
-      </span>
-    ) : (
-      part
-    ),
-  )
 }
 
 /**
