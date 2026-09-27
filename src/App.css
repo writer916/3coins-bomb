@@ -674,6 +674,22 @@
   cursor: default;
 }
 
+/*
+  JA mode label (e.g. 2人対戦): use the same readable UI stack as .score-num /
+  .duel-num so digits are not Georgia oldstyle. EN “DUEL” keeps Georgia via
+  .app / .brand-title inheritance — do not apply this class for en.
+*/
+.duel-setup-heading--locale-ja {
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    'Helvetica Neue',
+    Arial,
+    sans-serif;
+}
+
 /* Shared with ROUND/BAG config — ROUND label sits here without shifting hint. */
 .duel-status-slot {
   box-sizing: border-box;
