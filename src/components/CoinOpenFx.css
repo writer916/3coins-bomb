@@ -14,6 +14,31 @@
   will-change: transform, opacity;
 }
 
+/* Multi-coin (×2/×3) overlapping sprites — positioned from slot center. */
+.coin-open-fx-sprite {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  will-change: transform, opacity;
+  pointer-events: none;
+}
+
+.coin-open-fx-label-layer {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* Sit just below the coin cluster */
+  margin-top: calc(var(--bag-size, 5.5rem) * 0.14);
+  will-change: transform, opacity;
+  pointer-events: none;
+}
+
 /*
   Coin ≈ 1/4 of bag edge. Bag uses --bag-size on .bag-board;
   fall back so FX still sizes if mounted without a board var.

@@ -57,13 +57,24 @@ const coinFxSource = readFileSync(
 }
 
 {
-  // Outer style block should set zIndex; transform belongs on inner.
+  // Outer style block should set zIndex; transform belongs on inner (×1 path).
   const hasInnerTransform =
     coinFxSource.includes('className="coin-open-fx-inner"') &&
     coinFxSource.includes('transform: `translate(-50%, calc(-50% - ${risePx}px))`')
   if (!hasInnerTransform) {
     fail('transform must be on coin-open-fx-inner with -50% centering')
   } else ok('transform/opacity on coin-open-fx-inner (centering SoT)')
+}
+
+{
+  // ×2/×3 prototype: overlapping sprites; ×1 must keep single-sprite branch.
+  if (!coinFxSource.includes('coin-open-fx-sprite')) {
+    fail('multi-coin must render .coin-open-fx-sprite')
+  } else if (!coinFxSource.includes('data-coin-sprites="1"')) {
+    fail('×1 path must keep data-coin-sprites="1"')
+  } else if (!coinFxSource.includes('sampleCoinSprites')) {
+    fail('multi-coin must sample via sampleCoinSprites')
+  } else ok('multi-sprite classes present; ×1 marker retained')
 }
 
 {

@@ -4,7 +4,9 @@ import { playCoinChime } from '../game/coinAudio'
 import {
   planCoinFx,
   sampleCoinFx,
+  sampleCoinSprites,
   type CoinFxSample,
+  type CoinFxSpriteSample,
   type FxCoinCount,
 } from '../game/coinFx'
 import {
@@ -36,10 +38,26 @@ type CoinOpenFxProps = {
   onComplete: () => void
 }
 
+type CoinFxFrame = {
+  readonly sample: CoinFxSample
+  readonly sprites: readonly CoinFxSpriteSample[]
+}
+
+function risePxFromMotion(motionT: number): number {
+  return 28 + motionT * 18
+}
+
+function opacityFromMotion(motionT: number): number {
+  return Math.min(1, 0.35 + motionT * 0.85)
+}
+
 /**
  * Local COIN burst above the opened bag. Visual only — does not mutate ROUND.
  * Remount via `key` when a new open starts.
  * Chimes fire when +N advances; optional 3 COINS SE after last chime + delay.
+ *
+ * coinCount 1: legacy single-sprite path (unchanged motion).
+ * coinCount 2|3: overlapping sprites, same plan.totalMs / totalAtMs / chimes.
  */
 export function CoinOpenFx({
   bagId,
@@ -55,7 +73,10 @@ export function CoinOpenFx({
     () => (clearsRound ? threeCoinsCueAtMs(plan) : null),
     [clearsRound, plan],
   )
-  const [sample, setSample] = useState<CoinFxSample>(() => sampleCoinFx(plan, 0))
+  const [frame, setFrame] = useState<CoinFxFrame>(() => ({
+    sample: sampleCoinFx(plan, 0),
+    sprites: coinCount === 1 ? [] : sampleCoinSprites(plan, 0),
+  }))
   const completedRef = useRef(false)
   const prevDisplayRef = useRef<number | null>(null)
   const threeFiredRef = useRef(false)
@@ -73,6 +94,7 @@ export function CoinOpenFx({
   }, [soundEnabled])
 
   const slot = getFormation(bagCount).find((s) => s.bagId === bagId)
+  const sample = frame.sample
 
   useEffect(() => {
     completedRef.current = false
@@ -82,12 +104,20 @@ export function CoinOpenFx({
     const rafRef = { id: 0 }
     let fallbackTimer = 0
     let cancelled = false
+    const multi = plan.coinCount > 1
+
+    const publish = (next: CoinFxSample, elapsed: number) => {
+      setFrame({
+        sample: next,
+        sprites: multi ? sampleCoinSprites(plan, elapsed) : [],
+      })
+      onSampleRef.current?.(next)
+    }
 
     const completeOnce = (elapsedForSample: number) => {
       if (cancelled || !claimOpenFxCompletion(completedRef)) return
       const final = sampleCoinFx(plan, Math.max(elapsedForSample, plan.totalMs))
-      setSample(final)
-      onSampleRef.current?.(final)
+      publish(final, plan.totalMs)
       onCompleteRef.current()
     }
 
@@ -131,8 +161,7 @@ export function CoinOpenFx({
         }
       }
 
-      setSample(next)
-      onSampleRef.current?.(next)
+      publish(next, elapsed)
       if (next.finished) {
         window.clearTimeout(fallbackTimer)
         completeOnce(elapsed)
@@ -157,14 +186,55 @@ export function CoinOpenFx({
 
   if (!slot || sample.finished) return null
 
-  const risePx = 28 + sample.motionT * 18
-  const opacity = Math.min(1, 0.35 + sample.motionT * 0.85)
   const label = sample.displayTotal !== null ? `+${sample.displayTotal}` : ''
+  const labelClass = sample.emphasize
+    ? 'coin-open-fx-label coin-open-fx-label--strong'
+    : 'coin-open-fx-label'
+
+  // --- 1 COIN: legacy single-sprite structure (motion unchanged) ---
+  if (plan.coinCount === 1) {
+    const risePx = risePxFromMotion(sample.motionT)
+    const opacity = opacityFromMotion(sample.motionT)
+    return (
+      <div
+        className="coin-open-fx"
+        data-bag-id={bagId}
+        data-coin-sprites="1"
+        style={{
+          left: `${slot.x}%`,
+          top: `${slot.y}%`,
+          zIndex: Math.round(slot.y) + 40,
+        }}
+        aria-hidden="true"
+      >
+        <div
+          className="coin-open-fx-inner"
+          style={{
+            transform: `translate(-50%, calc(-50% - ${risePx}px))`,
+            opacity,
+          }}
+        >
+          <img
+            className="coin-open-fx-img"
+            src={coinSrc(sample.spinFrame)}
+            alt=""
+            draggable={false}
+          />
+          {label ? <span className={labelClass}>{label}</span> : null}
+        </div>
+      </div>
+    )
+  }
+
+  // --- 2|3 COINS: overlapping sprites; label uses aggregate sample.motionT ---
+  const labelRisePx = risePxFromMotion(sample.motionT)
+  const labelOpacity = opacityFromMotion(sample.motionT)
 
   return (
     <div
       className="coin-open-fx"
       data-bag-id={bagId}
+      data-coin-sprites={String(plan.coinCount)}
       style={{
         left: `${slot.x}%`,
         top: `${slot.y}%`,
@@ -172,31 +242,40 @@ export function CoinOpenFx({
       }}
       aria-hidden="true"
     >
-      <div
-        className="coin-open-fx-inner"
-        style={{
-          transform: `translate(-50%, calc(-50% - ${risePx}px))`,
-          opacity,
-        }}
-      >
-        <img
-          className="coin-open-fx-img"
-          src={coinSrc(sample.spinFrame)}
-          alt=""
-          draggable={false}
-        />
-        {label ? (
-          <span
-            className={
-              sample.emphasize
-                ? 'coin-open-fx-label coin-open-fx-label--strong'
-                : 'coin-open-fx-label'
-            }
+      {frame.sprites.map((sprite) => {
+        if (!sprite.visible) return null
+        const risePx = risePxFromMotion(sprite.motionT)
+        const opacity = opacityFromMotion(sprite.motionT)
+        return (
+          <div
+            key={sprite.index}
+            className="coin-open-fx-sprite"
+            data-sprite-index={sprite.index}
+            style={{
+              transform: `translate(calc(-50% + ${sprite.offsetXPx}px), calc(-50% - ${risePx}px + ${sprite.offsetYPx}px))`,
+              opacity,
+            }}
           >
-            {label}
-          </span>
-        ) : null}
-      </div>
+            <img
+              className="coin-open-fx-img"
+              src={coinSrc(sprite.spinFrame)}
+              alt=""
+              draggable={false}
+            />
+          </div>
+        )
+      })}
+      {label ? (
+        <div
+          className="coin-open-fx-label-layer"
+          style={{
+            transform: `translate(-50%, calc(-50% - ${labelRisePx}px))`,
+            opacity: labelOpacity,
+          }}
+        >
+          <span className={labelClass}>{label}</span>
+        </div>
+      ) : null}
     </div>
   )
 }

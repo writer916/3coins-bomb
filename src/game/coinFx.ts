@@ -162,3 +162,153 @@ export function visualHiddenBagIds(
   next.delete(fx.bagId)
   return next
 }
+
+/** 1 COIN reference duration — multi-sprite local motion reuses this feel. */
+export const COIN_FX_ONE_TOTAL_MS = 720
+/** 1 COIN spin step — multi-sprite local spin reuses this (not ×2/×3 plan steps). */
+export const COIN_FX_ONE_SPIN_STEP_MS = 70
+/** Shared rise window (ms) used by sampleCoinFx and multi-sprite locals. */
+export const COIN_FX_RISE_MS = 180
+/** Fade starts at this fraction of the active local/plan total. */
+export const COIN_FX_FADE_RATIO = 0.72
+/**
+ * Each sprite's local clock starts this many ms before its +N beat,
+ * so the chime lands ~40ms into the rise (same relationship as 1 COIN).
+ */
+export const COIN_SPRITE_PRE_BEAT_MS = 40
+
+export type CoinFxSpriteSample = {
+  readonly index: number
+  /** False before start / after local fade-out / when parent FX finished. */
+  readonly visible: boolean
+  readonly offsetXPx: number
+  readonly offsetYPx: number
+  readonly motionT: number
+  readonly spinFrame: CoinId
+}
+
+type SpriteOffset = { readonly x: number; readonly y: number }
+
+/** Minimal fan-out so N coins read as N without loud scatter. */
+export function coinSpriteOffsets(coinCount: FxCoinCount): readonly SpriteOffset[] {
+  if (coinCount === 1) return [{ x: 0, y: 0 }]
+  if (coinCount === 2) return [{ x: -9, y: 0 }, { x: 9, y: 1 }]
+  return [
+    { x: 0, y: -2 },
+    { x: -11, y: 2 },
+    { x: 11, y: 2 },
+  ]
+}
+
+/** Local start ms for sprite `index` (aligned to cumulative beat − pre-beat). */
+export function coinSpriteStartMs(plan: CoinFxPlan, index: number): number {
+  const beat = plan.totalAtMs[index]
+  if (beat === undefined) return 0
+  return Math.max(0, beat - COIN_SPRITE_PRE_BEAT_MS)
+}
+
+/**
+ * Local lifetime for one sprite: prefer 1 COIN's 720ms, never past plan.totalMs.
+ * Floored to rise window so a late sprite can still complete a rise.
+ */
+export function coinSpriteLocalTotalMs(plan: CoinFxPlan, startMs: number): number {
+  const remaining = plan.totalMs - startMs
+  if (remaining <= 0) return 0
+  return Math.max(
+    COIN_FX_RISE_MS,
+    Math.min(COIN_FX_ONE_TOTAL_MS, remaining),
+  )
+}
+
+/** Rise / hold / fade progress for a local clock (same shape as 1 COIN). */
+export function coinMotionTForLocal(
+  localElapsedMs: number,
+  localTotalMs: number,
+): number {
+  if (localTotalMs <= 0 || localElapsedMs < 0) return 0
+  if (localElapsedMs >= localTotalMs) return 0
+  const fadeStart = localTotalMs * COIN_FX_FADE_RATIO
+  let motionT: number
+  if (localElapsedMs < COIN_FX_RISE_MS) {
+    motionT = localElapsedMs / COIN_FX_RISE_MS
+  } else if (localElapsedMs < fadeStart) {
+    motionT = 1
+  } else {
+    motionT = 1 - (localElapsedMs - fadeStart) / (localTotalMs - fadeStart)
+  }
+  return Math.max(0, Math.min(1, motionT))
+}
+
+/**
+ * Per-sprite visual samples for multi-coin open FX.
+ * - coinCount 1: single sprite matching `sampleCoinFx` motion/spin (offset 0).
+ * - coinCount 2|3: staggered locals reusing 1 COIN rise+spin feel; parent totalMs unchanged.
+ * Completion SoT remains `plan.totalMs` via `sampleCoinFx` — not per-sprite ends.
+ */
+export function sampleCoinSprites(
+  plan: CoinFxPlan,
+  elapsedMs: number,
+): readonly CoinFxSpriteSample[] {
+  const offsets = coinSpriteOffsets(plan.coinCount)
+
+  if (elapsedMs < 0 || elapsedMs >= plan.totalMs) {
+    return offsets.map((off, index) => ({
+      index,
+      visible: false,
+      offsetXPx: off.x,
+      offsetYPx: off.y,
+      motionT: 0,
+      spinFrame: 'coin-1' as CoinId,
+    }))
+  }
+
+  // 1 COIN: mirror aggregate sample exactly (no stagger / no alternate spin step).
+  if (plan.coinCount === 1) {
+    const s = sampleCoinFx(plan, elapsedMs)
+    const off = offsets[0]!
+    return [
+      {
+        index: 0,
+        visible: !s.finished,
+        offsetXPx: off.x,
+        offsetYPx: off.y,
+        motionT: s.motionT,
+        spinFrame: s.spinFrame,
+      },
+    ]
+  }
+
+  const out: CoinFxSpriteSample[] = []
+  for (let i = 0; i < plan.coinCount; i++) {
+    const off = offsets[i]!
+    const startMs = coinSpriteStartMs(plan, i)
+    const localTotal = coinSpriteLocalTotalMs(plan, startMs)
+    const localElapsed = elapsedMs - startMs
+    if (localElapsed < 0 || localTotal <= 0) {
+      out.push({
+        index: i,
+        visible: false,
+        offsetXPx: off.x,
+        offsetYPx: off.y,
+        motionT: 0,
+        spinFrame: 'coin-1',
+      })
+      continue
+    }
+    const motionT = coinMotionTForLocal(localElapsed, localTotal)
+    // Slight phase offset so stacked spins don't read as one ghosted coin.
+    const phase = i * (COIN_FX_ONE_SPIN_STEP_MS / 2)
+    const spinIndex =
+      Math.floor((localElapsed + phase) / COIN_FX_ONE_SPIN_STEP_MS) %
+      COIN_SPIN_CYCLE.length
+    out.push({
+      index: i,
+      visible: motionT > 0.02,
+      offsetXPx: off.x,
+      offsetYPx: off.y,
+      motionT,
+      spinFrame: COIN_SPIN_CYCLE[spinIndex]!,
+    })
+  }
+  return out
+}
