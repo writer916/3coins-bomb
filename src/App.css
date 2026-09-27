@@ -40,10 +40,16 @@
   min-height: 2.25rem;
 }
 
-/* Phone: clear vertical air between top controls and centered brand title. */
+/* Phone: clear air between top controls and centered brand title.
+   Keep title centered; compensate mode-select top padding so cards
+   are not shoved toward the fold on short viewports (SE-class). */
 @media (max-width: 480px) {
   .app--top .app-topbar {
-    margin-bottom: 0.7rem;
+    margin-bottom: 1.9rem; /* was 0.7rem; ≈+19px title drop */
+  }
+
+  .app--top .mode-select {
+    padding-top: clamp(0.65rem, 2.8vh, 1.15rem);
   }
 }
 
