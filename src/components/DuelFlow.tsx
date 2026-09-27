@@ -256,7 +256,7 @@ export function DuelFlow({ t, onGoTop }: DuelFlowProps) {
       <div className="duel-flow duel-flow--complete">
         <div className="duel-status-slot" aria-hidden="true" />
         <p className="duel-complete-summary">
-          {t.duelRoundsReady(session.totalRounds)}
+          {t.duelRoundsReady}
         </p>
         <div className="duel-field duel-field--actions duel-field--stack-actions">
           <div className="duel-btn-stack">

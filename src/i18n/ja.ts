@@ -55,7 +55,7 @@ export const ja: AppStrings = {
   duelPlacementsLocked: 'PLACEMENTS LOCKED',
   duelBack: 'BACK',
   duelRoundProgress: (current, total) => `ROUND ${current} / ${total}`,
-  duelRoundsReady: (total) => `${total} ROUND READY`,
+  duelRoundsReady: 'ALL ROUNDS READY',
   duelStartOverConfirm:
     '最初からやり直しますか？\nすべてのラウンド配置が消えます。',
   duelLockConfirm: '配置をロックしますか？\nロック後は変更できません。',

@@ -63,7 +63,8 @@ export type AppStrings = {
   duelPlacementsLocked: string
   duelBack: string
   duelRoundProgress: (current: number, total: number) => string
-  duelRoundsReady: (total: number) => string
+  /** Complete-screen summary — fixed copy, not ROUND-count dependent. */
+  duelRoundsReady: string
   duelStartOverConfirm: string
   duelLockConfirm: string
   duelBackConfirm: string

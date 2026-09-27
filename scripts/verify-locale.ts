@@ -87,13 +87,15 @@ assert.equal(
   '袋をタップして3枚のコインを\n置いてください',
 )
 assert.ok(ja.duelPlaceCoins.includes('\n'))
-assert.equal(ja.duelRoundsReady(5), '5 ROUND READY')
-assert.equal(ja.duelRoundsReady(3), '3 ROUND READY')
-assert.equal(ja.duelRoundsReady(10), '10 ROUND READY')
-assert.ok(ja.duelRoundsReady(5).includes(' ROUND '))
+assert.equal(ja.duelRoundsReady, 'ALL ROUNDS READY')
+assert.equal(en.duelRoundsReady, 'ALL ROUNDS READY')
+assert.equal(ja.duelRoundsReady, en.duelRoundsReady)
+// Complete summary must not embed a dynamic ROUND count
+assert.ok(!/\d/.test(ja.duelRoundsReady))
+assert.ok(!/\d/.test(en.duelRoundsReady))
 assert.ok(!ja.modeDuelName.includes('2人対戦'))
 
-// --- EN: unchanged ---
+// --- EN: other command labels unchanged ---
 assert.equal(en.modeSoloName, 'SOLO')
 assert.equal(en.modeSoloDesc, 'Play against hidden hands')
 assert.equal(en.modeDuelName, 'DUEL')
@@ -111,10 +113,6 @@ assert.equal(en.duelComplete, 'COMPLETE')
 assert.equal(en.duelLock, 'LOCK')
 assert.equal(en.duelStartOver, 'START OVER')
 assert.equal(en.duelPlaceCoins, 'Tap to place 3 coins.')
-// Space between count and ROUND(S); never "5ROUNDS…"
-assert.equal(en.duelRoundsReady(5), '5 ROUNDS READY')
-assert.ok(/^(\d+) ROUND(S)? READY$/.test(en.duelRoundsReady(5)))
-assert.ok(!en.duelRoundsReady(5).startsWith('5R'))
 
 // Complete-screen: primary confirm above start-over (layout, both locales)
 {
@@ -133,6 +131,14 @@ assert.ok(!en.duelRoundsReady(5).startsWith('5R'))
   assert.ok(
     lockInComplete < startInComplete,
     'complete screen: confirm button must be above start-over',
+  )
+  assert.ok(
+    completeBlock.includes('{t.duelRoundsReady}'),
+    'complete summary must use fixed duelRoundsReady string',
+  )
+  assert.ok(
+    !completeBlock.includes('duelRoundsReady(session.totalRounds)'),
+    'complete summary must not inject totalRounds',
   )
   // Latin DUEL heading: no JA-only system-ui override
   assert.ok(!appSrc.includes('duel-setup-heading--locale-ja'))
