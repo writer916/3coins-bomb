@@ -57,7 +57,7 @@ export const ja: AppStrings = {
   duelRoundProgress: (current, total) => `ROUND ${current} / ${total}`,
   duelRoundsReady: 'ALL ROUNDS READY',
   duelStartOverConfirm:
-    '最初からやり直しますか？\nすべてのラウンド配置が消えます。',
+    'すべての設定をリセットしてトップに戻りますか？',
   duelLockConfirm: '配置をロックしますか？\nロック後は変更できません。',
   duelBackConfirm:
     'ラウンド数設定に戻りますか？\n作成したラウンドの配置は消去されます。',

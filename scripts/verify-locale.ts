@@ -83,6 +83,10 @@ assert.ok(ja.duelComplete.endsWith('！'))
 assert.ok(ja.duelLock.endsWith('！'))
 assert.equal(ja.duelStartOver, 'RESET ALL')
 assert.equal(
+  ja.duelStartOverConfirm,
+  'すべての設定をリセットしてトップに戻りますか？',
+)
+assert.equal(
   ja.duelPlaceCoins,
   '袋をタップして3枚のコインを\n置いてください',
 )
@@ -112,6 +116,10 @@ assert.equal(en.duelNextRound, 'NEXT ROUND')
 assert.equal(en.duelComplete, 'COMPLETE')
 assert.equal(en.duelLock, 'LOCK')
 assert.equal(en.duelStartOver, 'START OVER')
+assert.equal(
+  en.duelStartOverConfirm,
+  'Reset all settings and return to the top?',
+)
 assert.equal(en.duelPlaceCoins, 'Tap to place 3 coins.')
 
 // Complete-screen: primary confirm above start-over (layout, both locales)
@@ -140,10 +148,78 @@ assert.equal(en.duelPlaceCoins, 'Tap to place 3 coins.')
     !completeBlock.includes('duelRoundsReady(session.totalRounds)'),
     'complete summary must not inject totalRounds',
   )
+  // READY screen must not gain a mid-flow TOP control
+  assert.ok(
+    !completeBlock.includes('t.duelTop') && !completeBlock.includes('onGoTop'),
+    'complete screen must not add TOP',
+  )
+  assert.ok(
+    completeBlock.includes('duel-complete-spacer--top') &&
+      completeBlock.includes('duel-complete-spacer--bottom'),
+    'complete screen uses vertical spacers',
+  )
+  assert.ok(
+    cssSrc.includes('.duel-complete-spacer--top') &&
+      cssSrc.includes('clamp(1.35rem, 4.2vh, 2.1rem)'),
+    'complete summary→button spacing present in CSS',
+  )
+  assert.ok(
+    cssSrc.includes('.app--top .app-topbar') &&
+      cssSrc.includes('@media (max-width: 480px)'),
+    'phone topbar↔title clearance present',
+  )
   // Latin DUEL heading: no JA-only system-ui override
   assert.ok(!appSrc.includes('duel-setup-heading--locale-ja'))
   assert.ok(!cssSrc.includes('duel-setup-heading--locale-ja'))
   assert.ok(src.includes('withDuelNumsAndBreaks'))
+
+  // RESET ALL / START OVER: confirm → discard session + reset draft → goTop
+  const soStart = src.indexOf('const onStartOver = useCallback')
+  assert.ok(soStart >= 0, 'onStartOver missing')
+  const soEnd = src.indexOf('const onLock = useCallback', soStart)
+  assert.ok(soEnd > soStart, 'onLock after onStartOver missing')
+  const onStartOverBlock = src.slice(soStart, soEnd)
+  assert.ok(
+    onStartOverBlock.includes('window.confirm(t.duelStartOverConfirm)'),
+    'onStartOver must keep window.confirm',
+  )
+  assert.ok(
+    onStartOverBlock.includes('if (!window.confirm(t.duelStartOverConfirm)) return'),
+    'cancel must early-return (session/READY preserved, no goTop)',
+  )
+  assert.ok(
+    onStartOverBlock.includes('setSession(null)'),
+    'confirm OK must discard DUEL session',
+  )
+  assert.ok(
+    onStartOverBlock.includes('setRoundsDraft(DUEL_ROUNDS_DEFAULT)'),
+    'confirm OK must reset ROUND draft to default',
+  )
+  assert.ok(
+    onStartOverBlock.includes('onGoTop?.()') ||
+      onStartOverBlock.includes('onGoTop()'),
+    'confirm OK must call onGoTop to return to top',
+  )
+  assert.ok(
+    !onStartOverBlock.includes('startOverSession'),
+    'onStartOver must not reuse startOverSession (ROUND1 bags path)',
+  )
+
+  // Mid-flow TOP only on ROUND setup (!session); bags/place keep BACK
+  const roundsSetup = src.slice(
+    src.indexOf('if (!session)'),
+    src.indexOf('if (session.locked)'),
+  )
+  assert.ok(roundsSetup.includes('t.duelTop'), 'ROUND setup keeps TOP')
+  assert.ok(roundsSetup.includes('onGoTop'), 'ROUND setup TOP uses onGoTop')
+  const bagsBlockStart = src.indexOf("if (draft.phase === 'select-bags')")
+  const bagsBlockEnd = src.indexOf('/* ——— Place', bagsBlockStart)
+  const bagsBlock = src.slice(
+    bagsBlockStart,
+    bagsBlockEnd > bagsBlockStart ? bagsBlockEnd : bagsBlockStart + 1200,
+  )
+  assert.ok(bagsBlock.includes('t.duelBack'), 'BAGS keeps BACK')
+  assert.ok(!bagsBlock.includes('t.duelTop'), 'BAGS must not add TOP')
 }
 
 console.log('verify:locale OK')

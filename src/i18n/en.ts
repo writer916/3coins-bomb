@@ -55,7 +55,7 @@ export const en: AppStrings = {
   duelBack: 'BACK',
   duelRoundProgress: (current, total) => `ROUND ${current} / ${total}`,
   duelRoundsReady: 'ALL ROUNDS READY',
-  duelStartOverConfirm: 'Start over?\nAll round placements will be cleared.',
+  duelStartOverConfirm: 'Reset all settings and return to the top?',
   duelLockConfirm: "Lock all placements?\nYou won't be able to change them after this.",
   duelBackConfirm:
     'Return to round settings?\nYour round placements will be cleared.',

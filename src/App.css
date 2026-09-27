@@ -40,6 +40,13 @@
   min-height: 2.25rem;
 }
 
+/* Phone: clear vertical air between top controls and centered brand title. */
+@media (max-width: 480px) {
+  .app--top .app-topbar {
+    margin-bottom: 0.7rem;
+  }
+}
+
 .sound-toggle,
 .lang-toggle {
   box-sizing: border-box;
@@ -1021,10 +1028,63 @@
   text-align: center;
 }
 
+/*
+  ALL ROUNDS READY: keep DUEL heading where it is; float summary+buttons
+  toward visual middle (slightly above center). Bottom flex > top flex.
+*/
+.duel-flow--complete {
+  gap: 0;
+  justify-content: flex-start;
+  padding-bottom: max(0.65rem, env(safe-area-inset-bottom, 0px));
+}
+
+.duel-complete-spacer {
+  width: 100%;
+  pointer-events: none;
+}
+
+.duel-complete-spacer--top {
+  flex: 1 1 0;
+  min-height: 1.5rem;
+}
+
+.duel-complete-spacer--bottom {
+  flex: 1.35 1 0;
+  min-height: 1.75rem;
+}
+
+.duel-flow--complete .duel-complete-summary {
+  flex: 0 0 auto;
+  margin: 0 0 clamp(1.35rem, 4.2vh, 2.1rem);
+}
+
+.duel-flow--complete .duel-field--stack-actions {
+  flex: 0 0 auto;
+  margin-top: 0;
+}
+
 @media (max-height: 600px) {
   .duel-flow {
     gap: 0.55rem;
     padding-bottom: 0.5rem;
+  }
+
+  .duel-flow--complete {
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
+  }
+
+  .duel-complete-spacer--top {
+    flex: 1 1 0;
+    min-height: 0.75rem;
+  }
+
+  .duel-complete-spacer--bottom {
+    flex: 1.2 1 0;
+    min-height: 0.85rem;
+  }
+
+  .duel-flow--complete .duel-complete-summary {
+    margin-bottom: clamp(1rem, 3.5vh, 1.5rem);
   }
 
   .duel-flow--setup {

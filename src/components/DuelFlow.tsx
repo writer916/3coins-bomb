@@ -19,7 +19,6 @@ import {
   placeCoin,
   resetCurrentRound,
   setBagsDraft,
-  startOverSession,
   type DuelPlacementSession,
 } from '../game/duelPlacement'
 import type { AppStrings } from '../i18n'
@@ -175,8 +174,11 @@ export function DuelFlow({ t, onGoTop }: DuelFlowProps) {
 
   const onStartOver = useCallback(() => {
     if (!window.confirm(t.duelStartOverConfirm)) return
-    setSession((prev) => (prev ? startOverSession(prev) : prev))
-  }, [t.duelStartOverConfirm])
+    // Discard all local DUEL setup and return to mode select.
+    setSession(null)
+    setRoundsDraft(DUEL_ROUNDS_DEFAULT)
+    onGoTop?.()
+  }, [t.duelStartOverConfirm, onGoTop])
 
   const onLock = useCallback(() => {
     if (!window.confirm(t.duelLockConfirm)) return
@@ -254,7 +256,10 @@ export function DuelFlow({ t, onGoTop }: DuelFlowProps) {
   if (session.awaitingLock) {
     return (
       <div className="duel-flow duel-flow--complete">
-        <div className="duel-status-slot" aria-hidden="true" />
+        <div
+          className="duel-complete-spacer duel-complete-spacer--top"
+          aria-hidden="true"
+        />
         <p className="duel-complete-summary">
           {t.duelRoundsReady}
         </p>
@@ -273,6 +278,10 @@ export function DuelFlow({ t, onGoTop }: DuelFlowProps) {
             </button>
           </div>
         </div>
+        <div
+          className="duel-complete-spacer duel-complete-spacer--bottom"
+          aria-hidden="true"
+        />
       </div>
     )
   }
