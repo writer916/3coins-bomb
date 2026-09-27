@@ -7,6 +7,10 @@ import {
   type CoinFxSample,
   type FxCoinCount,
 } from '../game/coinFx'
+import {
+  claimOpenFxCompletion,
+  openFxFallbackDelayMs,
+} from '../game/openFxCompletion'
 import { resolveCoinChimeRequest } from '../game/coinSfx'
 import { playThreeCoins } from '../game/threeCoinsAudio'
 import {
@@ -75,9 +79,20 @@ export function CoinOpenFx({
     prevDisplayRef.current = null
     threeFiredRef.current = false
     const started = performance.now()
-    let raf = 0
+    const rafRef = { id: 0 }
+    let fallbackTimer = 0
+    let cancelled = false
+
+    const completeOnce = (elapsedForSample: number) => {
+      if (cancelled || !claimOpenFxCompletion(completedRef)) return
+      const final = sampleCoinFx(plan, Math.max(elapsedForSample, plan.totalMs))
+      setSample(final)
+      onSampleRef.current?.(final)
+      onCompleteRef.current()
+    }
 
     const tick = (now: number) => {
+      if (cancelled || completedRef.current) return
       const elapsed = now - started
       const next = sampleCoinFx(plan, elapsed)
 
@@ -119,17 +134,25 @@ export function CoinOpenFx({
       setSample(next)
       onSampleRef.current?.(next)
       if (next.finished) {
-        if (!completedRef.current) {
-          completedRef.current = true
-          onCompleteRef.current()
-        }
+        window.clearTimeout(fallbackTimer)
+        completeOnce(elapsed)
         return
       }
-      raf = requestAnimationFrame(tick)
+      rafRef.id = requestAnimationFrame(tick)
     }
 
-    raf = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(raf)
+    rafRef.id = requestAnimationFrame(tick)
+    fallbackTimer = window.setTimeout(() => {
+      if (cancelled || completedRef.current) return
+      cancelAnimationFrame(rafRef.id)
+      completeOnce(plan.totalMs)
+    }, openFxFallbackDelayMs(plan.totalMs))
+
+    return () => {
+      cancelled = true
+      cancelAnimationFrame(rafRef.id)
+      window.clearTimeout(fallbackTimer)
+    }
   }, [plan, clearsRound, threeCueAt])
 
   if (!slot || sample.finished) return null
