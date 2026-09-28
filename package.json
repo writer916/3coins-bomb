@@ -26,6 +26,7 @@
     "verify:duel-placement": "tsx scripts/verify-duel-placement.ts",
     "verify:duel-match": "tsx scripts/verify-duel-match.ts",
     "verify:duel-db": "tsx scripts/verify-duel-db.ts",
+    "verify:duel-tokens": "tsx scripts/verify-duel-tokens.ts",
     "verify:open-fx-fallback": "tsx scripts/verify-open-fx-fallback.ts",
     "db:generate": "drizzle-kit generate",
     "preview": "vite preview"
