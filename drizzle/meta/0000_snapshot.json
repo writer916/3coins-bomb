@@ -1,0 +1,214 @@
+{
+  "id": "f4a14b52-e597-4e4c-96d1-0d737ccaa8ca",
+  "prevId": "00000000-0000-0000-0000-000000000000",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.duel_matches": {
+      "name": "duel_matches",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "total_rounds": {
+          "name": "total_rounds",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "create_request_id": {
+          "name": "create_request_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "duel_matches_create_request_id_unique": {
+          "name": "duel_matches_create_request_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "create_request_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "duel_matches_total_rounds_check": {
+          "name": "duel_matches_total_rounds_check",
+          "value": "\"duel_matches\".\"total_rounds\" between 1 and 20"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.duel_participants": {
+      "name": "duel_participants",
+      "schema": "",
+      "columns": {
+        "match_id": {
+          "name": "match_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "role": {
+          "name": "role",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "auth_token_hash": {
+          "name": "auth_token_hash",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "invite_token_hash": {
+          "name": "invite_token_hash",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "claimed_at": {
+          "name": "claimed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "placement_locked_at": {
+          "name": "placement_locked_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        }
+      },
+      "indexes": {
+        "duel_participants_auth_token_hash_unique": {
+          "name": "duel_participants_auth_token_hash_unique",
+          "columns": [
+            {
+              "expression": "auth_token_hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "duel_participants_invite_token_hash_unique": {
+          "name": "duel_participants_invite_token_hash_unique",
+          "columns": [
+            {
+              "expression": "invite_token_hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "duel_participants_match_id_duel_matches_id_fk": {
+          "name": "duel_participants_match_id_duel_matches_id_fk",
+          "tableFrom": "duel_participants",
+          "tableTo": "duel_matches",
+          "columnsFrom": [
+            "match_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "duel_participants_match_id_role_pk": {
+          "name": "duel_participants_match_id_role_pk",
+          "columns": [
+            "match_id",
+            "role"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "duel_participants_role_check": {
+          "name": "duel_participants_role_check",
+          "value": "\"duel_participants\".\"role\" in ('A', 'B')"
+        },
+        "duel_participants_auth_token_hash_check": {
+          "name": "duel_participants_auth_token_hash_check",
+          "value": "\"duel_participants\".\"auth_token_hash\" is null or \"duel_participants\".\"auth_token_hash\" ~ '^[0-9a-f]{64}$'"
+        },
+        "duel_participants_invite_token_hash_check": {
+          "name": "duel_participants_invite_token_hash_check",
+          "value": "\"duel_participants\".\"invite_token_hash\" is null or \"duel_participants\".\"invite_token_hash\" ~ '^[0-9a-f]{64}$'"
+        },
+        "duel_participants_claim_state_check": {
+          "name": "duel_participants_claim_state_check",
+          "value": "(\n        \"duel_participants\".\"role\" = 'A'\n        and \"duel_participants\".\"auth_token_hash\" is not null\n        and \"duel_participants\".\"invite_token_hash\" is null\n        and \"duel_participants\".\"claimed_at\" is not null\n      ) or (\n        \"duel_participants\".\"role\" = 'B'\n        and (\n          (\n            \"duel_participants\".\"auth_token_hash\" is null\n            and \"duel_participants\".\"invite_token_hash\" is not null\n            and \"duel_participants\".\"claimed_at\" is null\n          ) or (\n            \"duel_participants\".\"auth_token_hash\" is not null\n            and \"duel_participants\".\"invite_token_hash\" is null\n            and \"duel_participants\".\"claimed_at\" is not null\n          )\n        )\n      )"
+        },
+        "duel_participants_version_check": {
+          "name": "duel_participants_version_check",
+          "value": "\"duel_participants\".\"version\" >= 0"
+        }
+      },
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {},
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}
