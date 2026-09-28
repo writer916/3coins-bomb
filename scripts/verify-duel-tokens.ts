@@ -4,15 +4,20 @@ import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import {
   DUEL_INVITATION_TOKEN_PREFIX,
+  DUEL_PARTICIPANT_B_TOKEN_PREFIX,
   DUEL_PARTICIPANT_TOKEN_PREFIX,
   DUEL_TOKEN_HMAC_KEY_ENV,
   DuelTokenError,
   deriveMatchCreationTokens,
+  deriveParticipantBToken,
   hashDuelToken,
   parseBearerToken,
   readDuelTokenHmacKey,
   validateCreateRecoverySecret,
   validateCreateRequestId,
+  validateClaimRecoverySecret,
+  validateDuelInvitationToken,
+  validateMatchId,
 } from '../server/auth/duelTokens.ts'
 
 const root = resolve(import.meta.dirname, '..')
@@ -45,7 +50,9 @@ function filesBelow(directory: string): string[] {
 }
 
 assert.equal(validateCreateRecoverySecret(recoverySecret), recoverySecret)
+assert.equal(validateClaimRecoverySecret(recoverySecret), recoverySecret)
 assert.equal(validateCreateRequestId(requestId.toUpperCase()), requestId)
+assert.equal(validateMatchId(requestId.toUpperCase()), requestId)
 
 expectCode(
   () => validateCreateRecoverySecret('not-base64url'),
@@ -58,6 +65,10 @@ expectCode(
 expectCode(
   () => validateCreateRecoverySecret(Buffer.alloc(31).toString('base64url')),
   'INVALID_CREATE_RECOVERY_SECRET',
+)
+expectCode(
+  () => validateClaimRecoverySecret('not-base64url'),
+  'INVALID_CLAIM_RECOVERY_SECRET',
 )
 expectCode(() => validateCreateRequestId('not-a-uuid'), 'INVALID_CREATE_REQUEST_ID')
 expectCode(
@@ -104,6 +115,51 @@ assert(first.participantToken.startsWith(DUEL_PARTICIPANT_TOKEN_PREFIX))
 assert(first.invitationToken.startsWith(DUEL_INVITATION_TOKEN_PREFIX))
 assert.equal(first.participantToken.length, DUEL_PARTICIPANT_TOKEN_PREFIX.length + 43)
 assert.equal(first.invitationToken.length, DUEL_INVITATION_TOKEN_PREFIX.length + 43)
+assert.equal(validateDuelInvitationToken(first.invitationToken), first.invitationToken)
+expectCode(
+  () => validateDuelInvitationToken(first.participantToken),
+  'INVALID_INVITATION_TOKEN',
+)
+
+const participantB = deriveParticipantBToken(
+  {
+    matchId: requestId,
+    invitationToken: first.invitationToken,
+    claimRecoverySecret: recoverySecret,
+  },
+  fixtureEnvironment,
+)
+const repeatedParticipantB = deriveParticipantBToken(
+  {
+    matchId: requestId,
+    invitationToken: first.invitationToken,
+    claimRecoverySecret: recoverySecret,
+  },
+  fixtureEnvironment,
+)
+const differentMatchParticipantB = deriveParticipantBToken(
+  {
+    matchId: otherRequestId,
+    invitationToken: first.invitationToken,
+    claimRecoverySecret: recoverySecret,
+  },
+  fixtureEnvironment,
+)
+const differentRecoveryParticipantB = deriveParticipantBToken(
+  {
+    matchId: requestId,
+    invitationToken: first.invitationToken,
+    claimRecoverySecret: otherRecoverySecret,
+  },
+  fixtureEnvironment,
+)
+assert.equal(participantB, repeatedParticipantB)
+assert(participantB.startsWith(DUEL_PARTICIPANT_B_TOKEN_PREFIX))
+assert.equal(participantB.length, DUEL_PARTICIPANT_B_TOKEN_PREFIX.length + 43)
+assert.notEqual(participantB, first.participantToken)
+assert.notEqual(participantB, first.invitationToken)
+assert.notEqual(participantB, differentMatchParticipantB)
+assert.notEqual(participantB, differentRecoveryParticipantB)
 
 const participantHash = hashDuelToken(first.participantToken)
 const invitationHash = hashDuelToken(first.invitationToken)

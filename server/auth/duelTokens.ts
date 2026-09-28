@@ -4,6 +4,7 @@ export const DUEL_TOKEN_HMAC_KEY_ENV = 'DUEL_TOKEN_HMAC_KEY'
 
 export const DUEL_PARTICIPANT_TOKEN_PREFIX = '3cb_pa1_'
 export const DUEL_INVITATION_TOKEN_PREFIX = '3cb_pi1_'
+export const DUEL_PARTICIPANT_B_TOKEN_PREFIX = '3cb_pb1_'
 
 const TOKEN_DERIVATION_VERSION = 1
 const KEY_BYTE_LENGTH = 32
@@ -15,7 +16,10 @@ const BASE64URL_PATTERN = /^[A-Za-z0-9_-]+$/
 
 export type DuelTokenErrorCode =
   | 'INVALID_CREATE_RECOVERY_SECRET'
+  | 'INVALID_CLAIM_RECOVERY_SECRET'
   | 'INVALID_CREATE_REQUEST_ID'
+  | 'INVALID_MATCH_ID'
+  | 'INVALID_INVITATION_TOKEN'
   | 'MISSING_HMAC_KEY'
   | 'INVALID_HMAC_KEY'
   | 'INVALID_BEARER_TOKEN'
@@ -62,6 +66,16 @@ export function validateCreateRecoverySecret(value: unknown): string {
   return value as string
 }
 
+export function validateClaimRecoverySecret(value: unknown): string {
+  decodeCanonicalBase64Url(
+    value,
+    RECOVERY_SECRET_BYTE_LENGTH,
+    'INVALID_CLAIM_RECOVERY_SECRET',
+    'claimRecoverySecret must be a canonical base64url-encoded 32-byte value.',
+  )
+  return value as string
+}
+
 export function validateCreateRequestId(value: unknown): string {
   if (typeof value !== 'string' || !UUID_PATTERN.test(value)) {
     throw new DuelTokenError(
@@ -70,6 +84,37 @@ export function validateCreateRequestId(value: unknown): string {
     )
   }
   return value.toLowerCase()
+}
+
+export function validateMatchId(value: unknown): string {
+  if (typeof value !== 'string' || !UUID_PATTERN.test(value)) {
+    throw new DuelTokenError(
+      'INVALID_MATCH_ID',
+      'matchId must be a canonical UUID v4.',
+    )
+  }
+  return value.toLowerCase()
+}
+
+export function validateDuelInvitationToken(value: unknown): string {
+  if (
+    typeof value !== 'string' ||
+    !value.startsWith(DUEL_INVITATION_TOKEN_PREFIX)
+  ) {
+    throw new DuelTokenError(
+      'INVALID_INVITATION_TOKEN',
+      'A valid DUEL invitation token is required.',
+    )
+  }
+
+  const encodedToken = value.slice(DUEL_INVITATION_TOKEN_PREFIX.length)
+  decodeCanonicalBase64Url(
+    encodedToken,
+    32,
+    'INVALID_INVITATION_TOKEN',
+    'A valid DUEL invitation token is required.',
+  )
+  return value
 }
 
 export function readDuelTokenHmacKey(
@@ -126,6 +171,12 @@ export interface MatchCreationTokens {
   readonly invitationToken: string
 }
 
+export interface DeriveParticipantBTokenInput {
+  readonly matchId: unknown
+  readonly invitationToken: unknown
+  readonly claimRecoverySecret: unknown
+}
+
 export function deriveMatchCreationTokens(
   input: DeriveMatchCreationTokensInput,
   environment: NodeJS.ProcessEnv = process.env,
@@ -153,6 +204,27 @@ export function deriveMatchCreationTokens(
       DUEL_INVITATION_TOKEN_PREFIX,
     ),
   }
+}
+
+export function deriveParticipantBToken(
+  input: DeriveParticipantBTokenInput,
+  environment: NodeJS.ProcessEnv = process.env,
+): string {
+  const matchId = validateMatchId(input.matchId)
+  const invitationToken = validateDuelInvitationToken(input.invitationToken)
+  const encodedRecoverySecret = validateClaimRecoverySecret(
+    input.claimRecoverySecret,
+  )
+  const recoverySecret = Buffer.from(encodedRecoverySecret, 'base64url')
+  const key = readDuelTokenHmacKey(environment)
+  const hmac = createHmac('sha256', key)
+  updateFramed(hmac, Buffer.from('3cb-duel-token', 'utf8'))
+  updateFramed(hmac, Buffer.from([TOKEN_DERIVATION_VERSION]))
+  updateFramed(hmac, Buffer.from('participant-b-auth', 'utf8'))
+  updateFramed(hmac, Buffer.from(matchId, 'utf8'))
+  updateFramed(hmac, Buffer.from(invitationToken, 'utf8'))
+  updateFramed(hmac, recoverySecret)
+  return DUEL_PARTICIPANT_B_TOKEN_PREFIX + hmac.digest('base64url')
 }
 
 export function hashDuelToken(token: string): string {
