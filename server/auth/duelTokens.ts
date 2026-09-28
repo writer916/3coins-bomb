@@ -20,6 +20,7 @@ export type DuelTokenErrorCode =
   | 'INVALID_CREATE_REQUEST_ID'
   | 'INVALID_MATCH_ID'
   | 'INVALID_INVITATION_TOKEN'
+  | 'INVALID_PARTICIPANT_TOKEN'
   | 'MISSING_HMAC_KEY'
   | 'INVALID_HMAC_KEY'
   | 'INVALID_BEARER_TOKEN'
@@ -113,6 +114,30 @@ export function validateDuelInvitationToken(value: unknown): string {
     32,
     'INVALID_INVITATION_TOKEN',
     'A valid DUEL invitation token is required.',
+  )
+  return value
+}
+
+export function validateDuelParticipantToken(value: unknown): string {
+  if (
+    typeof value !== 'string' ||
+    (!value.startsWith(DUEL_PARTICIPANT_TOKEN_PREFIX) &&
+      !value.startsWith(DUEL_PARTICIPANT_B_TOKEN_PREFIX))
+  ) {
+    throw new DuelTokenError(
+      'INVALID_PARTICIPANT_TOKEN',
+      'A valid DUEL participant token is required.',
+    )
+  }
+
+  const prefix = value.startsWith(DUEL_PARTICIPANT_TOKEN_PREFIX)
+    ? DUEL_PARTICIPANT_TOKEN_PREFIX
+    : DUEL_PARTICIPANT_B_TOKEN_PREFIX
+  decodeCanonicalBase64Url(
+    value.slice(prefix.length),
+    32,
+    'INVALID_PARTICIPANT_TOKEN',
+    'A valid DUEL participant token is required.',
   )
   return value
 }
