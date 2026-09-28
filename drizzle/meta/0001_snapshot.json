@@ -1,0 +1,653 @@
+{
+  "id": "3818bdd2-faef-423e-ba08-14fbcddacbd5",
+  "prevId": "f4a14b52-e597-4e4c-96d1-0d737ccaa8ca",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.duel_matches": {
+      "name": "duel_matches",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "total_rounds": {
+          "name": "total_rounds",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "create_request_id": {
+          "name": "create_request_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "formation_version": {
+          "name": "formation_version",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "rule_version": {
+          "name": "rule_version",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "duel_matches_create_request_id_unique": {
+          "name": "duel_matches_create_request_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "create_request_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "duel_matches_total_rounds_check": {
+          "name": "duel_matches_total_rounds_check",
+          "value": "\"duel_matches\".\"total_rounds\" between 1 and 20"
+        },
+        "duel_matches_formation_version_check": {
+          "name": "duel_matches_formation_version_check",
+          "value": "\"duel_matches\".\"formation_version\" >= 1"
+        },
+        "duel_matches_rule_version_check": {
+          "name": "duel_matches_rule_version_check",
+          "value": "\"duel_matches\".\"rule_version\" >= 1"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.duel_participants": {
+      "name": "duel_participants",
+      "schema": "",
+      "columns": {
+        "match_id": {
+          "name": "match_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "role": {
+          "name": "role",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "auth_token_hash": {
+          "name": "auth_token_hash",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "invite_token_hash": {
+          "name": "invite_token_hash",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "claimed_at": {
+          "name": "claimed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "placement_locked_at": {
+          "name": "placement_locked_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        }
+      },
+      "indexes": {
+        "duel_participants_auth_token_hash_unique": {
+          "name": "duel_participants_auth_token_hash_unique",
+          "columns": [
+            {
+              "expression": "auth_token_hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "duel_participants_invite_token_hash_unique": {
+          "name": "duel_participants_invite_token_hash_unique",
+          "columns": [
+            {
+              "expression": "invite_token_hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "duel_participants_match_id_duel_matches_id_fk": {
+          "name": "duel_participants_match_id_duel_matches_id_fk",
+          "tableFrom": "duel_participants",
+          "tableTo": "duel_matches",
+          "columnsFrom": [
+            "match_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "duel_participants_match_id_role_pk": {
+          "name": "duel_participants_match_id_role_pk",
+          "columns": [
+            "match_id",
+            "role"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "duel_participants_role_check": {
+          "name": "duel_participants_role_check",
+          "value": "\"duel_participants\".\"role\" in ('A', 'B')"
+        },
+        "duel_participants_auth_token_hash_check": {
+          "name": "duel_participants_auth_token_hash_check",
+          "value": "\"duel_participants\".\"auth_token_hash\" is null or \"duel_participants\".\"auth_token_hash\" ~ '^[0-9a-f]{64}$'"
+        },
+        "duel_participants_invite_token_hash_check": {
+          "name": "duel_participants_invite_token_hash_check",
+          "value": "\"duel_participants\".\"invite_token_hash\" is null or \"duel_participants\".\"invite_token_hash\" ~ '^[0-9a-f]{64}$'"
+        },
+        "duel_participants_claim_state_check": {
+          "name": "duel_participants_claim_state_check",
+          "value": "(\n        \"duel_participants\".\"role\" = 'A'\n        and \"duel_participants\".\"auth_token_hash\" is not null\n        and \"duel_participants\".\"invite_token_hash\" is null\n        and \"duel_participants\".\"claimed_at\" is not null\n      ) or (\n        \"duel_participants\".\"role\" = 'B'\n        and (\n          (\n            \"duel_participants\".\"auth_token_hash\" is null\n            and \"duel_participants\".\"invite_token_hash\" is not null\n            and \"duel_participants\".\"claimed_at\" is null\n          ) or (\n            \"duel_participants\".\"auth_token_hash\" is not null\n            and \"duel_participants\".\"invite_token_hash\" is null\n            and \"duel_participants\".\"claimed_at\" is not null\n          )\n        )\n      )"
+        },
+        "duel_participants_version_check": {
+          "name": "duel_participants_version_check",
+          "value": "\"duel_participants\".\"version\" >= 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.duel_round_opens": {
+      "name": "duel_round_opens",
+      "schema": "",
+      "columns": {
+        "match_id": {
+          "name": "match_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "round_number": {
+          "name": "round_number",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "explorer_role": {
+          "name": "explorer_role",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "placement_role": {
+          "name": "placement_role",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "open_order": {
+          "name": "open_order",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "bag_number": {
+          "name": "bag_number",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "request_id": {
+          "name": "request_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "opened_at": {
+          "name": "opened_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "duel_round_opens_explorer_fk": {
+          "name": "duel_round_opens_explorer_fk",
+          "tableFrom": "duel_round_opens",
+          "tableTo": "duel_participants",
+          "columnsFrom": [
+            "match_id",
+            "explorer_role"
+          ],
+          "columnsTo": [
+            "match_id",
+            "role"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "duel_round_opens_placement_fk": {
+          "name": "duel_round_opens_placement_fk",
+          "tableFrom": "duel_round_opens",
+          "tableTo": "duel_round_placements",
+          "columnsFrom": [
+            "match_id",
+            "placement_role",
+            "round_number"
+          ],
+          "columnsTo": [
+            "match_id",
+            "participant_role",
+            "round_number"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "duel_round_opens_match_explorer_round_order_pk": {
+          "name": "duel_round_opens_match_explorer_round_order_pk",
+          "columns": [
+            "match_id",
+            "explorer_role",
+            "round_number",
+            "open_order"
+          ]
+        }
+      },
+      "uniqueConstraints": {
+        "duel_round_opens_match_explorer_round_bag_unique": {
+          "name": "duel_round_opens_match_explorer_round_bag_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "match_id",
+            "explorer_role",
+            "round_number",
+            "bag_number"
+          ]
+        },
+        "duel_round_opens_request_id_unique": {
+          "name": "duel_round_opens_request_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "request_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "duel_round_opens_round_number_check": {
+          "name": "duel_round_opens_round_number_check",
+          "value": "\"duel_round_opens\".\"round_number\" between 1 and 20"
+        },
+        "duel_round_opens_roles_check": {
+          "name": "duel_round_opens_roles_check",
+          "value": "\"duel_round_opens\".\"explorer_role\" in ('A', 'B') and \"duel_round_opens\".\"placement_role\" in ('A', 'B') and \"duel_round_opens\".\"explorer_role\" <> \"duel_round_opens\".\"placement_role\""
+        },
+        "duel_round_opens_open_order_check": {
+          "name": "duel_round_opens_open_order_check",
+          "value": "\"duel_round_opens\".\"open_order\" >= 1"
+        },
+        "duel_round_opens_bag_number_check": {
+          "name": "duel_round_opens_bag_number_check",
+          "value": "\"duel_round_opens\".\"bag_number\" between 1 and 8"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.duel_round_placements": {
+      "name": "duel_round_placements",
+      "schema": "",
+      "columns": {
+        "match_id": {
+          "name": "match_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "participant_role": {
+          "name": "participant_role",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "round_number": {
+          "name": "round_number",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "bag_count": {
+          "name": "bag_count",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "bomb_bag_number": {
+          "name": "bomb_bag_number",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "coin_bag_numbers": {
+          "name": "coin_bag_numbers",
+          "type": "smallint[]",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "locked_at": {
+          "name": "locked_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "duel_round_placements_participant_fk": {
+          "name": "duel_round_placements_participant_fk",
+          "tableFrom": "duel_round_placements",
+          "tableTo": "duel_participants",
+          "columnsFrom": [
+            "match_id",
+            "participant_role"
+          ],
+          "columnsTo": [
+            "match_id",
+            "role"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "duel_round_placements_match_role_round_pk": {
+          "name": "duel_round_placements_match_role_round_pk",
+          "columns": [
+            "match_id",
+            "participant_role",
+            "round_number"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "duel_round_placements_participant_role_check": {
+          "name": "duel_round_placements_participant_role_check",
+          "value": "\"duel_round_placements\".\"participant_role\" in ('A', 'B')"
+        },
+        "duel_round_placements_round_number_check": {
+          "name": "duel_round_placements_round_number_check",
+          "value": "\"duel_round_placements\".\"round_number\" between 1 and 20"
+        },
+        "duel_round_placements_bag_count_check": {
+          "name": "duel_round_placements_bag_count_check",
+          "value": "\"duel_round_placements\".\"bag_count\" between 3 and 8"
+        },
+        "duel_round_placements_bomb_bag_number_check": {
+          "name": "duel_round_placements_bomb_bag_number_check",
+          "value": "\"duel_round_placements\".\"bomb_bag_number\" between 1 and \"duel_round_placements\".\"bag_count\""
+        },
+        "duel_round_placements_coin_count_check": {
+          "name": "duel_round_placements_coin_count_check",
+          "value": "array_ndims(\"duel_round_placements\".\"coin_bag_numbers\") = 1\n        and cardinality(\"duel_round_placements\".\"coin_bag_numbers\") = 3\n        and array_lower(\"duel_round_placements\".\"coin_bag_numbers\", 1) = 1\n        and array_upper(\"duel_round_placements\".\"coin_bag_numbers\", 1) = 3\n        and array_position(\"duel_round_placements\".\"coin_bag_numbers\", null) is null"
+        },
+        "duel_round_placements_coin_bag_numbers_check": {
+          "name": "duel_round_placements_coin_bag_numbers_check",
+          "value": "(\n        (\"duel_round_placements\".\"coin_bag_numbers\")[1] between 1 and \"duel_round_placements\".\"bag_count\"\n        and (\"duel_round_placements\".\"coin_bag_numbers\")[2] between 1 and \"duel_round_placements\".\"bag_count\"\n        and (\"duel_round_placements\".\"coin_bag_numbers\")[3] between 1 and \"duel_round_placements\".\"bag_count\"\n        and (\"duel_round_placements\".\"coin_bag_numbers\")[1] <> \"duel_round_placements\".\"bomb_bag_number\"\n        and (\"duel_round_placements\".\"coin_bag_numbers\")[2] <> \"duel_round_placements\".\"bomb_bag_number\"\n        and (\"duel_round_placements\".\"coin_bag_numbers\")[3] <> \"duel_round_placements\".\"bomb_bag_number\"\n        and (\"duel_round_placements\".\"coin_bag_numbers\")[1] <= (\"duel_round_placements\".\"coin_bag_numbers\")[2]\n        and (\"duel_round_placements\".\"coin_bag_numbers\")[2] <= (\"duel_round_placements\".\"coin_bag_numbers\")[3]\n      )"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.duel_round_results": {
+      "name": "duel_round_results",
+      "schema": "",
+      "columns": {
+        "match_id": {
+          "name": "match_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "round_number": {
+          "name": "round_number",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "explorer_role": {
+          "name": "explorer_role",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "placement_role": {
+          "name": "placement_role",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "end_reason": {
+          "name": "end_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "terminal_open_order": {
+          "name": "terminal_open_order",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "captured_coins": {
+          "name": "captured_coins",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "bomb_hit": {
+          "name": "bomb_hit",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "opened_bag_count": {
+          "name": "opened_bag_count",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "request_id": {
+          "name": "request_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ended_at": {
+          "name": "ended_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "duel_round_results_explorer_fk": {
+          "name": "duel_round_results_explorer_fk",
+          "tableFrom": "duel_round_results",
+          "tableTo": "duel_participants",
+          "columnsFrom": [
+            "match_id",
+            "explorer_role"
+          ],
+          "columnsTo": [
+            "match_id",
+            "role"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "duel_round_results_placement_fk": {
+          "name": "duel_round_results_placement_fk",
+          "tableFrom": "duel_round_results",
+          "tableTo": "duel_round_placements",
+          "columnsFrom": [
+            "match_id",
+            "placement_role",
+            "round_number"
+          ],
+          "columnsTo": [
+            "match_id",
+            "participant_role",
+            "round_number"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "duel_round_results_match_explorer_round_pk": {
+          "name": "duel_round_results_match_explorer_round_pk",
+          "columns": [
+            "match_id",
+            "explorer_role",
+            "round_number"
+          ]
+        }
+      },
+      "uniqueConstraints": {
+        "duel_round_results_request_id_unique": {
+          "name": "duel_round_results_request_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "request_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "duel_round_results_round_number_check": {
+          "name": "duel_round_results_round_number_check",
+          "value": "\"duel_round_results\".\"round_number\" between 1 and 20"
+        },
+        "duel_round_results_roles_check": {
+          "name": "duel_round_results_roles_check",
+          "value": "\"duel_round_results\".\"explorer_role\" in ('A', 'B') and \"duel_round_results\".\"placement_role\" in ('A', 'B') and \"duel_round_results\".\"explorer_role\" <> \"duel_round_results\".\"placement_role\""
+        },
+        "duel_round_results_end_reason_check": {
+          "name": "duel_round_results_end_reason_check",
+          "value": "\"duel_round_results\".\"end_reason\" in ('bombed', 'cashed_out', 'cleared')"
+        },
+        "duel_round_results_captured_coins_check": {
+          "name": "duel_round_results_captured_coins_check",
+          "value": "\"duel_round_results\".\"captured_coins\" between 0 and 3"
+        },
+        "duel_round_results_opened_bag_count_check": {
+          "name": "duel_round_results_opened_bag_count_check",
+          "value": "\"duel_round_results\".\"opened_bag_count\" between 1 and 8"
+        },
+        "duel_round_results_terminal_open_order_check": {
+          "name": "duel_round_results_terminal_open_order_check",
+          "value": "\"duel_round_results\".\"terminal_open_order\" is null or \"duel_round_results\".\"terminal_open_order\" between 1 and \"duel_round_results\".\"opened_bag_count\""
+        },
+        "duel_round_results_state_check": {
+          "name": "duel_round_results_state_check",
+          "value": "(\n        \"duel_round_results\".\"end_reason\" = 'bombed'\n        and \"duel_round_results\".\"bomb_hit\" = true\n        and \"duel_round_results\".\"captured_coins\" = 0\n        and \"duel_round_results\".\"terminal_open_order\" = \"duel_round_results\".\"opened_bag_count\"\n      ) or (\n        \"duel_round_results\".\"end_reason\" = 'cashed_out'\n        and \"duel_round_results\".\"bomb_hit\" = false\n        and \"duel_round_results\".\"captured_coins\" in (1, 2)\n        and \"duel_round_results\".\"terminal_open_order\" is null\n      ) or (\n        \"duel_round_results\".\"end_reason\" = 'cleared'\n        and \"duel_round_results\".\"bomb_hit\" = false\n        and \"duel_round_results\".\"captured_coins\" = 3\n        and \"duel_round_results\".\"terminal_open_order\" = \"duel_round_results\".\"opened_bag_count\"\n      )"
+        }
+      },
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {},
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}
