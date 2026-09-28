@@ -24,6 +24,7 @@
     "verify:empty": "tsx scripts/verify-empty-fx.ts",
     "verify:locale": "tsx scripts/verify-locale.ts",
     "verify:duel-placement": "tsx scripts/verify-duel-placement.ts",
+    "verify:duel-match": "tsx scripts/verify-duel-match.ts",
     "verify:open-fx-fallback": "tsx scripts/verify-open-fx-fallback.ts",
     "preview": "vite preview"
   },
