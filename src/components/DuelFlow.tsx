@@ -190,7 +190,6 @@ export function DuelFlow({ t, onGoTop }: DuelFlowProps) {
 
   const onLock = useCallback(async () => {
     if (lockPendingRef.current || !session?.awaitingLock) return
-    if (!window.confirm(t.duelLockConfirm)) return
     lockPendingRef.current = true
     setLockPending(true)
     setLockError(false)
@@ -211,7 +210,7 @@ export function DuelFlow({ t, onGoTop }: DuelFlowProps) {
       lockPendingRef.current = false
       setLockPending(false)
     }
-  }, [session, t.duelLockConfirm])
+  }, [session])
 
   const draft = session?.current ?? null
 

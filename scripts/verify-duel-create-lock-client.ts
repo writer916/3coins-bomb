@@ -246,6 +246,8 @@ async function main() {
   assert(!source.includes('Math.random'))
   const flowSource = await readFile('src/components/DuelFlow.tsx', 'utf8')
   assert(flowSource.indexOf('await lockCoordinatorRef.current.run') < flowSource.indexOf('lockSession(prev)'))
+  assert(!flowSource.includes('duelLockConfirm'))
+  assert(flowSource.includes('window.confirm(t.duelStartOverConfirm)'))
 
   console.log('verify-duel-create-lock-client: all checks passed')
 }

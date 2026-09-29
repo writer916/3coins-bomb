@@ -68,6 +68,5 @@ export type AppStrings = {
   /** Complete-screen summary — fixed copy, not ROUND-count dependent. */
   duelRoundsReady: string
   duelStartOverConfirm: string
-  duelLockConfirm: string
   duelBackConfirm: string
 }
