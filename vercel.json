@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/duel/:matchId",
+      "destination": "/index.html"
+    }
+  ]
+}

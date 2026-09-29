@@ -8,6 +8,7 @@ import {
 export const DUEL_STORAGE_VERSION = 1 as const
 export const DUEL_PENDING_CREATE_KEY = '3cb:duel:v1:pending-create'
 export const DUEL_PENDING_LOCK_KEY = '3cb:duel:v1:pending-lock'
+export const DUEL_PENDING_CLAIM_KEY = '3cb:duel:v1:pending-claim'
 export const DUEL_MATCH_INDEX_KEY = '3cb:duel:v1:index'
 
 const UUID_V4_PATTERN =
@@ -45,6 +46,14 @@ export interface PendingLockRecord {
   readonly phase: 'pending-lock'
   readonly matchId: string
   readonly placements: readonly CanonicalDuelPlacement[]
+}
+
+export interface PendingClaimRecord {
+  readonly version: 1
+  readonly phase: 'pending-claim'
+  readonly matchId: string
+  readonly invitationToken: string
+  readonly claimRecoverySecret: string
 }
 
 export interface DuelParticipantRecord {
@@ -313,6 +322,31 @@ export function generateCreateRecoverySecret(
   return encoded
 }
 
+export function generateClaimRecoverySecret(
+  cryptoSource: Pick<Crypto, 'getRandomValues'> = globalThis.crypto,
+): string {
+  return generateCreateRecoverySecret(cryptoSource)
+}
+
+export function createPendingClaimRecord(
+  matchIdValue: string,
+  invitationToken: string,
+  cryptoSource: Pick<Crypto, 'getRandomValues'> = globalThis.crypto,
+): PendingClaimRecord {
+  const invitation = validateInvitation({
+    version: DUEL_STORAGE_VERSION,
+    matchId: matchIdValue,
+    token: invitationToken,
+  })
+  return {
+    version: DUEL_STORAGE_VERSION,
+    phase: 'pending-claim',
+    matchId: invitation.matchId,
+    invitationToken: invitation.token,
+    claimRecoverySecret: generateClaimRecoverySecret(cryptoSource),
+  }
+}
+
 export function createPendingCreateRecord(
   placements: readonly DuelRoundPlacement[],
   totalRounds: number,
@@ -368,6 +402,37 @@ export function validatePendingLock(value: unknown): PendingLockRecord {
     phase: 'pending-lock',
     matchId: validateUuid(record.matchId),
     placements: validateCanonicalPlacements(record.placements),
+  }
+}
+
+export function validatePendingClaim(value: unknown): PendingClaimRecord {
+  const record = objectRecord(value)
+  exactKeys(record, [
+    'version',
+    'phase',
+    'matchId',
+    'invitationToken',
+    'claimRecoverySecret',
+  ])
+  if (
+    record.version !== DUEL_STORAGE_VERSION ||
+    record.phase !== 'pending-claim' ||
+    typeof record.claimRecoverySecret !== 'string' ||
+    !BASE64URL_32_PATTERN.test(record.claimRecoverySecret)
+  ) {
+    throw new DuelStorageError('INVALID_DATA')
+  }
+  const invitation = validateInvitation({
+    version: DUEL_STORAGE_VERSION,
+    matchId: record.matchId,
+    token: record.invitationToken,
+  })
+  return {
+    version: DUEL_STORAGE_VERSION,
+    phase: 'pending-claim',
+    matchId: invitation.matchId,
+    invitationToken: invitation.token,
+    claimRecoverySecret: record.claimRecoverySecret,
   }
 }
 
@@ -438,6 +503,17 @@ export function readPendingCreate(storage: StorageAdapter): PendingCreateRecord 
 
 export function readPendingLock(storage: StorageAdapter): PendingLockRecord | null {
   return readValidated(storage, DUEL_PENDING_LOCK_KEY, validatePendingLock)
+}
+
+export function savePendingClaim(
+  storage: StorageAdapter,
+  record: PendingClaimRecord,
+): void {
+  writeVerified(storage, DUEL_PENDING_CLAIM_KEY, validatePendingClaim(record))
+}
+
+export function readPendingClaim(storage: StorageAdapter): PendingClaimRecord | null {
+  return readValidated(storage, DUEL_PENDING_CLAIM_KEY, validatePendingClaim)
 }
 
 export function readParticipant(
@@ -530,6 +606,44 @@ export function completePendingLock(
   })
   writeVerified(storage, DUEL_MATCH_INDEX_KEY, next)
   removeVerified(storage, DUEL_PENDING_LOCK_KEY)
+  return next
+}
+
+export interface CompleteParticipantBClaimInput {
+  readonly matchId: string
+  readonly participantToken: string
+}
+
+/** Persists B and the index before removing the only retryable claim secret. */
+export function completeParticipantBClaim(
+  storage: StorageAdapter,
+  input: CompleteParticipantBClaimInput,
+): DuelMatchIndexRecord {
+  const pending = readPendingClaim(storage)
+  if (!pending || pending.matchId !== input.matchId.toLowerCase()) {
+    throw new DuelStorageError('INVALID_DATA')
+  }
+  const participant = validateParticipant({
+    version: DUEL_STORAGE_VERSION,
+    matchId: input.matchId,
+    role: 'B',
+    token: input.participantToken,
+  })
+  const existing = readParticipant(storage, participant.matchId)
+  if (existing?.role === 'A') throw new DuelStorageError('INVALID_DATA')
+  if (existing && existing.token !== participant.token) {
+    throw new DuelStorageError('INVALID_DATA')
+  }
+  writeVerified(storage, participantStorageKey(participant.matchId), participant)
+  const current = readMatchIndex(storage)
+  const next = validateMatchIndex({
+    version: DUEL_STORAGE_VERSION,
+    matchIds: current.matchIds.includes(participant.matchId)
+      ? current.matchIds
+      : [...current.matchIds, participant.matchId],
+  })
+  writeVerified(storage, DUEL_MATCH_INDEX_KEY, next)
+  removeVerified(storage, DUEL_PENDING_CLAIM_KEY)
   return next
 }
 
