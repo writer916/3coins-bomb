@@ -6,6 +6,7 @@ import { EmptyOpenFx } from './components/EmptyOpenFx'
 import { LanguageToggle } from './components/LanguageToggle'
 import { ModeSelect, type PlayMode } from './components/ModeSelect'
 import { DuelFlow } from './components/DuelFlow'
+import { DuelClaimBootstrap } from './components/DuelClaimBootstrap'
 import { RevealBoard } from './components/RevealBoard'
 import { SoundToggle } from './components/SoundToggle'
 import type { BagId } from './game/assets'
@@ -48,6 +49,7 @@ import {
   type SoloStats,
 } from './game/soloStats'
 import { getStrings, type LocaleId } from './i18n'
+import { isDuelMatchRouteUrl } from './duel/duelInvitation'
 import './App.css'
 
 type AppScreen = 'top' | 'solo' | 'coming' | 'duel'
@@ -98,6 +100,11 @@ function soloResultFromEndedRound(state: RoundState): SoloRoundResult | null {
 }
 
 function App() {
+  const [duelBootstrapUrl] = useState<string | null>(() =>
+    typeof window !== 'undefined' && isDuelMatchRouteUrl(window.location.href)
+      ? window.location.href
+      : null,
+  )
   const [screen, setScreen] = useState<AppScreen>('top')
   const [comingMode, setComingMode] = useState<PlayMode | null>(null)
   const [locale, setLocale] = useState<LocaleId>(() => readLocale())
@@ -467,6 +474,10 @@ function App() {
       />
     </div>
   )
+
+  if (duelBootstrapUrl) {
+    return <DuelClaimBootstrap initialUrl={duelBootstrapUrl} t={t} />
+  }
 
   if (screen === 'top') {
     return (

@@ -62,6 +62,10 @@ export type AppStrings = {
   duelLock: string
   duelLocking: string
   duelLockError: string
+  duelJoining: string
+  duelJoined: string
+  duelJoinError: string
+  duelCreatorInviteOpened: string
   duelPlacementsLocked: string
   duelBack: string
   duelRoundProgress: (current: number, total: number) => string

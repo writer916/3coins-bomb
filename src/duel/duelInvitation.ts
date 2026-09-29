@@ -9,6 +9,9 @@ import {
   type StorageAdapter,
 } from './duelPersistence'
 
+const UUID_V4_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
 export type DuelInvitationEntryKind =
   | 'new-claim'
   | 'claim-retry'
@@ -28,19 +31,36 @@ export interface ParsedDuelInvitationUrl {
   readonly cleanPath: string
 }
 
+export interface ParsedDuelMatchRoute {
+  readonly matchId: string
+  readonly hasFragment: boolean
+}
+
 export interface HistoryAdapter {
   replaceState(data: unknown, unused: string, url?: string | URL | null): void
 }
 
 export type DuelInvitationEntry =
   | {
-      readonly kind: 'new-claim' | 'claim-retry'
+      readonly kind: 'new-claim'
       readonly matchId: string
       readonly pending: PendingClaimRecord
       readonly cleanPath: string
     }
   | {
-      readonly kind: 'participant-a' | 'participant-b'
+      readonly kind: 'claim-retry'
+      readonly matchId: string
+      readonly pending: PendingClaimRecord
+      readonly cleanPath: string
+    }
+  | {
+      readonly kind: 'participant-a'
+      readonly matchId: string
+      readonly participant: DuelParticipantRecord
+      readonly cleanPath: string
+    }
+  | {
+      readonly kind: 'participant-b'
       readonly matchId: string
       readonly participant: DuelParticipantRecord
       readonly cleanPath: string
@@ -123,6 +143,41 @@ export function parseDuelInvitationUrl(urlValue: string): ParsedDuelInvitationUr
     invitationToken: invitation.token,
     cleanPath: `/duel/${invitation.matchId}`,
   }
+}
+
+export function isDuelMatchRouteUrl(urlValue: string): boolean {
+  try {
+    return /^\/duel\/[^/]+$/.test(new URL(urlValue).pathname)
+  } catch {
+    return false
+  }
+}
+
+export function parseDuelMatchRouteUrl(urlValue: string): ParsedDuelMatchRoute {
+  let url: URL
+  try {
+    url = new URL(urlValue)
+  } catch {
+    return invalid()
+  }
+  if (
+    (url.protocol !== 'https:' && url.protocol !== 'http:') ||
+    url.username ||
+    url.password ||
+    url.search
+  ) {
+    return invalid()
+  }
+  const pathMatch = /^\/duel\/([^/]+)$/.exec(url.pathname)
+  if (!pathMatch) return invalid()
+  let matchId: string
+  try {
+    matchId = decodeURIComponent(pathMatch[1])
+  } catch {
+    return invalid()
+  }
+  if (!UUID_V4_PATTERN.test(matchId)) return invalid()
+  return { matchId: matchId.toLowerCase(), hasFragment: url.hash.length > 0 }
 }
 
 function cleanFragment(history: HistoryAdapter, cleanPath: string): void {
