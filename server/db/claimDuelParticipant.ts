@@ -56,6 +56,10 @@ export async function claimDuelParticipant(
         match.rule_version
       from duel_participants participant
       inner join duel_matches match on match.id = participant.match_id
+      inner join duel_participants creator
+        on creator.match_id = participant.match_id
+        and creator.role = 'A'
+        and creator.placement_locked_at is not null
       where participant.match_id = ${input.matchId}::uuid
         and participant.role = 'B'
         and (

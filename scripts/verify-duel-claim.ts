@@ -101,12 +101,14 @@ interface ParticipantState {
   readonly placementLockedAt: null
   readonly version: number
   readonly expired: boolean
+  readonly creatorLocked: boolean
 }
 
 function initialState(
   id = matchId,
   invite = invitationToken,
   expired = false,
+  creatorLocked = true,
 ): ParticipantState {
   return {
     matchId: id,
@@ -116,6 +118,7 @@ function initialState(
     placementLockedAt: null,
     version: 0,
     expired,
+    creatorLocked,
   }
 }
 
@@ -125,7 +128,7 @@ function memoryPersistence(...initial: ParticipantState[]) {
     input: ClaimDuelParticipantInput,
   ): Promise<ClaimedDuelParticipant | null> => {
     const state = states.get(input.matchId)
-    if (!state || state.expired) return null
+    if (!state || state.expired || !state.creatorLocked) return null
 
     let claimed = false
     let next = state
@@ -240,6 +243,20 @@ await assert.rejects(
     error.code === 'INVITATION_UNAVAILABLE',
 )
 
+const creatorUnlockedMemory = memoryPersistence(
+  initialState(matchId, invitationToken, false, false),
+)
+await assert.rejects(
+  claimParticipant(request, { deriveToken, persist: creatorUnlockedMemory.persist }),
+  (error: unknown) =>
+    error instanceof ClaimParticipantError &&
+    error.code === 'INVITATION_UNAVAILABLE',
+)
+assert.equal(
+  creatorUnlockedMemory.states.get(matchId)?.participantTokenHash,
+  null,
+)
+
 const sameConcurrentMemory = memoryPersistence(initialState())
 const sameConcurrent = await Promise.all(
   Array.from({ length: 8 }, () =>
@@ -291,6 +308,8 @@ assert(persistenceSource.includes('with candidate as materialized'))
 assert(persistenceSource.includes('for update of participant'))
 assert(persistenceSource.includes('update duel_participants'))
 assert(persistenceSource.includes("participant.role = 'b'"))
+assert(persistenceSource.includes("creator.role = 'a'"))
+assert(persistenceSource.includes('creator.placement_locked_at is not null'))
 assert(persistenceSource.includes('invite_token_hash = null'))
 assert(persistenceSource.includes('participant.version + 1'))
 assert(persistenceSource.includes('match.expires_at is null'))
