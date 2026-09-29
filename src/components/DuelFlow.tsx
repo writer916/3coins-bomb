@@ -27,6 +27,7 @@ import { createDuelBLockCoordinator } from '../duel/duelParticipantLock'
 import { withDuelNumsAndBreaks } from '../ui/withDuelNums'
 import { BagBoard } from './BagBoard'
 import { DuelInvitePanel } from './DuelInvitePanel'
+import { DuelPlayScreen } from './DuelPlayScreen'
 import { DuelPlacementOverlay } from './DuelPlacementOverlay'
 import { NumberStepper } from './NumberStepper'
 
@@ -280,6 +281,9 @@ export function DuelFlow({
   if (serverLocked || session?.locked) {
     if (!participantB && lockedMatchId) {
       return <DuelInvitePanel matchId={lockedMatchId} t={t} />
+    }
+    if (participantB && lockedMatchId) {
+      return <DuelPlayScreen matchId={lockedMatchId} t={t} />
     }
     return (
       <div className="duel-flow duel-flow--locked">

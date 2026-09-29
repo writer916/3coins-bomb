@@ -1071,6 +1071,45 @@
   text-align: center;
 }
 
+.duel-play {
+  width: min(100%, 38rem);
+  min-height: 0;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(0.65rem, 2vh, 1rem);
+}
+
+.duel-play-board {
+  width: 100%;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+.duel-play-board .bag-board {
+  height: 100%;
+  min-height: min(48vh, 20rem);
+}
+
+.duel-play-result,
+.duel-play-status,
+.duel-play-error {
+  margin: 0;
+  text-align: center;
+  font-weight: 700;
+}
+
+.duel-play-status {
+  padding-top: clamp(3rem, 16vh, 8rem);
+}
+
+.duel-play-error {
+  min-height: 1.5em;
+  color: #8b1d1d;
+  font-size: 0.86rem;
+}
+
 .duel-flow--invite {
   gap: 0.75rem;
   justify-content: flex-start;

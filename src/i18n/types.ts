@@ -76,6 +76,9 @@ export type AppStrings = {
   duelInviteQr: string
   duelInviteQrClose: string
   duelInviteOpponentJoined: string
+  duelPlayLoading: string
+  duelPlayError: string
+  duelOpenRetry: string
   duelBack: string
   duelRoundProgress: (current: number, total: number) => string
   /** Complete-screen summary — fixed copy, not ROUND-count dependent. */

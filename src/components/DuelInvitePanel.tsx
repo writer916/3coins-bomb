@@ -9,6 +9,8 @@ import {
   shareDuelInviteUrl,
 } from '../duel/duelInviteActions'
 import { readParticipant, type StorageAdapter } from '../duel/duelPersistence'
+import { isDuelPlayReady } from '../duel/duelPlayCoordinator'
+import { DuelPlayScreen } from './DuelPlayScreen'
 
 type DuelInvitePanelProps = {
   readonly matchId: string
@@ -40,6 +42,7 @@ export function DuelInvitePanel({
   const [qrOpen, setQrOpen] = useState(false)
   const [qrSvg, setQrSvg] = useState<string | null>(null)
   const [joined, setJoined] = useState(false)
+  const [playReady, setPlayReady] = useState(false)
   const shareAvailable = useMemo(() => canUseWebShare(), [])
 
   const inviteUrl = useMemo(() => {
@@ -56,7 +59,7 @@ export function DuelInvitePanel({
     let active = true
     const participant = readParticipant(storage, matchId)
     if (participant?.role !== 'A') return
-    void (async () => {
+    const refresh = async () => {
       try {
         const response = await fetch(
           `/api/duel/matches/${encodeURIComponent(matchId)}`,
@@ -67,13 +70,24 @@ export function DuelInvitePanel({
         )
         if (!response.ok) return
         const body: unknown = await response.json()
-        if (active && opponentClaimed(body, matchId)) setJoined(true)
+        if (!active) return
+        if (opponentClaimed(body, matchId)) setJoined(true)
+        if (isDuelPlayReady(body, matchId)) setPlayReady(true)
       } catch {
         /* invite UI remains available when GET is unavailable */
       }
-    })()
+    }
+    const onFocus = () => { void refresh() }
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') void refresh()
+    }
+    void refresh()
+    window.addEventListener('focus', onFocus)
+    document.addEventListener('visibilitychange', onVisibility)
     return () => {
       active = false
+      window.removeEventListener('focus', onFocus)
+      document.removeEventListener('visibilitychange', onVisibility)
     }
   }, [storage, matchId, inviteUrl])
 
@@ -112,6 +126,10 @@ export function DuelInvitePanel({
     setQrOpen(false)
     setQrSvg(null)
   }, [])
+
+  if (playReady) {
+    return <DuelPlayScreen matchId={matchId} t={t} />
+  }
 
   if (!inviteUrl) {
     return (
