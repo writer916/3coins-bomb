@@ -8,6 +8,9 @@ import {
   DUEL_PENDING_LOCK_KEY,
   DuelStorageError,
   completePendingLock,
+  completeParticipantBClaim,
+  completeParticipantBLock,
+  createPendingClaimRecord,
   createPendingCreateRecord,
   generateCreateRecoverySecret,
   generateCreateRequestId,
@@ -15,12 +18,15 @@ import {
   participantStorageKey,
   persistCreatedMatchHandoff,
   readARecoveryState,
+  readBRecoveryState,
   readInvitation,
   readMatchIndex,
   readParticipant,
   readPendingCreate,
   readPendingLock,
   savePendingCreate,
+  savePendingClaim,
+  savePendingLock,
   toCanonicalDuelPlacements,
   validateInvitation,
   validateMatchIndex,
@@ -266,6 +272,43 @@ expectStorageCode(
 assert(readPendingCreate(removeFailure))
 assert(readPendingLock(removeFailure))
 assert.equal(readARecoveryState(removeFailure).phase, 'lock-retry')
+
+const bToken = `3cb_pb1_${'d'.repeat(42)}A`
+const bStorage = new MemoryStorage()
+bStorage.setItem(
+  participantStorageKey(matchId),
+  JSON.stringify({ version: 1, matchId, role: 'B', token: bToken }),
+)
+savePendingLock(bStorage, {
+  version: 1,
+  phase: 'pending-lock',
+  matchId,
+  placements: canonical,
+})
+assert.equal(readBRecoveryState(bStorage, matchId).phase, 'lock-retry')
+assert.equal(readARecoveryState(bStorage).phase, 'idle')
+completeParticipantBLock(bStorage, matchId)
+assert.equal(readPendingLock(bStorage), null)
+
+const bClaimStorage = new MemoryStorage()
+savePendingClaim(bClaimStorage, createPendingClaimRecord(matchId, invitationToken, {
+  getRandomValues<T extends ArrayBufferView | null>(array: T): T {
+    if (array instanceof Uint8Array) array.fill(4)
+    return array
+  },
+}))
+bClaimStorage.setItem(
+  participantStorageKey(matchId),
+  JSON.stringify({ version: 1, matchId, role: 'A', token: participantToken }),
+)
+expectStorageCode(
+  () =>
+    completeParticipantBClaim(bClaimStorage, {
+      matchId,
+      participantToken: bToken,
+    }),
+  'INVALID_DATA',
+)
 
 const silentRemoveFailure = new MemoryStorage()
 savePendingCreate(silentRemoveFailure, pendingCreate)

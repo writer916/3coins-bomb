@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import {
   createDuelClaimBootstrapCoordinator,
   type DuelClaimBootstrapResult,
 } from '../duel/duelClaim'
 import type { AppStrings } from '../i18n'
+import { DuelFlow } from './DuelFlow'
 
 type DuelClaimBootstrapProps = {
   readonly initialUrl: string
@@ -14,6 +15,27 @@ type BootstrapViewState =
   | { readonly phase: 'loading' }
   | { readonly phase: 'success'; readonly result: DuelClaimBootstrapResult }
   | { readonly phase: 'error' }
+
+function DuelBootstrapShell({
+  t,
+  children,
+}: {
+  readonly t: AppStrings
+  readonly children: ReactNode
+}) {
+  return (
+    <main className="app app--duel">
+      <div className="field-header">
+        <header className="app-header">
+          <h1 className="brand-title duel-setup-heading" aria-label={t.modeDuelName}>
+            {t.modeDuelName}
+          </h1>
+        </header>
+      </div>
+      {children}
+    </main>
+  )
+}
 
 export function DuelClaimBootstrap({ initialUrl, t }: DuelClaimBootstrapProps) {
   const [state, setState] = useState<BootstrapViewState>({ phase: 'loading' })
@@ -42,30 +64,51 @@ export function DuelClaimBootstrap({ initialUrl, t }: DuelClaimBootstrapProps) {
     }
   }, [initialUrl])
 
-  const message =
-    state.phase === 'loading'
-      ? t.duelJoining
-      : state.phase === 'error'
-        ? t.duelJoinError
-        : state.result.kind === 'participant-a'
-          ? t.duelCreatorInviteOpened
-          : t.duelJoined
+  if (state.phase === 'loading') {
+    return (
+      <DuelBootstrapShell t={t}>
+        <div className="duel-flow duel-flow--locked">
+          <div className="duel-status-slot" aria-hidden="true" />
+          <p className="duel-locked-label">{t.duelJoining}</p>
+        </div>
+      </DuelBootstrapShell>
+    )
+  }
+
+  if (state.phase === 'error') {
+    return (
+      <DuelBootstrapShell t={t}>
+        <div className="duel-flow duel-flow--locked">
+          <div className="duel-status-slot" aria-hidden="true" />
+          <p className="duel-locked-label" role="alert">
+            {t.duelJoinError}
+          </p>
+        </div>
+      </DuelBootstrapShell>
+    )
+  }
+
+  if (state.result.kind === 'participant-a') {
+    return (
+      <DuelBootstrapShell t={t}>
+        <div className="duel-flow duel-flow--locked">
+          <div className="duel-status-slot" aria-hidden="true" />
+          <p className="duel-locked-label">{t.duelCreatorInviteOpened}</p>
+        </div>
+      </DuelBootstrapShell>
+    )
+  }
 
   return (
-    <main className="app app--duel">
-      <div className="field-header">
-        <header className="app-header">
-          <h1 className="brand-title duel-setup-heading" aria-label={t.modeDuelName}>
-            {t.modeDuelName}
-          </h1>
-        </header>
-      </div>
-      <div className="duel-flow duel-flow--locked">
-        <div className="duel-status-slot" aria-hidden="true" />
-        <p className="duel-locked-label" role={state.phase === 'error' ? 'alert' : undefined}>
-          {message}
-        </p>
-      </div>
-    </main>
+    <DuelBootstrapShell t={t}>
+      <DuelFlow
+        t={t}
+        participantB={{
+          matchId: state.result.matchId,
+          totalRounds: state.result.state.totalRounds,
+        }}
+        initiallyLocked={state.result.state.self.placementLocked}
+      />
+    </DuelBootstrapShell>
   )
 }

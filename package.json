@@ -35,6 +35,7 @@
     "verify:duel-create-lock-client": "tsx scripts/verify-duel-create-lock-client.ts",
     "verify:duel-invitation": "tsx scripts/verify-duel-invitation.ts",
     "verify:duel-claim-client": "tsx scripts/verify-duel-claim-client.ts",
+    "verify:duel-participant-lock-client": "tsx scripts/verify-duel-participant-lock-client.ts",
     "verify:open-fx-fallback": "tsx scripts/verify-open-fx-fallback.ts",
     "db:generate": "drizzle-kit generate",
     "preview": "vite preview"

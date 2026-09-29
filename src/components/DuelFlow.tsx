@@ -23,15 +23,25 @@ import {
 } from '../game/duelPlacement'
 import type { AppStrings } from '../i18n'
 import { createDuelALockCoordinator } from '../duel/duelCreateLock'
+import { createDuelBLockCoordinator } from '../duel/duelParticipantLock'
 import { withDuelNumsAndBreaks } from '../ui/withDuelNums'
 import { BagBoard } from './BagBoard'
 import { DuelPlacementOverlay } from './DuelPlacementOverlay'
 import { NumberStepper } from './NumberStepper'
 
+export type DuelParticipantBConfig = {
+  readonly matchId: string
+  readonly totalRounds: number
+}
+
 type DuelFlowProps = {
   t: AppStrings
   /** Setup-only: return to mode select (no confirm). */
   onGoTop?: () => void
+  /** Claimed B participant: fixed ROUND count and server LOCK without match create. */
+  participantB?: DuelParticipantBConfig
+  /** B already placement-locked on server (revisit). */
+  initiallyLocked?: boolean
 }
 
 /** ROUND n / N — word stays Georgia; digits use SOLO score font. Width fits 20 / 20. */
@@ -109,14 +119,27 @@ function DuelConfigShell({
 /**
  * DUEL placement flow (local only): setup → place all ROUNDs → COMPLETE → LOCK.
  */
-export function DuelFlow({ t, onGoTop }: DuelFlowProps) {
+export function DuelFlow({
+  t,
+  onGoTop,
+  participantB,
+  initiallyLocked = false,
+}: DuelFlowProps) {
   const [roundsDraft, setRoundsDraft] = useState(DUEL_ROUNDS_DEFAULT)
-  const [session, setSession] = useState<DuelPlacementSession | null>(null)
+  const [serverLocked, setServerLocked] = useState(initiallyLocked)
+  const [session, setSession] = useState<DuelPlacementSession | null>(() => {
+    if (initiallyLocked) return null
+    if (participantB) return createDuelSession(participantB.totalRounds)
+    return null
+  })
   const [lockPending, setLockPending] = useState(false)
   const [lockError, setLockError] = useState(false)
   const lockPendingRef = useRef(false)
   const lockCoordinatorRef = useRef<ReturnType<
     typeof createDuelALockCoordinator
+  > | null>(null)
+  const bLockCoordinatorRef = useRef<ReturnType<
+    typeof createDuelBLockCoordinator
   > | null>(null)
 
   const startSession = useCallback(() => {
@@ -182,11 +205,16 @@ export function DuelFlow({ t, onGoTop }: DuelFlowProps) {
   const onStartOver = useCallback(() => {
     if (lockPendingRef.current) return
     if (!window.confirm(t.duelStartOverConfirm)) return
+    if (participantB) {
+      setSession(createDuelSession(participantB.totalRounds))
+      setLockError(false)
+      return
+    }
     // Discard all local DUEL setup and return to mode select.
     setSession(null)
     setRoundsDraft(DUEL_ROUNDS_DEFAULT)
     onGoTop?.()
-  }, [t.duelStartOverConfirm, onGoTop])
+  }, [participantB, t.duelStartOverConfirm, onGoTop])
 
   const onLock = useCallback(async () => {
     if (lockPendingRef.current || !session?.awaitingLock) return
@@ -194,23 +222,36 @@ export function DuelFlow({ t, onGoTop }: DuelFlowProps) {
     setLockPending(true)
     setLockError(false)
     try {
-      lockCoordinatorRef.current ??= createDuelALockCoordinator({
-        storage: window.localStorage,
-        fetch: window.fetch.bind(window),
-        crypto: window.crypto,
-      })
-      await lockCoordinatorRef.current.run({
-        totalRounds: session.totalRounds,
-        placements: session.completed,
-      })
+      if (participantB) {
+        bLockCoordinatorRef.current ??= createDuelBLockCoordinator({
+          storage: window.localStorage,
+          fetch: window.fetch.bind(window),
+        })
+        await bLockCoordinatorRef.current.run({
+          matchId: participantB.matchId,
+          totalRounds: session.totalRounds,
+          placements: session.completed,
+        })
+      } else {
+        lockCoordinatorRef.current ??= createDuelALockCoordinator({
+          storage: window.localStorage,
+          fetch: window.fetch.bind(window),
+          crypto: window.crypto,
+        })
+        await lockCoordinatorRef.current.run({
+          totalRounds: session.totalRounds,
+          placements: session.completed,
+        })
+      }
       setSession((prev) => (prev ? lockSession(prev) : prev))
+      setServerLocked(true)
     } catch {
       setLockError(true)
     } finally {
       lockPendingRef.current = false
       setLockPending(false)
     }
-  }, [session])
+  }, [participantB, session])
 
   const draft = session?.current ?? null
 
@@ -229,6 +270,15 @@ export function DuelFlow({ t, onGoTop }: DuelFlowProps) {
     }
     return { instruction: null }
   }, [draft, t])
+
+  if (serverLocked || session?.locked) {
+    return (
+      <div className="duel-flow duel-flow--locked">
+        <div className="duel-status-slot" aria-hidden="true" />
+        <p className="duel-locked-label">{t.duelPlacementsLocked}</p>
+      </div>
+    )
+  }
 
   /* ——— ROUND count setup (layout reference) ——— */
   if (!session) {
@@ -266,16 +316,6 @@ export function DuelFlow({ t, onGoTop }: DuelFlowProps) {
           </button>
         }
       />
-    )
-  }
-
-  /* ——— Locked ——— */
-  if (session.locked) {
-    return (
-      <div className="duel-flow duel-flow--locked">
-        <div className="duel-status-slot" aria-hidden="true" />
-        <p className="duel-locked-label">{t.duelPlacementsLocked}</p>
-      </div>
     )
   }
 

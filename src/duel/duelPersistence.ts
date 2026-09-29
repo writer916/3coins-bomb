@@ -673,6 +673,73 @@ export function readARecoveryState(storage: StorageAdapter): DuelARecoveryState 
   }
   const pendingCreate = readPendingCreate(storage)
   if (pendingCreate) return { phase: 'create-retry', pending: pendingCreate }
-  if (pendingLock) throw new DuelStorageError('INVALID_DATA')
+  if (pendingLock) {
+    const participant = readParticipant(storage, pendingLock.matchId)
+    if (participant?.role === 'B') return { phase: 'idle' }
+    throw new DuelStorageError('INVALID_DATA')
+  }
   return { phase: 'idle' }
+}
+
+export type DuelBRecoveryState =
+  | { readonly phase: 'idle' }
+  | {
+      readonly phase: 'lock-retry'
+      readonly pending: PendingLockRecord
+      readonly participant: DuelParticipantRecord
+    }
+
+/** Determines the next safe B LOCK action after reload without making a request. */
+export function readBRecoveryState(
+  storage: StorageAdapter,
+  matchIdValue: string,
+): DuelBRecoveryState {
+  const matchId = validateUuid(matchIdValue)
+  const pendingLock = readPendingLock(storage)
+  if (!pendingLock || pendingLock.matchId !== matchId) {
+    return { phase: 'idle' }
+  }
+  const participant = readParticipant(storage, matchId)
+  if (
+    participant?.role === 'B' &&
+    participant.matchId === pendingLock.matchId
+  ) {
+    return { phase: 'lock-retry', pending: pendingLock, participant }
+  }
+  return { phase: 'idle' }
+}
+
+export function savePendingLock(
+  storage: StorageAdapter,
+  record: PendingLockRecord,
+): void {
+  writeVerified(storage, DUEL_PENDING_LOCK_KEY, validatePendingLock(record))
+}
+
+/** Clears retryable B LOCK state after server confirmation. */
+export function completeParticipantBLock(
+  storage: StorageAdapter,
+  matchIdValue: string,
+): DuelMatchIndexRecord {
+  const matchId = validateUuid(matchIdValue)
+  const pendingLock = readPendingLock(storage)
+  const participant = readParticipant(storage, matchId)
+  if (
+    !pendingLock ||
+    pendingLock.matchId !== matchId ||
+    participant?.role !== 'B' ||
+    participant.matchId !== matchId
+  ) {
+    throw new DuelStorageError('INVALID_DATA')
+  }
+  const current = readMatchIndex(storage)
+  const next = validateMatchIndex({
+    version: DUEL_STORAGE_VERSION,
+    matchIds: current.matchIds.includes(matchId)
+      ? current.matchIds
+      : [...current.matchIds, matchId],
+  })
+  writeVerified(storage, DUEL_MATCH_INDEX_KEY, next)
+  removeVerified(storage, DUEL_PENDING_LOCK_KEY)
+  return next
 }
