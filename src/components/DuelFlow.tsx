@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { BagId } from '../game/assets'
 import {
   backToBagsFromPlace,
@@ -22,6 +22,7 @@ import {
   type DuelPlacementSession,
 } from '../game/duelPlacement'
 import type { AppStrings } from '../i18n'
+import { createDuelALockCoordinator } from '../duel/duelCreateLock'
 import { withDuelNumsAndBreaks } from '../ui/withDuelNums'
 import { BagBoard } from './BagBoard'
 import { DuelPlacementOverlay } from './DuelPlacementOverlay'
@@ -111,6 +112,12 @@ function DuelConfigShell({
 export function DuelFlow({ t, onGoTop }: DuelFlowProps) {
   const [roundsDraft, setRoundsDraft] = useState(DUEL_ROUNDS_DEFAULT)
   const [session, setSession] = useState<DuelPlacementSession | null>(null)
+  const [lockPending, setLockPending] = useState(false)
+  const [lockError, setLockError] = useState(false)
+  const lockPendingRef = useRef(false)
+  const lockCoordinatorRef = useRef<ReturnType<
+    typeof createDuelALockCoordinator
+  > | null>(null)
 
   const startSession = useCallback(() => {
     setSession(createDuelSession(roundsDraft))
@@ -173,6 +180,7 @@ export function DuelFlow({ t, onGoTop }: DuelFlowProps) {
   }, [])
 
   const onStartOver = useCallback(() => {
+    if (lockPendingRef.current) return
     if (!window.confirm(t.duelStartOverConfirm)) return
     // Discard all local DUEL setup and return to mode select.
     setSession(null)
@@ -180,10 +188,30 @@ export function DuelFlow({ t, onGoTop }: DuelFlowProps) {
     onGoTop?.()
   }, [t.duelStartOverConfirm, onGoTop])
 
-  const onLock = useCallback(() => {
+  const onLock = useCallback(async () => {
+    if (lockPendingRef.current || !session?.awaitingLock) return
     if (!window.confirm(t.duelLockConfirm)) return
-    setSession((prev) => (prev ? lockSession(prev) : prev))
-  }, [t.duelLockConfirm])
+    lockPendingRef.current = true
+    setLockPending(true)
+    setLockError(false)
+    try {
+      lockCoordinatorRef.current ??= createDuelALockCoordinator({
+        storage: window.localStorage,
+        fetch: window.fetch.bind(window),
+        crypto: window.crypto,
+      })
+      await lockCoordinatorRef.current.run({
+        totalRounds: session.totalRounds,
+        placements: session.completed,
+      })
+      setSession((prev) => (prev ? lockSession(prev) : prev))
+    } catch {
+      setLockError(true)
+    } finally {
+      lockPendingRef.current = false
+      setLockPending(false)
+    }
+  }, [session, t.duelLockConfirm])
 
   const draft = session?.current ?? null
 
@@ -263,6 +291,11 @@ export function DuelFlow({ t, onGoTop }: DuelFlowProps) {
         <p className="duel-complete-summary">
           {t.duelRoundsReady}
         </p>
+        {lockError ? (
+          <p className="duel-lock-error" role="alert">
+            {t.duelLockError}
+          </p>
+        ) : null}
         <div className="duel-field duel-field--actions duel-field--stack-actions">
           <div className="duel-btn-stack">
             {/* Primary confirm first (locale-agnostic layout). */}
@@ -270,10 +303,16 @@ export function DuelFlow({ t, onGoTop }: DuelFlowProps) {
               type="button"
               className="duel-btn duel-btn--primary"
               onClick={onLock}
+              disabled={lockPending}
             >
-              {t.duelLock}
+              {lockPending ? t.duelLocking : t.duelLock}
             </button>
-            <button type="button" className="duel-btn" onClick={onStartOver}>
+            <button
+              type="button"
+              className="duel-btn"
+              onClick={onStartOver}
+              disabled={lockPending}
+            >
               {t.duelStartOver}
             </button>
           </div>

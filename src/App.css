@@ -1064,6 +1064,13 @@
   margin: 0 0 clamp(1.35rem, 4.2vh, 2.1rem);
 }
 
+.duel-lock-error {
+  margin: 0 0 0.75rem;
+  color: #ffd0c7;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
 .duel-flow--complete .duel-field--stack-actions {
   flex: 0 0 auto;
   margin-top: 0;

@@ -52,6 +52,8 @@ export const ja: AppStrings = {
   duelComplete: 'OK！',
   duelStartOver: 'RESET ALL',
   duelLock: 'OK！',
+  duelLocking: 'LOCK中…',
+  duelLockError: '対戦の作成に失敗しました。もう一度お試しください。',
   duelPlacementsLocked: 'PLACEMENTS LOCKED',
   duelBack: 'BACK',
   duelRoundProgress: (current, total) => `ROUND ${current} / ${total}`,

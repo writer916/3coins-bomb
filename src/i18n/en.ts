@@ -51,6 +51,8 @@ export const en: AppStrings = {
   duelComplete: 'COMPLETE',
   duelStartOver: 'START OVER',
   duelLock: 'LOCK',
+  duelLocking: 'LOCKING…',
+  duelLockError: 'Could not create the match. Please try again.',
   duelPlacementsLocked: 'PLACEMENTS LOCKED',
   duelBack: 'BACK',
   duelRoundProgress: (current, total) => `ROUND ${current} / ${total}`,

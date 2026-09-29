@@ -32,6 +32,7 @@
     "verify:duel-get": "tsx scripts/verify-duel-get.ts",
     "verify:duel-lock": "tsx scripts/verify-duel-lock.ts",
     "verify:duel-persistence": "tsx scripts/verify-duel-persistence.ts",
+    "verify:duel-create-lock-client": "tsx scripts/verify-duel-create-lock-client.ts",
     "verify:open-fx-fallback": "tsx scripts/verify-open-fx-fallback.ts",
     "db:generate": "drizzle-kit generate",
     "preview": "vite preview"

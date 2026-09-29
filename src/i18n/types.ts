@@ -60,6 +60,8 @@ export type AppStrings = {
   duelComplete: string
   duelStartOver: string
   duelLock: string
+  duelLocking: string
+  duelLockError: string
   duelPlacementsLocked: string
   duelBack: string
   duelRoundProgress: (current: number, total: number) => string
