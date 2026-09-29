@@ -1071,6 +1071,83 @@
   text-align: center;
 }
 
+.duel-flow--invite {
+  gap: 0.75rem;
+  justify-content: flex-start;
+  padding-bottom: max(0.65rem, env(safe-area-inset-bottom, 0px));
+}
+
+.duel-invite-label {
+  margin: 0.35rem 0 0;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 0.95rem;
+  letter-spacing: 0.06em;
+  color: #d8cbb4;
+  text-align: center;
+}
+
+.duel-invite-url {
+  margin: 0;
+  max-width: min(100%, 22rem);
+  padding: 0.55rem 0.7rem;
+  border: 1px solid rgba(242, 230, 208, 0.28);
+  border-radius: 0.35rem;
+  background: rgba(0, 0, 0, 0.28);
+  color: #f2e6d0;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  word-break: break-all;
+  text-align: left;
+}
+
+.duel-invite-note,
+.duel-invite-feedback {
+  margin: 0.15rem 0 0;
+  color: #d8cbb4;
+  font-size: 0.88rem;
+  text-align: center;
+}
+
+.duel-invite-feedback[role='alert'] {
+  color: #ffd0c7;
+}
+
+.duel-invite-qr-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 1.25rem;
+  background: rgba(0, 0, 0, 0.72);
+}
+
+.duel-invite-qr-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.9rem;
+  width: min(100%, 18rem);
+  padding: 1rem;
+  border: 1px solid rgba(242, 230, 208, 0.35);
+  border-radius: 0.45rem;
+  background: #1a1510;
+}
+
+.duel-invite-qr-svg {
+  width: 100%;
+  aspect-ratio: 1;
+  background: #fff;
+  border-radius: 0.25rem;
+  overflow: hidden;
+}
+
+.duel-invite-qr-svg svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
 .duel-flow--complete .duel-field--stack-actions {
   flex: 0 0 auto;
   margin-top: 0;

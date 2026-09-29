@@ -36,6 +36,7 @@
     "verify:duel-invitation": "tsx scripts/verify-duel-invitation.ts",
     "verify:duel-claim-client": "tsx scripts/verify-duel-claim-client.ts",
     "verify:duel-participant-lock-client": "tsx scripts/verify-duel-participant-lock-client.ts",
+    "verify:duel-invite-share-client": "tsx scripts/verify-duel-invite-share-client.ts",
     "verify:open-fx-fallback": "tsx scripts/verify-open-fx-fallback.ts",
     "db:generate": "drizzle-kit generate",
     "preview": "vite preview"
@@ -44,7 +45,8 @@
     "@neondatabase/serverless": "^1.1.0",
     "drizzle-orm": "^0.45.3",
     "react": "^19.2.8",
-    "react-dom": "^19.2.8"
+    "react-dom": "^19.2.8",
+    "uqr": "^0.1.3"
   },
   "devDependencies": {
     "@types/node": "^24.13.3",

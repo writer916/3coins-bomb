@@ -67,6 +67,15 @@ export type AppStrings = {
   duelJoinError: string
   duelCreatorInviteOpened: string
   duelPlacementsLocked: string
+  duelInviteUrlLabel: string
+  duelInviteCopy: string
+  duelInviteCopied: string
+  duelInviteCopyFailed: string
+  duelInviteShare: string
+  duelInviteShareFailed: string
+  duelInviteQr: string
+  duelInviteQrClose: string
+  duelInviteOpponentJoined: string
   duelBack: string
   duelRoundProgress: (current: number, total: number) => string
   /** Complete-screen summary — fixed copy, not ROUND-count dependent. */

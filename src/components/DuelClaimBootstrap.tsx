@@ -5,6 +5,7 @@ import {
 } from '../duel/duelClaim'
 import type { AppStrings } from '../i18n'
 import { DuelFlow } from './DuelFlow'
+import { DuelInvitePanel } from './DuelInvitePanel'
 
 type DuelClaimBootstrapProps = {
   readonly initialUrl: string
@@ -91,10 +92,7 @@ export function DuelClaimBootstrap({ initialUrl, t }: DuelClaimBootstrapProps) {
   if (state.result.kind === 'participant-a') {
     return (
       <DuelBootstrapShell t={t}>
-        <div className="duel-flow duel-flow--locked">
-          <div className="duel-status-slot" aria-hidden="true" />
-          <p className="duel-locked-label">{t.duelCreatorInviteOpened}</p>
-        </div>
+        <DuelInvitePanel matchId={state.result.matchId} t={t} />
       </DuelBootstrapShell>
     )
   }

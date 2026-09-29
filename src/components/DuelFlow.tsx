@@ -26,6 +26,7 @@ import { createDuelALockCoordinator } from '../duel/duelCreateLock'
 import { createDuelBLockCoordinator } from '../duel/duelParticipantLock'
 import { withDuelNumsAndBreaks } from '../ui/withDuelNums'
 import { BagBoard } from './BagBoard'
+import { DuelInvitePanel } from './DuelInvitePanel'
 import { DuelPlacementOverlay } from './DuelPlacementOverlay'
 import { NumberStepper } from './NumberStepper'
 
@@ -127,6 +128,9 @@ export function DuelFlow({
 }: DuelFlowProps) {
   const [roundsDraft, setRoundsDraft] = useState(DUEL_ROUNDS_DEFAULT)
   const [serverLocked, setServerLocked] = useState(initiallyLocked)
+  const [lockedMatchId, setLockedMatchId] = useState<string | null>(
+    participantB?.matchId ?? null,
+  )
   const [session, setSession] = useState<DuelPlacementSession | null>(() => {
     if (initiallyLocked) return null
     if (participantB) return createDuelSession(participantB.totalRounds)
@@ -232,16 +236,18 @@ export function DuelFlow({
           totalRounds: session.totalRounds,
           placements: session.completed,
         })
+        setLockedMatchId(participantB.matchId)
       } else {
         lockCoordinatorRef.current ??= createDuelALockCoordinator({
           storage: window.localStorage,
           fetch: window.fetch.bind(window),
           crypto: window.crypto,
         })
-        await lockCoordinatorRef.current.run({
+        const locked = await lockCoordinatorRef.current.run({
           totalRounds: session.totalRounds,
           placements: session.completed,
         })
+        setLockedMatchId(locked.matchId)
       }
       setSession((prev) => (prev ? lockSession(prev) : prev))
       setServerLocked(true)
@@ -272,6 +278,9 @@ export function DuelFlow({
   }, [draft, t])
 
   if (serverLocked || session?.locked) {
+    if (!participantB && lockedMatchId) {
+      return <DuelInvitePanel matchId={lockedMatchId} t={t} />
+    }
     return (
       <div className="duel-flow duel-flow--locked">
         <div className="duel-status-slot" aria-hidden="true" />
