@@ -141,7 +141,6 @@ export function DuelPlayScreen({ matchId, t }: DuelPlayScreenProps) {
     })))
   const [view, setView] = useState<ViewState>({ phase: 'loading' })
   const [requestPending, setRequestPending] = useState(false)
-  const [pendingBagId, setPendingBagId] = useState<BagId | null>(null)
   const [retryBag, setRetryBag] = useState<BagId | null>(null)
   const [fx, setFx] = useState<ActiveFx | null>(null)
   const [coinFxSample, setCoinFxSample] = useState<CoinFxSample | null>(null)
@@ -226,7 +225,6 @@ export function DuelPlayScreen({ matchId, t }: DuelPlayScreenProps) {
     unlockCoinAudio()
     warmBagOpenAudio()
     interactionLockedRef.current = true
-    setPendingBagId(bagId)
     setRequestPending(true)
     try {
       const outcome = await coordinator.open({
@@ -238,7 +236,6 @@ export function DuelPlayScreen({ matchId, t }: DuelPlayScreenProps) {
       setRetryBag(null)
       if (outcome.kind === 'resynced') {
         interactionLockedRef.current = false
-        setPendingBagId(null)
         setRevealed(false)
         setRevealPlan(null)
         const ready = readyView(outcome.state)
@@ -248,7 +245,6 @@ export function DuelPlayScreen({ matchId, t }: DuelPlayScreenProps) {
 
       const result = outcome.result
       const nextRound = appendOpen(view.round, result)
-      setPendingBagId(null)
       setCoinFxSample(null)
       setView({
         phase: 'ready',
@@ -276,7 +272,6 @@ export function DuelPlayScreen({ matchId, t }: DuelPlayScreenProps) {
       if (result.roundEnded) refreshSelfProgress()
     } catch {
       interactionLockedRef.current = false
-      setPendingBagId(null)
       setRetryBag(bagId)
     } finally {
       setRequestPending(false)
@@ -447,7 +442,6 @@ export function DuelPlayScreen({ matchId, t }: DuelPlayScreenProps) {
         <BagBoard
           bagCount={round.bagCount as BagCount}
           hiddenBagIds={hiddenBagIds}
-          pendingBagId={pendingBagId}
           onBagTap={canTap ? handleBagTap : undefined}
         >
           {revealPlan ? <RevealBoard plan={revealPlan} /> : null}
