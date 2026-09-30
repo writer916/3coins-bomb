@@ -387,25 +387,27 @@ assert.doesNotMatch(screen, /t\.roundBombed/)
 assert.doesNotMatch(screen, /t\.roundCleared/)
 assert.doesNotMatch(screen, /t\.roundCashedOut/)
 assert.doesNotMatch(screen, /t\.provisionalCoins\(/)
-assert.match(screen, /setOpeningBagId\(bagId\)[\s\S]*playBagOpen[\s\S]*await coordinator\.open/)
-assert.match(screen, /const clearFx = useCallback\(\(\) => \{[\s\S]*setOpeningBagId\(null\)[\s\S]*setFx\(null\)/)
-assert.match(screen, /Keep openingBagId until FX completes/)
-assert.match(screen, /catch \{[\s\S]*setOpeningBagId\(null\)[\s\S]*setRetryBag\(bagId\)/)
-assert.match(screen, /openingBagId=\{openingBagId\}/)
+assert.match(screen, /const outcome = await coordinator\.open\([\s\S]*const result = outcome\.result[\s\S]*setView\([\s\S]*playBagOpen[\s\S]*setFx\(/)
+assert.doesNotMatch(screen, /openingBagId|setOpeningBagId/)
 assert.match(screen, /view\.selfProgress\.completedRounds/)
 assert.match(screen, /view\.selfProgress\.totalCapturedCoins/)
 assert.match(screen, /if \(result\.roundEnded\) refreshSelfProgress\(\)/)
-assert.match(bagBoard, /hiddenBagIds\?\.has\(slot\.bagId\) \|\| openingBagId === slot\.bagId/)
+assert.match(bagBoard, /hiddenBagIds\?\.has\(slot\.bagId\)/)
+assert.doesNotMatch(bagBoard, /openingBagId/)
 assert.doesNotMatch(bagBoard, /bag-slot--opening/)
 assert.doesNotMatch(bagCss, /bag-slot--opening/)
 assert.doesNotMatch(screen, /visualHiddenBagIds|fxSample/)
 assert.doesNotMatch(screen, /Math\.random/)
-// Success path must not clear temporary hide before authoritative FX starts.
+// The accepted response hides the bag and mounts exactly one authoritative FX.
+const openSequence = screen.match(
+  /const outcome = await coordinator\.open\([\s\S]*?if \(result\.roundEnded\) refreshSelfProgress\(\)/,
+)?.[0] ?? ''
 const successOpen = screen.match(
   /const result = outcome\.result[\s\S]*?if \(result\.roundEnded\) refreshSelfProgress\(\)/,
 )?.[0] ?? ''
 assert.ok(successOpen.includes('setFx({'))
-assert.ok(!successOpen.includes('setOpeningBagId(null)'))
+assert.ok(openSequence.indexOf('await coordinator.open') < openSequence.indexOf('playBagOpen'))
+assert.equal((successOpen.match(/setFx\(/g) ?? []).length, 3)
 assert.match(coordinatorSource, /latestTerminalRound/)
 assert.match(coordinatorSource, /activeRound/)
 assert.match(coordinatorSource, /buildDuelRevealPlan/)

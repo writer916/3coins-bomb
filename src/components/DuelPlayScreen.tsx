@@ -139,7 +139,6 @@ export function DuelPlayScreen({ matchId, t }: DuelPlayScreenProps) {
     })))
   const [view, setView] = useState<ViewState>({ phase: 'loading' })
   const [requestPending, setRequestPending] = useState(false)
-  const [openingBagId, setOpeningBagId] = useState<BagId | null>(null)
   const [retryBag, setRetryBag] = useState<BagId | null>(null)
   const [fx, setFx] = useState<ActiveFx | null>(null)
   const [revealed, setRevealed] = useState(false)
@@ -188,8 +187,6 @@ export function DuelPlayScreen({ matchId, t }: DuelPlayScreenProps) {
   }, [view, opened, revealed])
 
   const clearFx = useCallback(() => {
-    // Drop temporary hide only after FX finishes; permanent opened keeps the bag gone.
-    setOpeningBagId(null)
     interactionLockedRef.current = false
     setFx(null)
   }, [])
@@ -216,12 +213,7 @@ export function DuelPlayScreen({ matchId, t }: DuelPlayScreenProps) {
     unlockCoinAudio()
     warmBagOpenAudio()
     interactionLockedRef.current = true
-    setOpeningBagId(bagId)
     setRequestPending(true)
-    const soundEnabled = readSoundEnabled()
-    if (resolveBagOpenSeRequest(soundEnabled, true).play) {
-      playBagOpen({ soundEnabled: true })
-    }
     try {
       const outcome = await coordinator.open({
         matchId,
@@ -232,7 +224,6 @@ export function DuelPlayScreen({ matchId, t }: DuelPlayScreenProps) {
       setRetryBag(null)
       if (outcome.kind === 'resynced') {
         interactionLockedRef.current = false
-        setOpeningBagId(null)
         setRevealed(false)
         setRevealPlan(null)
         const ready = readyView(outcome.state)
@@ -242,7 +233,6 @@ export function DuelPlayScreen({ matchId, t }: DuelPlayScreenProps) {
 
       const result = outcome.result
       const nextRound = appendOpen(view.round, result)
-      // Keep openingBagId until FX completes so the bag never flashes back on.
       setView({
         phase: 'ready',
         totalRounds: view.totalRounds,
@@ -250,6 +240,10 @@ export function DuelPlayScreen({ matchId, t }: DuelPlayScreenProps) {
         canAdvance: nextRound.terminal ? !result.participantCompleted : false,
         selfProgress: view.selfProgress,
       })
+      const soundEnabled = readSoundEnabled()
+      if (resolveBagOpenSeRequest(soundEnabled, true).play) {
+        playBagOpen({ soundEnabled: true })
+      }
       runIdRef.current += 1
       if (result.outcome === 'coins') {
         setFx({
@@ -265,7 +259,6 @@ export function DuelPlayScreen({ matchId, t }: DuelPlayScreenProps) {
       if (result.roundEnded) refreshSelfProgress()
     } catch {
       interactionLockedRef.current = false
-      setOpeningBagId(null)
       setRetryBag(bagId)
     } finally {
       setRequestPending(false)
@@ -436,7 +429,6 @@ export function DuelPlayScreen({ matchId, t }: DuelPlayScreenProps) {
         <BagBoard
           bagCount={round.bagCount as BagCount}
           hiddenBagIds={hiddenBagIds}
-          openingBagId={openingBagId}
           onBagTap={canTap ? handleBagTap : undefined}
         >
           {revealPlan ? <RevealBoard plan={revealPlan} /> : null}
