@@ -58,6 +58,10 @@ export interface DuelPlayState {
   readonly totalRounds: number
   readonly participantCompleted: boolean
   readonly nextPlayableRoundNumber: number | null
+  readonly selfProgress: {
+    readonly completedRounds: number
+    readonly totalCapturedCoins: number
+  }
   readonly activeRound: DuelActiveRound | null
   readonly latestTerminalRound: DuelTerminalRound | null
 }
@@ -114,6 +118,42 @@ export interface DuelRoundReveal {
     readonly contents: DuelRevealContents
   }[]
 }
+
+export type DuelResultRole = 'A' | 'B'
+export type DuelResultWinner = DuelResultRole | 'draw'
+
+export interface DuelResultParticipantSummary {
+  readonly role: DuelResultRole
+  readonly totalCapturedCoins: number
+  readonly coinBagHits: number
+  readonly totalOpens: number
+  readonly hitRate: {
+    readonly numerator: number
+    readonly denominator: number
+  }
+  readonly rounds: readonly {
+    readonly roundNumber: number
+    readonly endReason: DuelPlayEndReason
+    readonly capturedCoins: 0 | 1 | 2 | 3
+    readonly openedBagCount: number
+  }[]
+}
+
+export type DuelFinalResult =
+  | {
+      readonly matchId: string
+      readonly status: 'waiting'
+      readonly selfCompleted: boolean
+      readonly opponentCompleted: boolean
+    }
+  | {
+      readonly matchId: string
+      readonly status: 'completed'
+      readonly viewerRole: DuelResultRole
+      readonly totalRounds: number
+      readonly winner: DuelResultWinner
+      readonly participants: Readonly<Record<DuelResultRole, DuelResultParticipantSummary>>
+    }
 
 export interface DuelPlayClientDependencies {
   readonly storage: StorageAdapter
@@ -254,7 +294,7 @@ function parsePlayState(value: unknown, expected: string): DuelPlayState {
   const item = record(value)
   exactKeys(item, [
     'matchId', 'role', 'totalRounds', 'participantCompleted',
-    'nextPlayableRoundNumber', 'activeRound', 'latestTerminalRound',
+    'nextPlayableRoundNumber', 'selfProgress', 'activeRound', 'latestTerminalRound',
   ])
   expectedMatch(item.matchId, expected)
   if (item.role !== 'A' && item.role !== 'B') return fail('malformed-response')
@@ -265,10 +305,16 @@ function parsePlayState(value: unknown, expected: string): DuelPlayState {
   const next = item.nextPlayableRoundNumber === null
     ? null
     : integer(item.nextPlayableRoundNumber, 1, totalRounds)
+  const progress = record(item.selfProgress)
+  exactKeys(progress, ['completedRounds', 'totalCapturedCoins'])
+  const completedRounds = integer(progress.completedRounds, 0, totalRounds)
+  const totalCapturedCoins = integer(progress.totalCapturedCoins, 0, completedRounds * 3)
   if (
     item.participantCompleted
-      ? active !== null || next !== null || terminal?.roundNumber !== totalRounds
+      ? active !== null || next !== null || terminal?.roundNumber !== totalRounds ||
+        completedRounds !== totalRounds
       : active === null || next !== active.roundNumber ||
+        completedRounds !== active.roundNumber - 1 ||
         (active.roundNumber === 1 ? terminal !== null : terminal?.roundNumber !== active.roundNumber - 1)
   ) {
     return fail('malformed-response')
@@ -279,6 +325,7 @@ function parsePlayState(value: unknown, expected: string): DuelPlayState {
     totalRounds,
     participantCompleted: item.participantCompleted,
     nextPlayableRoundNumber: next,
+    selfProgress: { completedRounds, totalCapturedCoins },
     activeRound: active,
     latestTerminalRound: terminal,
   }
@@ -405,6 +452,103 @@ function parseReveal(value: unknown, expected: string, roundNumber: number): Due
   })
   if (bombCount !== 1 || coinTotal !== 3) return fail('malformed-response')
   return { matchId: expected, roundNumber, bagCount, bags }
+}
+
+function resultRole(value: unknown): DuelResultRole {
+  if (value !== 'A' && value !== 'B') return fail('malformed-response')
+  return value
+}
+
+function resultSummary(
+  value: unknown,
+  expectedRole: DuelResultRole,
+  totalRounds: number,
+): DuelResultParticipantSummary {
+  const item = record(value)
+  exactKeys(item, [
+    'role', 'totalCapturedCoins', 'coinBagHits', 'totalOpens', 'hitRate', 'rounds',
+  ])
+  if (resultRole(item.role) !== expectedRole) return fail('malformed-response')
+  const totalCapturedCoins = integer(item.totalCapturedCoins, 0, totalRounds * 3)
+  const coinBagHits = integer(item.coinBagHits, 0, totalRounds * 8)
+  const totalOpens = integer(item.totalOpens, 1, totalRounds * 8)
+  if (coinBagHits > totalOpens) return fail('malformed-response')
+  const hitRate = record(item.hitRate)
+  exactKeys(hitRate, ['numerator', 'denominator'])
+  if (hitRate.numerator !== coinBagHits || hitRate.denominator !== totalOpens) {
+    return fail('malformed-response')
+  }
+  if (!Array.isArray(item.rounds) || item.rounds.length !== totalRounds) {
+    return fail('malformed-response')
+  }
+  const rounds = item.rounds.map((value, index) => {
+    const round = record(value)
+    exactKeys(round, ['roundNumber', 'endReason', 'capturedCoins', 'openedBagCount'])
+    if (
+      round.roundNumber !== index + 1 ||
+      !['bombed', 'cashed_out', 'cleared'].includes(round.endReason as string)
+    ) return fail('malformed-response')
+    const capturedCoins = integer(round.capturedCoins, 0, 3) as 0 | 1 | 2 | 3
+    const openedBagCount = integer(round.openedBagCount, 1, 8)
+    if (
+      (round.endReason === 'bombed' && capturedCoins !== 0) ||
+      (round.endReason === 'cashed_out' && capturedCoins !== 1 && capturedCoins !== 2) ||
+      (round.endReason === 'cleared' && capturedCoins !== 3)
+    ) return fail('malformed-response')
+    return {
+      roundNumber: index + 1,
+      endReason: round.endReason as DuelPlayEndReason,
+      capturedCoins,
+      openedBagCount,
+    }
+  })
+  return {
+    role: expectedRole,
+    totalCapturedCoins,
+    coinBagHits,
+    totalOpens,
+    hitRate: { numerator: coinBagHits, denominator: totalOpens },
+    rounds,
+  }
+}
+
+function parseFinalResult(value: unknown, expected: string): DuelFinalResult {
+  const item = record(value)
+  expectedMatch(item.matchId, expected)
+  if (item.status === 'waiting') {
+    exactKeys(item, ['matchId', 'status', 'selfCompleted', 'opponentCompleted'])
+    if (typeof item.selfCompleted !== 'boolean' || typeof item.opponentCompleted !== 'boolean') {
+      return fail('malformed-response')
+    }
+    return {
+      matchId: expected,
+      status: 'waiting',
+      selfCompleted: item.selfCompleted,
+      opponentCompleted: item.opponentCompleted,
+    }
+  }
+  if (item.status !== 'completed') return fail('malformed-response')
+  exactKeys(item, [
+    'matchId', 'status', 'viewerRole', 'totalRounds', 'winner', 'participants',
+  ])
+  const viewerRole = resultRole(item.viewerRole)
+  if (item.winner !== 'A' && item.winner !== 'B' && item.winner !== 'draw') {
+    return fail('malformed-response')
+  }
+  const totalRounds = integer(item.totalRounds, 1, 20)
+  const participants = record(item.participants)
+  exactKeys(participants, ['A', 'B'])
+  return {
+    matchId: expected,
+    status: 'completed',
+    viewerRole,
+    totalRounds,
+    winner: item.winner,
+    participants: {
+      A: resultSummary(participants.A, 'A', totalRounds),
+      B: resultSummary(participants.B, 'B', totalRounds),
+    },
+  }
 }
 
 function participantToken(storage: StorageAdapter, id: string): string {
@@ -557,6 +701,17 @@ export function createDuelPlayClient(dependencies: DuelPlayClientDependencies) {
         { method: 'GET', headers: headers(token) },
       )
       return parseReveal(json, id, roundNumber)
+    },
+
+    async getFinalResult(matchIdValue: string): Promise<DuelFinalResult> {
+      const id = normalizedMatchId(matchIdValue)
+      const token = participantToken(dependencies.storage, id)
+      const json = await fetchJson(
+        dependencies.fetch,
+        `/api/duel/matches/${encodeURIComponent(id)}/result`,
+        { method: 'GET', headers: headers(token) },
+      )
+      return parseFinalResult(json, id)
     },
   }
 }

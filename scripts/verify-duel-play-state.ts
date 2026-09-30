@@ -65,6 +65,7 @@ const noOpenState: PersistedDuelPlayState = {
   totalRounds: 3,
   participantCompleted: false,
   nextPlayableRoundNumber: 1,
+  selfProgress: { completedRounds: 0, totalCapturedCoins: 0 },
   activeRound: {
     roundNumber: 1,
     bagCount: 5,
@@ -105,6 +106,7 @@ const activeRecovery: PersistedDuelPlayState = {
   totalRounds: 5,
   participantCompleted: false,
   nextPlayableRoundNumber: 3,
+  selfProgress: { completedRounds: 2, totalCapturedCoins: 3 },
   activeRound: {
     roundNumber: 3,
     bagCount: 6,
@@ -129,6 +131,7 @@ assert.deepEqual(active.activeRound?.openedBags.map((bag) => bag.openOrder), [1,
 assert.equal(active.activeRound?.provisionalCoins, 2)
 assert.equal(active.activeRound?.nextOpenOrder, 3)
 assert.equal(active.latestTerminalRound?.endReason, 'cleared')
+assert.deepEqual(active.selfProgress, { completedRounds: 2, totalCapturedCoins: 3 })
 
 const terminalCases: PersistedDuelPlayState['latestTerminalRound'][] = [
   {
@@ -166,6 +169,7 @@ for (const latestTerminalRound of terminalCases) {
     totalRounds: 5,
     participantCompleted: false,
     nextPlayableRoundNumber: 4,
+    selfProgress: { completedRounds: 3, totalCapturedCoins: latestTerminalRound.capturedCoins },
     activeRound: {
       roundNumber: 4,
       bagCount: 7,
@@ -189,6 +193,7 @@ const completed: PersistedDuelPlayState = {
   totalRounds: 1,
   participantCompleted: true,
   nextPlayableRoundNumber: null,
+  selfProgress: { completedRounds: 1, totalCapturedCoins: 0 },
   activeRound: null,
   latestTerminalRound: terminalCases[0],
 }
@@ -209,6 +214,7 @@ assert(dbSource.includes('opponent.claimed_at is not null'))
 assert(dbSource.includes('opponent.placement_locked_at is not null'))
 assert(dbSource.includes('match.expires_at > statement_timestamp()'))
 assert(dbSource.includes('results_contiguous'))
+assert(dbSource.includes('sum(result.captured_coins)'))
 assert(dbSource.includes('opens_contiguous'))
 assert(dbSource.includes("round_kind = 'active'"))
 assert(dbSource.includes('found_coins between 0 and 2'))
@@ -250,6 +256,8 @@ for (const forbidden of [
   'remainingCoins',
   'participantTokenHash',
   'opponent',
+  'opponentCompletedRounds',
+  'opponentTotalCapturedCoins',
 ]) {
   assert(!serialized.includes(forbidden))
 }

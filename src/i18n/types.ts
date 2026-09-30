@@ -79,6 +79,18 @@ export type AppStrings = {
   duelPlayLoading: string
   duelPlayError: string
   duelOpenRetry: string
+  duelResult: string
+  duelWaitingTitle: string
+  duelWaitingBody: string
+  duelCheckResult: string
+  duelWin: string
+  duelLose: string
+  duelDraw: string
+  duelTotalCoins: string
+  duelCoinBagHitRate: string
+  duelYou: string
+  duelOpponent: string
+  duelResultError: string
   duelBack: string
   duelRoundProgress: (current: number, total: number) => string
   /** Complete-screen summary — fixed copy, not ROUND-count dependent. */

@@ -60,6 +60,7 @@ const playResponse = {
   totalRounds: 3,
   participantCompleted: false,
   nextPlayableRoundNumber: 2,
+  selfProgress: { completedRounds: 1, totalCapturedCoins: 0 },
   activeRound,
   latestTerminalRound: terminalRound,
 }
@@ -145,6 +146,8 @@ for (const malformed of [
   { ...playResponse, activeRound: { ...activeRound, openedBags: [...activeRound.openedBags].reverse() } },
   { ...playResponse, latestTerminalRound: { ...terminalRound, capturedCoins: 1 } },
   { ...playResponse, participantCompleted: true },
+  { ...playResponse, selfProgress: { completedRounds: 2, totalCapturedCoins: 0 } },
+  { ...playResponse, selfProgress: { completedRounds: 1, totalCapturedCoins: 4 } },
 ]) {
   await expectKind(() => clientFor(async () => json(malformed)).getPlayState(MATCH_ID), 'malformed-response')
 }

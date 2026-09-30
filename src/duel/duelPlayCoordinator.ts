@@ -15,6 +15,7 @@ import {
   type DuelActiveRound,
   type DuelPlayState,
   type DuelRoundReveal,
+  type DuelFinalResult,
   type DuelTerminalRound,
   type createDuelPlayClient,
 } from './duelPlayClient'
@@ -27,6 +28,7 @@ type DuelPlayClient = Pick<
   | 'openBag'
   | 'cashOut'
   | 'getRoundReveal'
+  | 'getFinalResult'
 >
 
 export class DuelPlayCoordinatorError extends Error {
@@ -171,6 +173,10 @@ export function createDuelPlayCoordinator(client: DuelPlayClient) {
     /** Ended ROUND only — caller must pass that round's number, never a future ROUND. */
     getRoundReveal(matchId: string, roundNumber: number): Promise<DuelRoundReveal> {
       return client.getRoundReveal(matchId, roundNumber)
+    },
+
+    getFinalResult(matchId: string): Promise<DuelFinalResult> {
+      return client.getFinalResult(matchId)
     },
 
     async open(input: {

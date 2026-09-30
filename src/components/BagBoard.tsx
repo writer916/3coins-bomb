@@ -11,6 +11,8 @@ type BagBoardProps = {
   bagCount: BagCount
   /** Opened bags are omitted from the board; their slots stay empty (no reflow). */
   hiddenBagIds?: ReadonlySet<BagId>
+  /** Selected bag awaiting an authoritative server result. */
+  openingBagId?: BagId | null
   /** Preview / gameplay: one click or tap selects a visible bag. */
   onBagTap?: (bagId: BagId) => void
   /** Overlay layer (e.g. COIN / BOMB FX) — same coordinate space as bags. */
@@ -20,6 +22,7 @@ type BagBoardProps = {
 export function BagBoard({
   bagCount,
   hiddenBagIds,
+  openingBagId,
   onBagTap,
   children,
 }: BagBoardProps) {
@@ -32,7 +35,9 @@ export function BagBoard({
       aria-label={`${bagCount} bags`}
     >
       {slots.map((slot) => {
-        if (hiddenBagIds?.has(slot.bagId)) {
+        // Persisted OPEN and in-flight OPEN are deliberately separate states,
+        // but both omit the bag visually. A failed request clears only the latter.
+        if (hiddenBagIds?.has(slot.bagId) || openingBagId === slot.bagId) {
           return null
         }
 

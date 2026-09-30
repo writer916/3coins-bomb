@@ -26,6 +26,7 @@ const activeState = {
   totalRounds: 3,
   participantCompleted: false,
   nextPlayableRoundNumber: 1,
+  selfProgress: { completedRounds: 0, totalCapturedCoins: 0 },
   activeRound: {
     roundNumber: 1,
     bagCount: 4,
@@ -50,6 +51,12 @@ const unusedCashOut = {
   createCashOutCommand: cashOutCommand,
   async cashOut() {
     throw new Error('cashOut should not run in this test')
+  },
+}
+
+const unusedResult = {
+  async getFinalResult() {
+    throw new Error('getFinalResult should not run in this test')
   },
 }
 
@@ -96,6 +103,7 @@ assert.equal(canAdvanceDuelPlay({
   ...activeState,
   participantCompleted: true,
   nextPlayableRoundNumber: null,
+  selfProgress: { completedRounds: 3, totalCapturedCoins: 0 },
   activeRound: null,
   latestTerminalRound: {
     roundNumber: 3,
@@ -173,6 +181,7 @@ const coordinator = createDuelPlayCoordinator({
     return command(input)
   },
   ...unusedCashOut,
+  ...unusedResult,
   async getPlayState() {
     getCount += 1
     return activeState
@@ -236,6 +245,7 @@ let conflictGetCount = 0
 const conflictCoordinator = createDuelPlayCoordinator({
   createOpenCommand: command,
   ...unusedCashOut,
+  ...unusedResult,
   async openBag() { throw new DuelPlayClientError('conflict') },
   async getPlayState() { conflictGetCount += 1; return activeState },
   async getRoundReveal() { throw new Error('unused') },
@@ -250,6 +260,7 @@ let revealCalls = 0
 const revealCoordinator = createDuelPlayCoordinator({
   createOpenCommand: command,
   ...unusedCashOut,
+  ...unusedResult,
   async openBag() { throw new Error('unused') },
   async getPlayState() { return activeState },
   async getRoundReveal(id, roundNumber) {
@@ -278,6 +289,7 @@ const cashOutSent: DuelCashOutCommand[] = []
 let cashOutRejectOnce = true
 const cashOutCoordinator = createDuelPlayCoordinator({
   createOpenCommand: command,
+  ...unusedResult,
   createCashOutCommand(input) {
     cashOutCreateCount += 1
     return cashOutCommand(input)
@@ -326,6 +338,7 @@ assert.deepEqual(cashOutSent[0], cashOutSent[1])
 let cashOutConflictGet = 0
 const cashOutConflictCoordinator = createDuelPlayCoordinator({
   createOpenCommand: command,
+  ...unusedResult,
   createCashOutCommand: cashOutCommand,
   async openBag() { throw new Error('unused') },
   async cashOut() { throw new DuelPlayClientError('conflict') },
@@ -354,11 +367,13 @@ assert.equal(cashOutResynced.kind, 'resynced')
 assert.equal(cashOutConflictGet, 1)
 assert.equal(cashOutResynced.state.latestTerminalRound?.endReason, 'cashed_out')
 
-const [screen, flow, invite, coordinatorSource] = await Promise.all([
+const [screen, flow, invite, coordinatorSource, bagBoard, bagCss] = await Promise.all([
   readFile(new URL('../src/components/DuelPlayScreen.tsx', import.meta.url), 'utf8'),
   readFile(new URL('../src/components/DuelFlow.tsx', import.meta.url), 'utf8'),
   readFile(new URL('../src/components/DuelInvitePanel.tsx', import.meta.url), 'utf8'),
   readFile(new URL('../src/duel/duelPlayCoordinator.ts', import.meta.url), 'utf8'),
+  readFile(new URL('../src/components/BagBoard.tsx', import.meta.url), 'utf8'),
+  readFile(new URL('../src/components/BagBoard.css', import.meta.url), 'utf8'),
 ])
 for (const required of [
   'createDuelPlayClient', 'createDuelPlayCoordinator', 'BagBoard', 'CoinOpenFx',
@@ -372,6 +387,25 @@ assert.doesNotMatch(screen, /t\.roundBombed/)
 assert.doesNotMatch(screen, /t\.roundCleared/)
 assert.doesNotMatch(screen, /t\.roundCashedOut/)
 assert.doesNotMatch(screen, /t\.provisionalCoins\(/)
+assert.match(screen, /setOpeningBagId\(bagId\)[\s\S]*playBagOpen[\s\S]*await coordinator\.open/)
+assert.match(screen, /const clearFx = useCallback\(\(\) => \{[\s\S]*setOpeningBagId\(null\)[\s\S]*setFx\(null\)/)
+assert.match(screen, /Keep openingBagId until FX completes/)
+assert.match(screen, /catch \{[\s\S]*setOpeningBagId\(null\)[\s\S]*setRetryBag\(bagId\)/)
+assert.match(screen, /openingBagId=\{openingBagId\}/)
+assert.match(screen, /view\.selfProgress\.completedRounds/)
+assert.match(screen, /view\.selfProgress\.totalCapturedCoins/)
+assert.match(screen, /if \(result\.roundEnded\) refreshSelfProgress\(\)/)
+assert.match(bagBoard, /hiddenBagIds\?\.has\(slot\.bagId\) \|\| openingBagId === slot\.bagId/)
+assert.doesNotMatch(bagBoard, /bag-slot--opening/)
+assert.doesNotMatch(bagCss, /bag-slot--opening/)
+assert.doesNotMatch(screen, /visualHiddenBagIds|fxSample/)
+assert.doesNotMatch(screen, /Math\.random/)
+// Success path must not clear temporary hide before authoritative FX starts.
+const successOpen = screen.match(
+  /const result = outcome\.result[\s\S]*?if \(result\.roundEnded\) refreshSelfProgress\(\)/,
+)?.[0] ?? ''
+assert.ok(successOpen.includes('setFx({'))
+assert.ok(!successOpen.includes('setOpeningBagId(null)'))
 assert.match(coordinatorSource, /latestTerminalRound/)
 assert.match(coordinatorSource, /activeRound/)
 assert.match(coordinatorSource, /buildDuelRevealPlan/)
