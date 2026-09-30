@@ -4,7 +4,11 @@ import type { BagId } from '../game/assets'
 import { playBagOpen, warmBagOpenAudio } from '../game/bagAudio'
 import { resolveBagOpenSeRequest } from '../game/bagSfx'
 import { unlockCoinAudio } from '../game/coinAudio'
-import type { FxCoinCount } from '../game/coinFx'
+import {
+  visualHiddenBagIds,
+  type CoinFxSample,
+  type FxCoinCount,
+} from '../game/coinFx'
 import type { BagCount } from '../game/formations'
 import { canRequestReveal, canShowEndActions, type RevealPlan } from '../game/reveal'
 import type { RoundPhase } from '../game/round'
@@ -58,8 +62,6 @@ type ActiveFx =
   | { readonly kind: 'coins'; readonly bagId: BagId; readonly count: FxCoinCount; readonly clearsRound: boolean; readonly runId: number }
   | { readonly kind: 'bomb'; readonly bagId: BagId; readonly runId: number }
   | { readonly kind: 'empty'; readonly bagId: BagId; readonly runId: number }
-
-const ignoreCoinFxSample = () => {}
 
 function duelTerminalPhase(endReason: DuelPlayEndReason): RoundPhase {
   if (endReason === 'bombed') return 'bombed'
@@ -141,6 +143,7 @@ export function DuelPlayScreen({ matchId, t }: DuelPlayScreenProps) {
   const [requestPending, setRequestPending] = useState(false)
   const [retryBag, setRetryBag] = useState<BagId | null>(null)
   const [fx, setFx] = useState<ActiveFx | null>(null)
+  const [coinFxSample, setCoinFxSample] = useState<CoinFxSample | null>(null)
   const [revealed, setRevealed] = useState(false)
   const [revealPlan, setRevealPlan] = useState<RevealPlan | null>(null)
   const [revealPending, setRevealPending] = useState(false)
@@ -183,11 +186,20 @@ export function DuelPlayScreen({ matchId, t }: DuelPlayScreenProps) {
   const hiddenBagIds = useMemo(() => {
     if (view.phase !== 'ready') return opened
     if (revealed) return allBagIdsForCount(view.round.bagCount)
+    if (fx?.kind === 'coins') {
+      if (coinFxSample?.bagId === fx.bagId) {
+        return visualHiddenBagIds(opened, coinFxSample)
+      }
+      const next = new Set(opened)
+      next.delete(fx.bagId)
+      return next
+    }
     return opened
-  }, [view, opened, revealed])
+  }, [view, opened, revealed, fx, coinFxSample])
 
   const clearFx = useCallback(() => {
     interactionLockedRef.current = false
+    setCoinFxSample(null)
     setFx(null)
   }, [])
 
@@ -233,6 +245,7 @@ export function DuelPlayScreen({ matchId, t }: DuelPlayScreenProps) {
 
       const result = outcome.result
       const nextRound = appendOpen(view.round, result)
+      setCoinFxSample(null)
       setView({
         phase: 'ready',
         totalRounds: view.totalRounds,
@@ -440,7 +453,7 @@ export function DuelPlayScreen({ matchId, t }: DuelPlayScreenProps) {
               coinCount={fx.count}
               clearsRound={fx.clearsRound}
               soundEnabled={soundEnabled}
-              onSample={ignoreCoinFxSample}
+              onSample={setCoinFxSample}
               onComplete={clearFx}
             />
           ) : null}

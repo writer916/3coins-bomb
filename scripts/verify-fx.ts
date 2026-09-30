@@ -99,15 +99,18 @@ function displaySequence(coinCount: 1 | 2 | 3): number[] {
 // --- visual hide helper ---
 {
   const opened = new Set<BagId>(['bag-2', 'bag-5'])
-  const plan = planCoinFx('bag-2', 1)
-  const early = sampleCoinFx(plan, 50)
-  const late = sampleCoinFx(plan, plan.bagHideMs + 10)
-  const earlyHidden = visualHiddenBagIds(opened, early)
-  const lateHidden = visualHiddenBagIds(opened, late)
-  if (earlyHidden.has('bag-2')) fail('bag should stay briefly')
-  else if (!earlyHidden.has('bag-5')) fail('other opened bags stay hidden')
-  else if (!lateHidden.has('bag-2')) fail('bag should hide after delay')
-  else ok('bag hide timing via visualHiddenBagIds')
+  for (const coinCount of [1, 2, 3] as const) {
+    const plan = planCoinFx('bag-2', coinCount)
+    const early = sampleCoinFx(plan, plan.bagHideMs - 1)
+    const atBoundary = sampleCoinFx(plan, plan.bagHideMs)
+    const earlyHidden = visualHiddenBagIds(opened, early)
+    const boundaryHidden = visualHiddenBagIds(opened, atBoundary)
+    if (plan.bagHideMs !== 140) fail(`COIN x${coinCount} bagHideMs changed`)
+    else if (earlyHidden.has('bag-2')) fail(`COIN x${coinCount} bag hid too early`)
+    else if (!earlyHidden.has('bag-5')) fail('other opened bags stay hidden')
+    else if (!boundaryHidden.has('bag-2')) fail(`COIN x${coinCount} bag did not hide at boundary`)
+    else ok(`COIN x${coinCount} bag hide timing via visualHiddenBagIds`)
+  }
 }
 
 // --- ROUND state untouched (structural: sample returns new object, no hand) ---
