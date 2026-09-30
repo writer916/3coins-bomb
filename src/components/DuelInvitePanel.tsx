@@ -21,6 +21,8 @@ type DuelInvitePanelProps = {
 
 type Feedback = 'idle' | 'copied' | 'copy-failed' | 'share-failed'
 
+const DUEL_READY_POLL_INTERVAL_MS = 5_000
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
@@ -55,11 +57,14 @@ export function DuelInvitePanel({
   }, [storage, matchId, origin])
 
   useEffect(() => {
-    if (!storage || !inviteUrl) return
+    if (!storage || playReady) return
     let active = true
+    let refreshPending = false
     const participant = readParticipant(storage, matchId)
     if (participant?.role !== 'A') return
     const refresh = async () => {
+      if (!active || refreshPending) return
+      refreshPending = true
       try {
         const response = await fetch(
           `/api/duel/matches/${encodeURIComponent(matchId)}`,
@@ -75,6 +80,8 @@ export function DuelInvitePanel({
         if (isDuelPlayReady(body, matchId)) setPlayReady(true)
       } catch {
         /* invite UI remains available when GET is unavailable */
+      } finally {
+        refreshPending = false
       }
     }
     const onFocus = () => { void refresh() }
@@ -82,14 +89,18 @@ export function DuelInvitePanel({
       if (document.visibilityState === 'visible') void refresh()
     }
     void refresh()
+    const pollTimer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') void refresh()
+    }, DUEL_READY_POLL_INTERVAL_MS)
     window.addEventListener('focus', onFocus)
     document.addEventListener('visibilitychange', onVisibility)
     return () => {
       active = false
+      window.clearInterval(pollTimer)
       window.removeEventListener('focus', onFocus)
       document.removeEventListener('visibilitychange', onVisibility)
     }
-  }, [storage, matchId, inviteUrl])
+  }, [storage, matchId, playReady])
 
   const onCopy = useCallback(async () => {
     if (!inviteUrl) {
