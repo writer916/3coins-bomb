@@ -36,6 +36,7 @@
     "verify:duel-play-state": "tsx scripts/verify-duel-play-state.ts",
     "verify:duel-cash-out": "tsx scripts/verify-duel-cash-out.ts",
     "verify:duel-round-reveal": "tsx scripts/verify-duel-round-reveal.ts",
+    "verify:duel-opponent-placements": "tsx scripts/verify-duel-opponent-placements.ts",
     "verify:duel-result": "tsx scripts/verify-duel-result.ts",
     "verify:duel-result-client": "tsx scripts/verify-duel-result-client.ts",
     "verify:duel-play-client": "tsx scripts/verify-duel-play-client.ts",
