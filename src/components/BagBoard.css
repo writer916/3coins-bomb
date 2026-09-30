@@ -26,6 +26,12 @@
   user-select: none;
   -webkit-user-drag: none;
   pointer-events: none;
+  transition: transform 100ms ease-out;
+  transform-origin: 50% 62%;
+}
+
+.bag-image--pending {
+  transform: translateY(calc(var(--bag-size) * 0.015)) scale(0.985);
 }
 
 /*

@@ -11,6 +11,8 @@ type BagBoardProps = {
   bagCount: BagCount
   /** Opened bags are omitted from the board; their slots stay empty (no reflow). */
   hiddenBagIds?: ReadonlySet<BagId>
+  /** Result-neutral pressed feedback while a server-authoritative OPEN is pending. */
+  pendingBagId?: BagId | null
   /** Preview / gameplay: one click or tap selects a visible bag. */
   onBagTap?: (bagId: BagId) => void
   /** Overlay layer (e.g. COIN / BOMB FX) — same coordinate space as bags. */
@@ -20,6 +22,7 @@ type BagBoardProps = {
 export function BagBoard({
   bagCount,
   hiddenBagIds,
+  pendingBagId,
   onBagTap,
   children,
 }: BagBoardProps) {
@@ -49,7 +52,11 @@ export function BagBoard({
             data-bag-id={slot.bagId}
           >
             <img
-              className="bag-image"
+              className={
+                pendingBagId === slot.bagId
+                  ? 'bag-image bag-image--pending'
+                  : 'bag-image'
+              }
               src={bagSrc(slot.bagId)}
               alt=""
               draggable={false}
