@@ -565,10 +565,12 @@ async function fetchJson(
   fetcher: typeof fetch,
   input: string,
   init: RequestInit,
+  onResponse?: () => void,
 ): Promise<unknown> {
   let response: Response
   try {
     response = await fetcher(input, init)
+    onResponse?.()
   } catch {
     return fail('network')
   }
@@ -583,6 +585,20 @@ async function fetchJson(
     return await response.json()
   } catch {
     return fail('malformed-response')
+  }
+}
+
+export const DUEL_OPEN_PERFORMANCE_MEASURE = '3cb:duel:open-total'
+
+function recordOpenRoundTrip(startedAtMs: number): void {
+  try {
+    const finishedAtMs = performance.now()
+    performance.measure(DUEL_OPEN_PERFORMANCE_MEASURE, {
+      start: startedAtMs,
+      duration: Math.max(0, finishedAtMs - startedAtMs),
+    })
+  } catch {
+    // Measurement must never affect gameplay or expose request data.
   }
 }
 
@@ -655,6 +671,7 @@ export function createDuelPlayClient(dependencies: DuelPlayClientDependencies) {
         requestId: requestId(commandValue.requestId),
       }
       const token = participantToken(dependencies.storage, command.matchId)
+      const requestStartedAtMs = performance.now()
       const json = await fetchJson(
         dependencies.fetch,
         `/api/duel/matches/${encodeURIComponent(command.matchId)}/rounds/${command.roundNumber}/open`,
@@ -669,6 +686,7 @@ export function createDuelPlayClient(dependencies: DuelPlayClientDependencies) {
             expectedOpenOrder: command.expectedOpenOrder,
           }),
         },
+        () => recordOpenRoundTrip(requestStartedAtMs),
       )
       return parseOpenResult(json, command)
     },

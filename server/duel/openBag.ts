@@ -7,6 +7,7 @@ import {
 import {
   persistDuelBagOpen,
   type OpenDuelBagInput,
+  type OpenDuelBagDiagnostics,
   type OpenDuelBagResult,
   type OpenDuelBagView,
 } from '../db/openDuelBag.js'
@@ -49,7 +50,11 @@ export interface OpenBagRequest {
 export type OpenBagResponse = OpenDuelBagView
 
 export interface OpenBagDependencies {
-  readonly persist?: (input: OpenDuelBagInput) => Promise<OpenDuelBagResult>
+  readonly persist?: (
+    input: OpenDuelBagInput,
+    diagnostics?: OpenDuelBagDiagnostics,
+  ) => Promise<OpenDuelBagResult>
+  readonly onDatabaseTiming?: OpenDuelBagDiagnostics['onExecuteTiming']
 }
 
 function invalidRequest(): never {
@@ -105,14 +110,17 @@ export async function openBag(
   dependencies: OpenBagDependencies = {},
 ): Promise<OpenBagResponse> {
   const persist = dependencies.persist ?? persistDuelBagOpen
-  const result = await persist({
-    matchId: request.matchId,
-    participantTokenHash: hashDuelToken(request.participantToken),
-    requestId: request.requestId,
-    roundNumber: request.roundNumber,
-    bagNumber: request.bagNumber,
-    expectedOpenOrder: request.expectedOpenOrder,
-  })
+  const result = await persist(
+    {
+      matchId: request.matchId,
+      participantTokenHash: hashDuelToken(request.participantToken),
+      requestId: request.requestId,
+      roundNumber: request.roundNumber,
+      bagNumber: request.bagNumber,
+      expectedOpenOrder: request.expectedOpenOrder,
+    },
+    { onExecuteTiming: dependencies.onDatabaseTiming },
+  )
   if (result.status === 'opened' || result.status === 'retry') {
     return result.view
   }

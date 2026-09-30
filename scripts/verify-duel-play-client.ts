@@ -5,6 +5,7 @@ import {
   bagIdToBagNumber,
   bagNumberToBagId,
   createDuelPlayClient,
+  DUEL_OPEN_PERFORMANCE_MEASURE,
   DuelPlayClientError,
 } from '../src/duel/duelPlayClient'
 import {
@@ -153,6 +154,7 @@ for (const malformed of [
 }
 
 const openCalls: CapturedCall[] = []
+performance.clearMeasures(DUEL_OPEN_PERFORMANCE_MEASURE)
 const openClient = clientFor(async () => json(openResponse), openCalls)
 const openCommand = openClient.createOpenCommand({
   matchId: MATCH_ID,
@@ -163,6 +165,10 @@ const openCommand = openClient.createOpenCommand({
 assert.equal(openCommand.requestId, REQUEST_ID)
 assert.deepEqual(await openClient.openBag(openCommand), openResponse)
 assert.deepEqual(await openClient.openBag(openCommand), openResponse)
+const openMeasures = performance.getEntriesByName(DUEL_OPEN_PERFORMANCE_MEASURE, 'measure')
+assert.equal(openMeasures.length, 2)
+assert(openMeasures.every((entry) => entry.duration >= 0))
+assert(openMeasures.every((entry) => !entry.name.includes(TOKEN) && !entry.name.includes(MATCH_ID)))
 assert.equal(openCalls.length, 2)
 for (const call of openCalls) {
   assert.equal(call.url, `/api/duel/matches/${MATCH_ID}/rounds/2/open`)

@@ -331,7 +331,13 @@ assert(dbSource.indexOf('exact_retry as materialized') < dbSource.indexOf('targe
 assert(!dbSource.includes('.transaction('))
 assert(!dbSource.includes('delete from'))
 
-const handler = createOpenBagHandler(async () => emptyView)
+const handler = createOpenBagHandler(async (_request, dependencies) => {
+  dependencies?.onDatabaseTiming?.({
+    startedAtMs: performance.now(),
+    durationMs: 0.25,
+  })
+  return emptyView
+})
 function apiRequest(options: {
   requestBody?: unknown
   method?: string
@@ -358,6 +364,11 @@ function apiRequest(options: {
 const apiSuccess = await handler(apiRequest())
 assert.equal(apiSuccess.status, 200)
 assert.equal(apiSuccess.headers.get('cache-control'), 'no-store')
+const timingHeader = apiSuccess.headers.get('server-timing') ?? ''
+assert.match(timingHeader, /^app;dur=\d+\.\d{2}, pre_db;dur=\d+\.\d{2}, db;dur=0\.25, post_db;dur=\d+\.\d{2}$/)
+for (const forbidden of [participantAToken, participantBToken, matchId, 'sql', 'placement']) {
+  assert(!timingHeader.toLowerCase().includes(forbidden.toLowerCase()))
+}
 const apiJson = await apiSuccess.json()
 assert.deepEqual(apiJson, emptyView)
 const serialized = JSON.stringify(apiJson)

@@ -13,6 +13,15 @@ export interface OpenDuelBagInput {
   readonly expectedOpenOrder: number
 }
 
+export interface DuelDatabaseTiming {
+  readonly startedAtMs: number
+  readonly durationMs: number
+}
+
+export interface OpenDuelBagDiagnostics {
+  readonly onExecuteTiming?: (timing: DuelDatabaseTiming) => void
+}
+
 export interface OpenDuelBagView {
   readonly matchId: string
   readonly roundNumber: number
@@ -54,8 +63,12 @@ interface OpenDuelBagRow extends Record<string, unknown> {
  */
 export async function persistDuelBagOpen(
   input: OpenDuelBagInput,
+  diagnostics: OpenDuelBagDiagnostics = {},
 ): Promise<OpenDuelBagResult> {
-  const result = await getDatabase().execute<OpenDuelBagRow>(sql`
+  const databaseStartedAtMs = performance.now()
+  let result
+  try {
+    result = await getDatabase().execute<OpenDuelBagRow>(sql`
     with candidate as materialized (
       select
         match.id as match_id,
@@ -326,7 +339,13 @@ export async function persistDuelBagOpen(
       null::smallint as captured_coins,
       null::boolean as participant_completed
     where not exists (select 1 from response)
-  `)
+    `)
+  } finally {
+    diagnostics.onExecuteTiming?.({
+      startedAtMs: databaseStartedAtMs,
+      durationMs: performance.now() - databaseStartedAtMs,
+    })
+  }
 
   const row = result.rows[0]
   if (!row) throw new Error('DUEL OPEN did not return a status.')

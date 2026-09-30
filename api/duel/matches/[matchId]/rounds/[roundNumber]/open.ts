@@ -3,16 +3,45 @@ import {
   OpenBagError,
   openBag,
   validateOpenBagRequest,
+  type OpenBagDependencies,
   type OpenBagResponse,
 } from '../../../../../../server/duel/openBag.js'
 
 type Open = (
   request: ReturnType<typeof validateOpenBagRequest>,
+  dependencies?: Pick<OpenBagDependencies, 'onDatabaseTiming'>,
 ) => Promise<OpenBagResponse>
 
 const JSON_HEADERS = {
   'Cache-Control': 'no-store',
   'Content-Type': 'application/json; charset=utf-8',
+}
+
+type DatabaseTiming = {
+  readonly startedAtMs: number
+  readonly durationMs: number
+}
+
+function duration(value: number): string {
+  return Math.max(0, Number.isFinite(value) ? value : 0).toFixed(2)
+}
+
+function serverTiming(
+  functionStartedAtMs: number,
+  functionFinishedAtMs: number,
+  databaseTiming: DatabaseTiming | null,
+): string {
+  const appDuration = functionFinishedAtMs - functionStartedAtMs
+  if (!databaseTiming) return `app;dur=${duration(appDuration)}`
+  const preDatabase = databaseTiming.startedAtMs - functionStartedAtMs
+  const postDatabase =
+    functionFinishedAtMs - databaseTiming.startedAtMs - databaseTiming.durationMs
+  return [
+    `app;dur=${duration(appDuration)}`,
+    `pre_db;dur=${duration(preDatabase)}`,
+    `db;dur=${duration(databaseTiming.durationMs)}`,
+    `post_db;dur=${duration(postDatabase)}`,
+  ].join(', ')
 }
 
 function errorResponse(
@@ -84,6 +113,7 @@ export function createOpenBagHandler(
   open: Open = openBag,
 ): (request: Request) => Promise<Response> {
   return async (request) => {
+    const functionStartedAtMs = performance.now()
     if (request.method !== 'POST') return errorResponse(405, 'invalid_request')
     const contentType = request.headers
       .get('content-type')
@@ -109,8 +139,25 @@ export function createOpenBagHandler(
         request.headers.get('idempotency-key'),
         body,
       )
-      const response = await open(input)
-      return Response.json(response, { status: 200, headers: JSON_HEADERS })
+      let databaseTiming: DatabaseTiming | null = null
+      const response = await open(input, {
+        onDatabaseTiming: (timing) => {
+          databaseTiming = timing
+        },
+      })
+      const responseBody = JSON.stringify(response)
+      const functionFinishedAtMs = performance.now()
+      return new Response(responseBody, {
+        status: 200,
+        headers: {
+          ...JSON_HEADERS,
+          'Server-Timing': serverTiming(
+            functionStartedAtMs,
+            functionFinishedAtMs,
+            databaseTiming,
+          ),
+        },
+      })
     } catch (error: unknown) {
       if (error instanceof OpenBagError) {
         if (error.code === 'INVALID_REQUEST') {
