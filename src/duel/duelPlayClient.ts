@@ -3,6 +3,10 @@ import {
   readParticipant,
   type StorageAdapter,
 } from './duelPersistence'
+import {
+  parseDuelOpponentPlacementSet,
+  type DuelOpponentPlacementSet,
+} from './duelOpponentPlacements'
 
 const UUID_V4_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
@@ -660,6 +664,21 @@ export function createDuelPlayClient(dependencies: DuelPlayClientDependencies) {
         { method: 'GET', headers: headers(token) },
       )
       return parsePlayState(json, id)
+    },
+
+    async getOpponentPlacements(matchIdValue: string): Promise<DuelOpponentPlacementSet> {
+      const id = normalizedMatchId(matchIdValue)
+      const token = participantToken(dependencies.storage, id)
+      const json = await fetchJson(
+        dependencies.fetch,
+        `/api/duel/matches/${encodeURIComponent(id)}/opponent-placements`,
+        { method: 'GET', headers: headers(token) },
+      )
+      try {
+        return parseDuelOpponentPlacementSet(json, id)
+      } catch {
+        return fail('malformed-response')
+      }
     },
 
     async openBag(commandValue: DuelOpenCommand): Promise<DuelOpenResult> {
