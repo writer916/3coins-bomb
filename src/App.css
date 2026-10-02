@@ -543,13 +543,18 @@
 }
 
 /*
-  ROUND + BAG setup: shared coordinate shell.
-  Top+mid spacers share free band so the module sits in the visual middle
-  between ROUND (or DUEL) and the locked button dock. Bottom spacer pins
-  CONTINUE/SET at ~451 @ 375×667.
+  Shared DUEL setup/place shell:
+  A) upper content (screen-specific)
+  B) common button field pinned from the bottom (3-button reserved height)
+  Mid flex spacer absorbs leftover height so first-button top stays fixed
+  within a viewport across ROUND / BAGS / BOMB / COIN / ready / EN / JA.
 */
-.duel-flow--setup {
+.duel-flow--setup,
+.duel-flow--place {
+  --duel-button-field-h: 9.35rem; /* 3 × 2.75rem + 2 × 0.55rem */
+  --duel-button-field-bottom: 0.5rem;
   gap: 0;
+  padding-top: 0.25rem;
   padding-bottom: max(0.65rem, env(safe-area-inset-bottom, 0px));
   justify-content: flex-start;
 }
@@ -574,28 +579,29 @@
 }
 
 /*
-  Visual middle between ROUND and SET (not the old low ~271 or high ~121).
-  Top flex > mid so ROUND clears; mid still leaves clear air above locked SET.
-  Tuned against 375×667 screenshots (large stepper digit reads heavy).
+  Setup: modest top air so hint+stepper stay in the upper band;
+  mid spacer takes the larger free band above the shared button field.
 */
 .duel-setup-spacer--top {
-  flex: 1.65 1 0;
-  min-height: 3.5rem;
+  flex: 0.55 1 0;
+  min-height: 1rem;
 }
 
-.duel-setup-spacer--mid {
-  flex: 1 1 0;
-  min-height: 1.15rem;
+.duel-flow--setup > .duel-setup-spacer--mid,
+.duel-flow--place > .duel-setup-spacer--mid {
+  flex: 1 1 auto;
+  min-height: 0.75rem;
+  height: auto;
 }
 
 /*
-  Locked bottom band from measure (98.313px @ 667vh ≈ 14.74vh).
-  Keeps CONTINUE/SET · TOP/BACK Y unchanged.
+  Shared bottom inset after the button field (same on setup + place).
 */
-.duel-setup-spacer--bottom {
-  flex: 0 0 auto;
-  height: 14.74vh;
-  min-height: 5.5rem;
+.duel-flow--setup > .duel-setup-spacer--bottom,
+.duel-flow--place > .duel-setup-spacer--bottom {
+  flex: 0 0 var(--duel-button-field-bottom);
+  height: var(--duel-button-field-bottom);
+  min-height: var(--duel-button-field-bottom);
 }
 
 /*
@@ -625,18 +631,24 @@
 }
 
 /*
-  Setup button dock — Y aims near place-screen NEXT ROUND (~457 @ 375×667).
-  Stack stays intact (44px / 8.8px gap).
+  Shared button field (setup .duel-btn-area + place .duel-slot-buttons).
+  Always reserves 3-button height so 2-button screens keep the same first-button top.
 */
-.duel-btn-area {
+.duel-button-field,
+.duel-flow--setup .duel-btn-area,
+.duel-flow--place .duel-slot-buttons {
   box-sizing: border-box;
-  flex: 0 0 auto;
-  display: flex;
-  justify-content: center;
+  flex: 0 0 var(--duel-button-field-h);
+  height: var(--duel-button-field-h);
+  min-height: var(--duel-button-field-h);
   width: 100%;
-  margin-top: clamp(1.35rem, 4vh, 1.9rem);
-  margin-bottom: 0;
+  margin: 0;
   padding: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  overflow: visible;
 }
 
 /*
@@ -655,33 +667,18 @@
 }
 
 /*
-  ROUND → BagBoard → instruction (BagBoard group) → mid spacer → buttons
-  pinned so RESET aligns with setup CONTINUE/SET (~451 @ 375×667).
-  Board slot size/top must stay fixed (compensate round-h ↔ gap).
+  Place content: ROUND → BagBoard → instruction (one visual group)
+  → flex mid (breathing) → shared button field.
 */
 .duel-flow--place {
   --duel-slot-round-h: 1.55rem; /* match setup status band for ROUND style */
   --duel-slot-board-h: min(42vh, 17.5rem);
-  --duel-slot-instruction-h: 2.9rem; /* JA 2-line room without Y drift into bags */
-  --duel-slot-buttons-h: 9.35rem; /* 3 × 2.75rem + 2 × 0.55rem */
-  gap: 0.35rem;
-  /* Match .duel-flow / setup so ROUND does not jump on SET. */
-  padding-top: 0.25rem;
-  padding-bottom: max(0.65rem, env(safe-area-inset-bottom, 0px));
+  --duel-slot-instruction-h: 2.9rem; /* JA 2-line room; slot height does not move buttons */
 }
 
 /* Restore BagBoard top ≈108.26 after matching setup padding-top (was +0.406rem place-only). */
 .duel-flow--place .duel-slot-board {
   margin-top: 0.406rem;
-}
-
-/*
-  Place has 3 buttons (setup has 2). Tune bottom band so RESET top
-  matches CONTINUE/SET (451.094), not the 2-btn stack end.
-*/
-.duel-flow--place > .duel-setup-spacer--bottom {
-  height: 1.2vh;
-  min-height: 0.5rem;
 }
 
 /*
@@ -780,63 +777,32 @@
   overflow: visible;
 }
 
-/* Keep instruction after the complete BagBoard box; bags are absolutely positioned. */
+/*
+  Keep instruction after the complete BagBoard box; bags are absolutely positioned.
+  Small fixed gap keeps bag+instruction as one group; breathing lives in mid flex.
+  Bottom-align copy so EN 1-line and JA 2-line share the same last-line edge.
+*/
 .duel-flow--place .duel-slot-instruction {
-  margin-top: 0;
-  /* Bottom-align copy so EN 1-line and JA 2-line share the same last-line edge. */
+  margin-top: 0.35rem;
   justify-content: flex-end;
 }
 
 /*
-  Shared air from instruction-slot bottom → button group (language-agnostic).
-  Phone keeps this modest; roomy viewports open it further below.
-*/
-.duel-flow--place > .duel-setup-spacer--mid {
-  flex: 0 0 auto;
-  min-height: 0.75rem;
-  height: 0.75rem;
-}
-
-/*
-  Tablet/PC place breathing room (not phones).
-  Phones keep the compact stack; roomy viewports open air between
-  board → instruction → buttons without stretching the button stack.
+  Tablet/PC: slightly larger bag↔instruction grouping gap only.
+  Button field stays bottom-pinned via shared mid flex (no per-screen Y nudge).
 */
 @media (min-width: 768px) and (min-height: 700px) {
-  .duel-flow--place {
-    --duel-place-block-gap: clamp(1.15rem, 3.1vh, 2rem);
-    gap: clamp(0.5rem, 1.35vh, 0.9rem);
-  }
-
   .duel-flow--place .duel-slot-instruction {
-    margin-top: var(--duel-place-block-gap);
+    margin-top: clamp(0.45rem, 1.2vh, 0.75rem);
   }
 
-  .duel-flow--place .duel-slot-buttons {
-    margin-top: var(--duel-place-block-gap);
-  }
-
-  /* Keep mid air modest — do not absorb leftover viewport height. */
+  .duel-flow--setup > .duel-setup-spacer--mid,
   .duel-flow--place > .duel-setup-spacer--mid {
-    flex: 0 0 auto;
-    min-height: clamp(0.85rem, 2.1vh, 1.35rem);
-    height: clamp(0.85rem, 2.1vh, 1.35rem);
+    min-height: clamp(1rem, 2.4vh, 1.6rem);
   }
 }
 
 /* Place reuses shared .duel-instruction (same as Choose the number of …). */
-
-/*
-  Button slot must NOT clip borders (overflow:hidden on .duel-slot was
-  shaving ~1px off RESET/BACK edges → looked shorter than CONTINUE).
-*/
-.duel-slot-buttons {
-  height: var(--duel-slot-buttons-h);
-  min-height: var(--duel-slot-buttons-h);
-  max-height: none;
-  justify-content: flex-start;
-  overflow: visible;
-}
 
 .duel-slot-board {
   height: var(--duel-slot-board-h);
@@ -1343,7 +1309,9 @@
     margin-bottom: clamp(1rem, 3.5vh, 1.5rem);
   }
 
-  .duel-flow--setup {
+  .duel-flow--setup,
+  .duel-flow--place {
+    --duel-button-field-bottom: 0.35rem;
     gap: 0;
     padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
   }
@@ -1355,24 +1323,15 @@
   }
 
   .duel-setup-spacer--top {
-    flex: 1.65 1 0;
-    min-height: 1.85rem;
+    flex: 0.4 1 0;
+    min-height: 0.5rem;
   }
 
-  .duel-setup-spacer--mid {
-    flex: 1 1 0;
-    min-height: 0.75rem;
-  }
-
-  .duel-setup-spacer--bottom {
-    height: 14.74vh;
-    min-height: 4.35rem;
-  }
-
-  .duel-btn-area {
-    margin-top: clamp(0.9rem, 3vh, 1.25rem);
-    margin-bottom: 0;
-    padding: 0;
+  .duel-flow--setup > .duel-setup-spacer--mid,
+  .duel-flow--place > .duel-setup-spacer--mid {
+    flex: 1 1 auto;
+    min-height: 0.45rem;
+    height: auto;
   }
 
   .duel-instruction {
@@ -1392,24 +1351,15 @@
     --duel-slot-round-h: 1.35rem;
     --duel-slot-board-h: min(34vh, 13rem);
     --duel-slot-instruction-h: 2.75rem; /* keep JA 2-line above buttons on short viewports */
-    --duel-slot-buttons-h: 9.35rem;
-    gap: 0.15rem;
     padding-top: 0.25rem;
-    padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
   }
 
   .duel-flow--place .duel-slot-board {
     margin-top: 0.406rem;
   }
 
-  .duel-flow--place > .duel-setup-spacer--mid {
-    min-height: 0.55rem;
-    height: 0.55rem;
-  }
-
-  .duel-flow--place > .duel-setup-spacer--bottom {
-    height: 1.2vh;
-    min-height: 0.5rem;
+  .duel-flow--place .duel-slot-instruction {
+    margin-top: 0.25rem;
   }
 
   .duel-field--stepper {

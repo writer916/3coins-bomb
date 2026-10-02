@@ -107,7 +107,10 @@ function DuelConfigShell({
       </div>
       {/* Grows so the module can sit higher while buttons stay pinned. */}
       <div className="duel-setup-spacer duel-setup-spacer--mid" aria-hidden="true" />
-      <div className="duel-btn-area" data-duel-metric="btn-area">
+      <div
+        className="duel-btn-area duel-button-field"
+        data-duel-metric="btn-area"
+      >
         <div className="duel-btn-stack" data-duel-metric="btn-stack">
           {primary}
           {secondary}
@@ -459,7 +462,10 @@ export function DuelFlow({
       {/* Keeps instruction near BagBoard while buttons sit on setup Y. */}
       <div className="duel-setup-spacer duel-setup-spacer--mid" aria-hidden="true" />
 
-      <div className="duel-slot duel-slot-buttons" data-duel-slot="buttons">
+      <div
+        className="duel-slot duel-slot-buttons duel-button-field"
+        data-duel-slot="buttons"
+      >
         <div className="duel-btn-stack">
           <button
             type="button"
