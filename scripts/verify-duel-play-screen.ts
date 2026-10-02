@@ -499,13 +499,15 @@ assert.doesNotMatch(screen, /t\.roundBombed/)
 assert.doesNotMatch(screen, /t\.roundCleared/)
 assert.doesNotMatch(screen, /t\.roundCashedOut/)
 assert.doesNotMatch(screen, /t\.provisionalCoins\(/)
-assert.match(screen, /const outcome = await coordinator\.open\([\s\S]*const result = outcome\.result[\s\S]*setView\([\s\S]*playBagOpen[\s\S]*setFx\(/)
+assert.match(screen, /getLocalOpenResult/)
+assert.match(screen, /startPredictedOpenFx/)
+assert.match(screen, /createOptimisticOpenGate|markOptimisticFxDone|markOptimisticServerDone/)
+assert.match(screen, /sameLocalAndServerOpen/)
 assert.match(screen, /coordinator\.loadSession\(matchId\)/)
-assert.doesNotMatch(screen, /getLocalOpenResult/)
 assert.doesNotMatch(screen, /openingBagId|setOpeningBagId/)
 assert.doesNotMatch(screen, /pendingBagId|setPendingBagId/)
 assert.match(screen, /interactionLockedRef\.current = true[\s\S]*setRequestPending\(true\)[\s\S]*await coordinator\.open/)
-assert.match(screen, /catch \{[\s\S]*interactionLockedRef\.current = false[\s\S]*setRetryBag\(bagId\)/)
+assert.match(screen, /catch \{[\s\S]*setRetryBag\(bagId\)/)
 assert.match(screen, /view\.selfProgress\.completedRounds/)
 assert.match(screen, /view\.selfProgress\.totalCapturedCoins/)
 assert.match(screen, /if \(result\.roundEnded\) refreshSelfProgress\(\)/)
@@ -519,16 +521,22 @@ assert.doesNotMatch(bagCss, /bag-slot--opening/)
 assert.doesNotMatch(bagBoard, /pendingBagId|bag-image--pending/)
 assert.doesNotMatch(bagCss, /bag-image--pending|scale\(0\.985\)|transform-origin: 50% 62%|transition: transform 100ms ease-out/)
 assert.doesNotMatch(screen, /Math\.random/)
-// The accepted response hides the bag and mounts exactly one authoritative FX.
-const openSequence = screen.match(
-  /const outcome = await coordinator\.open\([\s\S]*?if \(result\.roundEnded\) refreshSelfProgress\(\)/,
+// Optimistic path: predicted FX/SE before awaiting server; no second FX after response.
+const optimisticOpen = screen.match(
+  /if \(local\) \{[\s\S]*?return\n    \}/,
 )?.[0] ?? ''
-const successOpen = screen.match(
-  /const result = outcome\.result[\s\S]*?if \(result\.roundEnded\) refreshSelfProgress\(\)/,
+assert.ok(optimisticOpen.includes('startPredictedOpenFx'))
+assert.ok(optimisticOpen.indexOf('startPredictedOpenFx') < optimisticOpen.indexOf('await coordinator.open'))
+assert.doesNotMatch(optimisticOpen, /await coordinator\.open[\s\S]*startPredictedOpenFx/)
+assert.doesNotMatch(optimisticOpen, /await coordinator\.open[\s\S]*playBagOpen/)
+assert.doesNotMatch(optimisticOpen, /await coordinator\.open[\s\S]*setFx\(\{/)
+// Server-first fallback still mounts FX from authoritative result only.
+const fallbackOpen = screen.match(
+  /const result = outcome\.result\n      const nextRound = appendOpen\(round, result\)[\s\S]*?if \(result\.roundEnded\) refreshSelfProgress\(\)/,
 )?.[0] ?? ''
-assert.ok(successOpen.includes('setFx({'))
-assert.ok(openSequence.indexOf('await coordinator.open') < openSequence.indexOf('playBagOpen'))
-assert.equal((successOpen.match(/setFx\(/g) ?? []).length, 3)
+assert.ok(fallbackOpen.includes('setFx({'))
+assert.ok(fallbackOpen.indexOf('appendOpen') < fallbackOpen.indexOf('playBagOpen'))
+assert.equal((fallbackOpen.match(/setFx\(/g) ?? []).length, 3)
 assert.match(coordinatorSource, /latestTerminalRound/)
 assert.match(coordinatorSource, /activeRound/)
 assert.match(coordinatorSource, /buildDuelRevealPlan/)

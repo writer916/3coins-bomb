@@ -42,6 +42,7 @@
     "verify:duel-result-client": "tsx scripts/verify-duel-result-client.ts",
     "verify:duel-play-client": "tsx scripts/verify-duel-play-client.ts",
     "verify:duel-play-screen": "tsx scripts/verify-duel-play-screen.ts",
+    "verify:duel-optimistic-open": "tsx scripts/verify-duel-optimistic-open.ts",
     "verify:duel-persistence": "tsx scripts/verify-duel-persistence.ts",
     "verify:duel-create-lock-client": "tsx scripts/verify-duel-create-lock-client.ts",
     "verify:duel-invitation": "tsx scripts/verify-duel-invitation.ts",

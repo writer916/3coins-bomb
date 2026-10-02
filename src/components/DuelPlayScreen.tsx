@@ -32,6 +32,16 @@ import {
   selectDuelDisplayedRound,
   type DuelDisplayedRound,
 } from '../duel/duelPlayCoordinator'
+import {
+  createOptimisticOpenGate,
+  markOptimisticFailed,
+  markOptimisticFxDone,
+  markOptimisticServerDone,
+  predictsClearsRound,
+  sameLocalAndServerOpen,
+  type OptimisticOpenGate,
+} from '../duel/duelOptimisticOpen'
+import type { DuelLocalOpenResult } from '../duel/duelOpponentPlacements'
 import { BagBoard } from './BagBoard'
 import { BombOpenFx } from './BombOpenFx'
 import { CoinOpenFx } from './CoinOpenFx'
@@ -157,6 +167,8 @@ export function DuelPlayScreen({ matchId, t }: DuelPlayScreenProps) {
   const resultPendingRef = useRef(false)
   const revealedRef = useRef(false)
   const viewRef = useRef(view)
+  const openEpochRef = useRef(0)
+  const optimisticGateRef = useRef<OptimisticOpenGate | null>(null)
 
   useEffect(() => {
     revealedRef.current = revealed
@@ -167,6 +179,8 @@ export function DuelPlayScreen({ matchId, t }: DuelPlayScreenProps) {
   }, [view])
 
   useEffect(() => {
+    openEpochRef.current += 1
+    optimisticGateRef.current = null
     let active = true
     if (!coordinator) return
     void coordinator.loadSession(matchId).then(({ state }) => {
@@ -178,7 +192,11 @@ export function DuelPlayScreen({ matchId, t }: DuelPlayScreenProps) {
     }).catch(() => {
       if (active) setView({ phase: 'error', matchId })
     })
-    return () => { active = false }
+    return () => {
+      active = false
+      openEpochRef.current += 1
+      optimisticGateRef.current = null
+    }
   }, [coordinator, matchId])
 
   const opened = useMemo(
@@ -196,13 +214,62 @@ export function DuelPlayScreen({ matchId, t }: DuelPlayScreenProps) {
       next.delete(fx.bagId)
       return next
     }
+    if (fx?.kind === 'bomb' || fx?.kind === 'empty') {
+      const next = new Set(opened)
+      next.add(fx.bagId)
+      return next
+    }
     return opened
   }, [view, opened, revealed, fx, coinFxSample])
 
+  const finishOpenUnlock = useCallback(() => {
+    optimisticGateRef.current = null
+    interactionLockedRef.current = false
+    setRequestPending(false)
+    setCoinFxSample(null)
+    setFx(null)
+  }, [])
+
   const clearFx = useCallback(() => {
+    const gate = optimisticGateRef.current
+    if (gate) {
+      if (gate.failed) {
+        finishOpenUnlock()
+        return
+      }
+      if (markOptimisticFxDone(gate)) {
+        finishOpenUnlock()
+      }
+      return
+    }
     interactionLockedRef.current = false
     setCoinFxSample(null)
     setFx(null)
+  }, [finishOpenUnlock])
+
+  const startPredictedOpenFx = useCallback((
+    local: DuelLocalOpenResult,
+    bagId: BagId,
+    provisionalCoins: 0 | 1 | 2,
+  ) => {
+    const soundEnabled = readSoundEnabled()
+    if (resolveBagOpenSeRequest(soundEnabled, true).play) {
+      playBagOpen({ soundEnabled: true })
+    }
+    runIdRef.current += 1
+    if (local.outcome === 'coins') {
+      setFx({
+        kind: 'coins',
+        bagId,
+        count: local.coinsFound as FxCoinCount,
+        clearsRound: predictsClearsRound(provisionalCoins, local),
+        runId: runIdRef.current,
+      })
+    } else if (local.outcome === 'bomb') {
+      setFx({ kind: 'bomb', bagId, runId: runIdRef.current })
+    } else {
+      setFx({ kind: 'empty', bagId, runId: runIdRef.current })
+    }
   }, [])
 
   const refreshSelfProgress = useCallback(() => {
@@ -229,13 +296,93 @@ export function DuelPlayScreen({ matchId, t }: DuelPlayScreenProps) {
     warmBagOpenAudio()
     interactionLockedRef.current = true
     setRequestPending(true)
+
+    const epoch = ++openEpochRef.current
+    const round = view.round
+    const bagNumber = bagIdToBagNumber(bagId)
+    const openInput = {
+      matchId,
+      roundNumber: round.roundNumber,
+      bagNumber,
+      expectedOpenOrder: round.nextOpenOrder,
+    }
+
+    let local: DuelLocalOpenResult | null = null
     try {
-      const outcome = await coordinator.open({
+      local = coordinator.getLocalOpenResult({
         matchId,
-        roundNumber: view.round.roundNumber,
-        bagNumber: bagIdToBagNumber(bagId),
-        expectedOpenOrder: view.round.nextOpenOrder,
+        roundNumber: round.roundNumber,
+        bagCount: round.bagCount,
+        bagNumber,
       })
+    } catch {
+      local = null
+    }
+
+    if (local) {
+      const gate = createOptimisticOpenGate()
+      optimisticGateRef.current = gate
+      setCoinFxSample(null)
+      startPredictedOpenFx(local, bagId, round.provisionalCoins)
+
+      try {
+        const outcome = await coordinator.open(openInput)
+        if (epoch !== openEpochRef.current) return
+
+        setRetryBag(null)
+        if (outcome.kind === 'resynced') {
+          markOptimisticFailed(gate)
+          optimisticGateRef.current = null
+          setCoinFxSample(null)
+          setFx(null)
+          interactionLockedRef.current = false
+          setRequestPending(false)
+          setRevealed(false)
+          setRevealPlan(null)
+          const ready = readyView(outcome.state)
+          setView(ready ?? { phase: 'error', matchId })
+          return
+        }
+
+        const result = outcome.result
+        if (!sameLocalAndServerOpen(local, result)) {
+          markOptimisticFailed(gate)
+          optimisticGateRef.current = null
+          setCoinFxSample(null)
+          setFx(null)
+          interactionLockedRef.current = false
+          setRequestPending(false)
+          setView({ phase: 'error', matchId })
+          return
+        }
+
+        const nextRound = appendOpen(round, result)
+        setView({
+          phase: 'ready',
+          matchId: view.matchId,
+          totalRounds: view.totalRounds,
+          round: nextRound,
+          canAdvance: nextRound.terminal ? !result.participantCompleted : false,
+          selfProgress: view.selfProgress,
+        })
+        if (result.roundEnded) refreshSelfProgress()
+        if (markOptimisticServerDone(gate)) {
+          finishOpenUnlock()
+        }
+      } catch {
+        if (epoch !== openEpochRef.current) return
+        markOptimisticFailed(gate)
+        setRetryBag(bagId)
+        if (gate.fxDone) {
+          finishOpenUnlock()
+        }
+      }
+      return
+    }
+
+    try {
+      const outcome = await coordinator.open(openInput)
+      if (epoch !== openEpochRef.current) return
       setRetryBag(null)
       if (outcome.kind === 'resynced') {
         interactionLockedRef.current = false
@@ -247,7 +394,7 @@ export function DuelPlayScreen({ matchId, t }: DuelPlayScreenProps) {
       }
 
       const result = outcome.result
-      const nextRound = appendOpen(view.round, result)
+      const nextRound = appendOpen(round, result)
       setCoinFxSample(null)
       setView({
         phase: 'ready',
@@ -275,12 +422,18 @@ export function DuelPlayScreen({ matchId, t }: DuelPlayScreenProps) {
       }
       if (result.roundEnded) refreshSelfProgress()
     } catch {
+      if (epoch !== openEpochRef.current) return
       interactionLockedRef.current = false
       setRetryBag(bagId)
     } finally {
-      setRequestPending(false)
+      if (epoch === openEpochRef.current && !optimisticGateRef.current) {
+        setRequestPending(false)
+      }
     }
-  }, [view, requestPending, fx, opened, retryBag, matchId, coordinator, revealed, refreshSelfProgress])
+  }, [
+    view, requestPending, fx, opened, retryBag, matchId, coordinator, revealed,
+    refreshSelfProgress, startPredictedOpenFx, finishOpenUnlock,
+  ])
 
   const handleCashOut = useCallback(async () => {
     if (
