@@ -36,9 +36,11 @@ function PlayerCard({
   return (
     <div className="duel-final-player">
       <h3>{title}</h3>
-      <StatRow label={t.duelTotalCoins} value={summary.totalCapturedCoins} />
-      <StatRow label={t.duelThreeCoinsComplete} value={summary.threeCoinsComplete} />
-      <StatRow label={t.duelBombsHit} value={summary.bombsHit} />
+      <div className="duel-final-stats">
+        <StatRow label={t.duelTotalCoins} value={summary.totalCapturedCoins} />
+        <StatRow label={t.duelThreeCoinsComplete} value={summary.threeCoinsComplete} />
+        <StatRow label={t.duelBombsHit} value={summary.bombsHit} />
+      </div>
     </div>
   )
 }

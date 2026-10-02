@@ -515,7 +515,29 @@ assert.match(screen, /3COINS COMPLETE/)
 assert.match(screen, /score-row--secondary/)
 const appCss = await readFile('src/App.css', 'utf8')
 assert.match(appCss, /\.score-stack/)
+assert.match(appCss, /\.score-stack\s*{[^}]*align-items:\s*stretch/s)
+assert.match(appCss, /\.score-row\s*{[^}]*justify-content:\s*center/s)
+assert.match(appCss, /\.score-row\s*{[^}]*width:\s*max-content/s)
+assert.match(appCss, /\.score-row--secondary\s*{[^}]*width:\s*0/s)
+assert.match(appCss, /\.score-row--secondary\s*{[^}]*min-width:\s*100%/s)
+assert.match(appCss, /\.score-row--secondary\s*{[^}]*justify-content:\s*space-between/s)
+assert.match(appCss, /\.score-label\s*{[^}]*font-family:\s*Georgia/s)
+assert.match(appCss, /\.score-label\s*{[^}]*font-variant-numeric:\s*lining-nums/s)
+assert.match(
+  screen,
+  /<span className="score-label">3COINS COMPLETE<\/span>\s*<span className="score-num">/,
+  '3COINS COMPLETE must be one score-label followed by the value score-num',
+)
+assert.doesNotMatch(
+  screen,
+  /score-label">3\s*<span/,
+  'leading 3 must not be split into its own span',
+)
 assert.match(appCss, /\.duel-final-stat/)
+assert.match(appCss, /\.duel-final-stats\s*{/)
+assert.match(appCss, /\.duel-final\s*{[^}]*width:\s*min\(100%,\s*30rem\)/s)
+assert.match(appCss, /\.duel-final-player\s*{[^}]*width:\s*15\.25rem/s)
+assert.match(appCss, /\.duel-final-scores\s*{[^}]*max-content/s)
 assert.match(appCss, /--duel-button-field-h:\s*9\.35rem/)
 assert.doesNotMatch(appCss, /14\.74vh/)
 assert.match(screen, /if \(result\.roundEnded\) refreshSelfProgress\(\)/)

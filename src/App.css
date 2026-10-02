@@ -244,7 +244,11 @@
 .score-stack {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  /*
+    Keep the stack’s intrinsic width = top ROUNDS/COINS row (baseline 4521b7a).
+    Secondary uses width:0;min-width:100% so it cannot widen/shift the block left.
+  */
+  align-items: stretch;
   gap: 0.35rem;
   width: max-content;
   max-width: 100%;
@@ -266,7 +270,17 @@
 }
 
 .score-row--secondary {
+  /* Match top-row width only; label left = ROUNDS left, value on the right edge. */
+  width: 0;
+  min-width: 100%;
+  max-width: 100%;
+  justify-content: space-between;
   gap: 0.55rem;
+}
+
+.score-row--secondary .score-label {
+  /* Optical: Georgia lining “3” sidebearing sits right of capital “R”. */
+  margin-left: -0.08em;
 }
 
 .score-item {
@@ -279,11 +293,27 @@
   min-width: 0;
 }
 
+.score-row--secondary .score-item {
+  flex: 1 1 auto;
+  justify-content: space-between;
+  width: 100%;
+  min-width: 0;
+}
+
+/*
+  Session labels (ROUNDS / COINS / 3COINS COMPLETE): one Georgia stack.
+  Digits inside the label (the leading “3”) must NOT pick up .score-num.
+*/
 .score-label {
-  font-family: Georgia, 'Times New Roman', serif;
+  font-family: Georgia, 'Times New Roman', Times, serif;
   font-size: clamp(0.95rem, 3.6vw, 1.2rem);
   font-weight: 700;
+  font-style: normal;
+  /* Lining figures so the leading “3” matches ROUNDS/COINS capital metrics. */
+  font-variant-numeric: lining-nums;
+  font-feature-settings: 'lnum' 1;
   letter-spacing: 0.04em;
+  line-height: 1.15;
 }
 
 /*
@@ -1139,7 +1169,7 @@
 }
 
 .duel-final {
-  width: min(100%, 32rem);
+  width: min(100%, 30rem);
   min-height: min(58vh, 28rem);
   display: flex;
   flex-direction: column;
@@ -1174,22 +1204,40 @@
 }
 
 .duel-final-scores {
-  width: 100%;
+  width: max-content;
+  max-width: min(100%, 30rem);
+  margin-inline: auto;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.85rem;
+  grid-template-columns: repeat(2, minmax(0, max-content));
+  justify-content: center;
+  gap: 0.75rem;
 }
 
 .duel-final-player {
-  padding: 1rem 0.75rem;
+  box-sizing: border-box;
+  width: 15.25rem;
+  max-width: 100%;
+  padding: 0.95rem 0.85rem 1.05rem;
   border: 1px solid rgb(242 230 208 / 35%);
   border-radius: 0.75rem;
+  min-width: 0;
 }
 
 .duel-final-player h3 {
-  margin-bottom: 0.85rem;
+  margin-bottom: 0.75rem;
   font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(0.95rem, 3.2vw, 1.1rem);
   letter-spacing: 0.06em;
+}
+
+/* Compact stat block so label↔value stay a readable pair inside each card. */
+.duel-final-stats {
+  box-sizing: border-box;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  text-align: left;
 }
 
 .duel-final-player p,
@@ -1199,38 +1247,67 @@
   flex-wrap: nowrap;
   align-items: baseline;
   justify-content: space-between;
-  gap: 0.55rem;
+  gap: 0.65rem 0.85rem;
   width: 100%;
   min-width: 0;
+  margin: 0;
 }
 
 .duel-final-player p + p,
 .duel-final-stat + .duel-final-stat {
-  margin-top: 0.55rem;
+  margin-top: 0;
 }
 
 .duel-final-player span,
 .duel-final-stat span {
   flex: 1 1 auto;
   min-width: 0;
-  font-size: clamp(0.62rem, 2.4vw, 0.72rem);
-  letter-spacing: 0.05em;
+  font-family: Georgia, 'Times New Roman', Times, serif;
+  font-size: clamp(0.78rem, 2.7vw, 0.92rem);
+  font-weight: 700;
+  font-variant-numeric: lining-nums;
+  font-feature-settings: 'lnum' 1;
+  letter-spacing: 0.03em;
   text-align: left;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow: visible;
+  text-overflow: clip;
+  color: #f2e6d0;
 }
 
 .duel-final-player strong,
 .duel-final-stat strong {
   flex: 0 0 auto;
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    'Helvetica Neue',
+    Arial,
+    sans-serif;
+  font-size: clamp(1.05rem, 3.6vw, 1.28rem);
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
   text-align: right;
+  color: #f5ebd8;
+  line-height: 1;
 }
 
 @media (max-width: 420px) {
+  .duel-final {
+    width: min(100%, 22rem);
+  }
+
   .duel-final-scores {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
+    width: min(100%, 15.5rem);
+    max-width: 100%;
+  }
+
+  .duel-final-player {
+    width: 100%;
   }
 }
 
@@ -1241,6 +1318,14 @@
 
   .score-num {
     font-size: clamp(0.95rem, 3.8vw, 1.2rem);
+  }
+
+  .duel-final-stat span {
+    font-size: clamp(0.72rem, 3.1vw, 0.86rem);
+  }
+
+  .duel-final-stat strong {
+    font-size: clamp(0.98rem, 3.8vw, 1.15rem);
   }
 }
 
