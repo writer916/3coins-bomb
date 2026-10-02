@@ -95,6 +95,7 @@ const coordinator = createDuelPlayCoordinator({
   createOpenCommand() { throw new Error('unused') },
   createCashOutCommand() { throw new Error('unused') },
   async getPlayState() { throw new Error('unused') },
+  async getOpponentPlacements() { throw new Error('unused') },
   async openBag() { throw new Error('unused') },
   async cashOut() { throw new Error('unused') },
   async getRoundReveal() { throw new Error('unused') },

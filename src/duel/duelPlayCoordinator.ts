@@ -19,12 +19,18 @@ import {
   type DuelTerminalRound,
   type createDuelPlayClient,
 } from './duelPlayClient'
+import {
+  judgeDuelOpponentBag,
+  type DuelLocalOpenResult,
+  type DuelOpponentPlacementSet,
+} from './duelOpponentPlacements'
 
 type DuelPlayClient = Pick<
   ReturnType<typeof createDuelPlayClient>,
   | 'createOpenCommand'
   | 'createCashOutCommand'
   | 'getPlayState'
+  | 'getOpponentPlacements'
   | 'openBag'
   | 'cashOut'
   | 'getRoundReveal'
@@ -32,9 +38,9 @@ type DuelPlayClient = Pick<
 >
 
 export class DuelPlayCoordinatorError extends Error {
-  readonly kind: 'busy' | 'retry-required'
+  readonly kind: 'busy' | 'retry-required' | 'session-unavailable'
 
-  constructor(kind: 'busy' | 'retry-required') {
+  constructor(kind: 'busy' | 'retry-required' | 'session-unavailable') {
     super('The DUEL play action could not be completed.')
     this.name = 'DuelPlayCoordinatorError'
     this.kind = kind
@@ -52,6 +58,11 @@ export type DuelCashOutCoordinatorResult =
 export type DuelDisplayedRound =
   | ({ readonly terminal: false } & DuelActiveRound)
   | ({ readonly terminal: true } & DuelTerminalRound)
+
+export interface DuelPlaySession {
+  readonly state: DuelPlayState
+  readonly opponentPlacements: DuelOpponentPlacementSet
+}
 
 /** UX gate only — server cash-out remains authoritative. */
 export function canOfferDuelCashOut(round: DuelDisplayedRound): boolean {
@@ -160,14 +171,75 @@ export function createDuelPlayCoordinator(client: DuelPlayClient) {
   let pendingOpen: DuelOpenCommand | null = null
   let pendingCashOut: DuelCashOutCommand | null = null
   let inFlight = false
+  let opponentPlacements: DuelOpponentPlacementSet | null = null
+  let sessionLoadVersion = 0
+
+  function validateSession(
+    state: DuelPlayState,
+    placements: DuelOpponentPlacementSet,
+  ): void {
+    const displayedRound = selectDuelDisplayedRound(state)
+    const displayedPlacement = displayedRound
+      ? placements.placements[displayedRound.roundNumber - 1]
+      : null
+    if (
+      placements.matchId !== state.matchId ||
+      placements.role !== state.role ||
+      placements.totalRounds !== state.totalRounds ||
+      (displayedRound !== null &&
+        (displayedPlacement?.roundNumber !== displayedRound.roundNumber ||
+          displayedPlacement.bagCount !== displayedRound.bagCount))
+    ) {
+      throw new DuelPlayCoordinatorError('session-unavailable')
+    }
+  }
 
   return {
     getPendingOpen(): DuelOpenCommand | null {
       return pendingOpen
     },
 
-    load(matchId: string): Promise<DuelPlayState> {
-      return client.getPlayState(matchId)
+    async load(matchId: string): Promise<DuelPlayState> {
+      const state = await client.getPlayState(matchId)
+      if (opponentPlacements?.matchId === matchId) {
+        validateSession(state, opponentPlacements)
+      }
+      return state
+    },
+
+    async loadSession(matchId: string): Promise<DuelPlaySession> {
+      const loadVersion = ++sessionLoadVersion
+      if (opponentPlacements?.matchId !== matchId) opponentPlacements = null
+      const state = await client.getPlayState(matchId)
+      if (loadVersion !== sessionLoadVersion) {
+        throw new DuelPlayCoordinatorError('session-unavailable')
+      }
+      const placements = opponentPlacements ?? await client.getOpponentPlacements(matchId)
+      if (loadVersion !== sessionLoadVersion) {
+        throw new DuelPlayCoordinatorError('session-unavailable')
+      }
+      validateSession(state, placements)
+      opponentPlacements = placements
+      return { state, opponentPlacements: placements }
+    },
+
+    getLocalOpenResult(input: {
+      readonly matchId: string
+      readonly roundNumber: number
+      readonly bagCount: number
+      readonly bagNumber: number
+    }): DuelLocalOpenResult {
+      if (opponentPlacements?.matchId !== input.matchId) {
+        throw new DuelPlayCoordinatorError('session-unavailable')
+      }
+      const placement = opponentPlacements.placements[input.roundNumber - 1]
+      if (
+        placement?.roundNumber !== input.roundNumber ||
+        placement.bagCount !== input.bagCount
+      ) {
+        throw new DuelPlayCoordinatorError('session-unavailable')
+      }
+      return judgeDuelOpponentBag(placement, input.bagNumber)
     },
 
     /** Ended ROUND only — caller must pass that round's number, never a future ROUND. */

@@ -15,10 +15,12 @@ import {
   type DuelCashOutCommand,
   type DuelOpenCommand,
 } from '../src/duel/duelPlayClient'
+import type { DuelOpponentPlacementSet } from '../src/duel/duelOpponentPlacements'
 
 const MATCH_ID = '11111111-1111-4111-8111-111111111111'
 const REQUEST_ID = '22222222-2222-4222-8222-222222222222'
 const CASH_OUT_REQUEST_ID = '33333333-3333-4333-8333-333333333333'
+const OTHER_MATCH_ID = '44444444-4444-4444-8444-444444444444'
 
 const activeState = {
   matchId: MATCH_ID,
@@ -37,6 +39,19 @@ const activeState = {
   latestTerminalRound: null,
 }
 
+const opponentPlacements: DuelOpponentPlacementSet = {
+  matchId: MATCH_ID,
+  role: 'A',
+  totalRounds: 3,
+  formationVersion: 1,
+  ruleVersion: 1,
+  placements: [
+    { roundNumber: 1, bagCount: 4, bombBagNumber: 4, coinBagNumbers: [1, 2, 2] },
+    { roundNumber: 2, bagCount: 4, bombBagNumber: 4, coinBagNumbers: [1, 1, 1] },
+    { roundNumber: 3, bagCount: 4, bombBagNumber: 4, coinBagNumbers: [1, 2, 3] },
+  ],
+}
+
 function command(input: Omit<DuelOpenCommand, 'requestId'>): DuelOpenCommand {
   return { ...input, requestId: REQUEST_ID }
 }
@@ -51,6 +66,14 @@ const unusedCashOut = {
   createCashOutCommand: cashOutCommand,
   async cashOut() {
     throw new Error('cashOut should not run in this test')
+  },
+}
+
+let placementGetCount = 0
+const unusedPlacements = {
+  async getOpponentPlacements() {
+    placementGetCount += 1
+    return opponentPlacements
   },
 }
 
@@ -181,6 +204,7 @@ const coordinator = createDuelPlayCoordinator({
     return command(input)
   },
   ...unusedCashOut,
+  ...unusedPlacements,
   ...unusedResult,
   async getPlayState() {
     getCount += 1
@@ -212,6 +236,90 @@ const coordinator = createDuelPlayCoordinator({
     }
   },
 })
+
+const session = await coordinator.loadSession(MATCH_ID)
+assert.equal(session.state, activeState)
+assert.equal(session.opponentPlacements, opponentPlacements)
+assert.equal(getCount, 1)
+assert.deepEqual(
+  coordinator.getLocalOpenResult({
+    matchId: MATCH_ID, roundNumber: 1, bagCount: 4, bagNumber: 3,
+  }),
+  { outcome: 'empty', coinsFound: 0 },
+)
+assert.deepEqual(
+  coordinator.getLocalOpenResult({
+    matchId: MATCH_ID, roundNumber: 1, bagCount: 4, bagNumber: 4,
+  }),
+  { outcome: 'bomb', coinsFound: 0 },
+)
+assert.deepEqual(
+  coordinator.getLocalOpenResult({
+    matchId: MATCH_ID, roundNumber: 1, bagCount: 4, bagNumber: 2,
+  }),
+  { outcome: 'coins', coinsFound: 2 },
+)
+await coordinator.loadSession(MATCH_ID)
+assert.equal(getCount, 2)
+assert.equal(placementGetCount, 1)
+assert.throws(
+  () => coordinator.getLocalOpenResult({
+    matchId: MATCH_ID, roundNumber: 1, bagCount: 5, bagNumber: 1,
+  }),
+  (error: unknown) => error instanceof DuelPlayCoordinatorError &&
+    error.kind === 'session-unavailable',
+)
+assert.throws(
+  () => coordinator.getLocalOpenResult({
+    matchId: MATCH_ID, roundNumber: 4, bagCount: 4, bagNumber: 1,
+  }),
+  (error: unknown) => error instanceof DuelPlayCoordinatorError &&
+    error.kind === 'session-unavailable',
+)
+
+let resolveOldPlacements!: (value: DuelOpponentPlacementSet) => void
+const oldPlacements = new Promise<DuelOpponentPlacementSet>((resolve) => {
+  resolveOldPlacements = resolve
+})
+const otherState = { ...activeState, matchId: OTHER_MATCH_ID }
+const otherPlacements: DuelOpponentPlacementSet = {
+  ...opponentPlacements,
+  matchId: OTHER_MATCH_ID,
+  placements: opponentPlacements.placements.map((placement) => ({ ...placement })),
+}
+const switchingCoordinator = createDuelPlayCoordinator({
+  createOpenCommand: command,
+  ...unusedCashOut,
+  ...unusedResult,
+  async getPlayState(id) { return id === MATCH_ID ? activeState : otherState },
+  async getOpponentPlacements(id) {
+    return id === MATCH_ID ? oldPlacements : otherPlacements
+  },
+  async openBag() { throw new Error('unused') },
+  async getRoundReveal() { throw new Error('unused') },
+})
+const staleLoad = switchingCoordinator.loadSession(MATCH_ID)
+await Promise.resolve()
+const currentLoad = switchingCoordinator.loadSession(OTHER_MATCH_ID)
+assert.equal((await currentLoad).opponentPlacements.matchId, OTHER_MATCH_ID)
+resolveOldPlacements(opponentPlacements)
+await assert.rejects(
+  staleLoad,
+  (error: unknown) => error instanceof DuelPlayCoordinatorError &&
+    error.kind === 'session-unavailable',
+)
+assert.deepEqual(
+  switchingCoordinator.getLocalOpenResult({
+    matchId: OTHER_MATCH_ID, roundNumber: 1, bagCount: 4, bagNumber: 4,
+  }),
+  { outcome: 'bomb', coinsFound: 0 },
+)
+assert.throws(
+  () => switchingCoordinator.getLocalOpenResult({
+    matchId: MATCH_ID, roundNumber: 1, bagCount: 4, bagNumber: 4,
+  }),
+  DuelPlayCoordinatorError,
+)
 
 await assert.rejects(
   () => coordinator.open({
@@ -245,6 +353,7 @@ let conflictGetCount = 0
 const conflictCoordinator = createDuelPlayCoordinator({
   createOpenCommand: command,
   ...unusedCashOut,
+  ...unusedPlacements,
   ...unusedResult,
   async openBag() { throw new DuelPlayClientError('conflict') },
   async getPlayState() { conflictGetCount += 1; return activeState },
@@ -260,6 +369,7 @@ let revealCalls = 0
 const revealCoordinator = createDuelPlayCoordinator({
   createOpenCommand: command,
   ...unusedCashOut,
+  ...unusedPlacements,
   ...unusedResult,
   async openBag() { throw new Error('unused') },
   async getPlayState() { return activeState },
@@ -290,6 +400,7 @@ let cashOutRejectOnce = true
 const cashOutCoordinator = createDuelPlayCoordinator({
   createOpenCommand: command,
   ...unusedResult,
+  ...unusedPlacements,
   createCashOutCommand(input) {
     cashOutCreateCount += 1
     return cashOutCommand(input)
@@ -339,6 +450,7 @@ let cashOutConflictGet = 0
 const cashOutConflictCoordinator = createDuelPlayCoordinator({
   createOpenCommand: command,
   ...unusedResult,
+  ...unusedPlacements,
   createCashOutCommand: cashOutCommand,
   async openBag() { throw new Error('unused') },
   async cashOut() { throw new DuelPlayClientError('conflict') },
@@ -388,6 +500,8 @@ assert.doesNotMatch(screen, /t\.roundCleared/)
 assert.doesNotMatch(screen, /t\.roundCashedOut/)
 assert.doesNotMatch(screen, /t\.provisionalCoins\(/)
 assert.match(screen, /const outcome = await coordinator\.open\([\s\S]*const result = outcome\.result[\s\S]*setView\([\s\S]*playBagOpen[\s\S]*setFx\(/)
+assert.match(screen, /coordinator\.loadSession\(matchId\)/)
+assert.doesNotMatch(screen, /getLocalOpenResult/)
 assert.doesNotMatch(screen, /openingBagId|setOpeningBagId/)
 assert.doesNotMatch(screen, /pendingBagId|setPendingBagId/)
 assert.match(screen, /interactionLockedRef\.current = true[\s\S]*setRequestPending\(true\)[\s\S]*await coordinator\.open/)
@@ -440,6 +554,8 @@ assert.match(invite, /window\.clearInterval\(pollTimer\)/)
 assert.match(invite, /if \(!active \|\| refreshPending\) return/)
 assert.match(invite, /if \(!storage \|\| playReady\) return/)
 assert.doesNotMatch(coordinatorSource, /localStorage|sessionStorage|Math\.random/)
-assert.equal(getCount, 0)
+assert.match(coordinatorSource, /judgeDuelOpponentBag/)
+assert.match(coordinatorSource, /opponentPlacements/)
+assert.equal(getCount, 2)
 
 console.log('DUEL play screen verification passed.')

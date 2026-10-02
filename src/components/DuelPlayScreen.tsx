@@ -46,6 +46,7 @@ type DuelPlayScreenProps = {
 
 type ReadyView = {
   readonly phase: 'ready'
+  readonly matchId: string
   readonly totalRounds: number
   readonly round: DuelDisplayedRound
   /** GET /play still has activeRound — no next step when final ROUND completed. */
@@ -55,7 +56,7 @@ type ReadyView = {
 
 type ViewState =
   | { readonly phase: 'loading' }
-  | { readonly phase: 'error' }
+  | { readonly phase: 'error'; readonly matchId: string }
   | ReadyView
 
 type ActiveFx =
@@ -74,6 +75,7 @@ function readyView(state: DuelPlayState): ReadyView | null {
   return round
     ? {
         phase: 'ready',
+        matchId: state.matchId,
         totalRounds: state.totalRounds,
         round,
         canAdvance: canAdvanceDuelPlay(state),
@@ -167,14 +169,14 @@ export function DuelPlayScreen({ matchId, t }: DuelPlayScreenProps) {
   useEffect(() => {
     let active = true
     if (!coordinator) return
-    void coordinator.load(matchId).then((state) => {
+    void coordinator.loadSession(matchId).then(({ state }) => {
       if (!active) return
       const ready = readyView(state)
       setRevealed(false)
       setRevealPlan(null)
-      setView(ready ?? { phase: 'error' })
+      setView(ready ?? { phase: 'error', matchId })
     }).catch(() => {
-      if (active) setView({ phase: 'error' })
+      if (active) setView({ phase: 'error', matchId })
     })
     return () => { active = false }
   }, [coordinator, matchId])
@@ -217,6 +219,7 @@ export function DuelPlayScreen({ matchId, t }: DuelPlayScreenProps) {
   const handleBagTap = useCallback(async (bagId: BagId) => {
     if (
       interactionLockedRef.current || view.phase !== 'ready' ||
+      view.matchId !== matchId ||
       view.round.terminal || requestPending || fx || revealed
     ) return
     if (opened.has(bagId) || (retryBag && retryBag !== bagId)) return
@@ -239,7 +242,7 @@ export function DuelPlayScreen({ matchId, t }: DuelPlayScreenProps) {
         setRevealed(false)
         setRevealPlan(null)
         const ready = readyView(outcome.state)
-        setView(ready ?? { phase: 'error' })
+        setView(ready ?? { phase: 'error', matchId })
         return
       }
 
@@ -248,6 +251,7 @@ export function DuelPlayScreen({ matchId, t }: DuelPlayScreenProps) {
       setCoinFxSample(null)
       setView({
         phase: 'ready',
+        matchId: view.matchId,
         totalRounds: view.totalRounds,
         round: nextRound,
         canAdvance: nextRound.terminal ? !result.participantCompleted : false,
@@ -281,6 +285,7 @@ export function DuelPlayScreen({ matchId, t }: DuelPlayScreenProps) {
   const handleCashOut = useCallback(async () => {
     if (
       interactionLockedRef.current || view.phase !== 'ready' ||
+      view.matchId !== matchId ||
       view.round.terminal || requestPending || fx || revealed
     ) return
     if (!canOfferDuelCashOut(view.round) || !coordinator) return
@@ -298,13 +303,14 @@ export function DuelPlayScreen({ matchId, t }: DuelPlayScreenProps) {
         setRevealed(false)
         setRevealPlan(null)
         const ready = readyView(outcome.state)
-        setView(ready ?? { phase: 'error' })
+        setView(ready ?? { phase: 'error', matchId })
         return
       }
 
       const result = outcome.result
       setView({
         phase: 'ready',
+        matchId: view.matchId,
         totalRounds: view.totalRounds,
         round: applyCashOut(view.round, result),
         canAdvance: !result.participantCompleted,
@@ -322,7 +328,10 @@ export function DuelPlayScreen({ matchId, t }: DuelPlayScreenProps) {
 
   const handleReveal = useCallback(async () => {
     const current = viewRef.current
-    if (!coordinator || current.phase !== 'ready' || !current.round.terminal) return
+    if (
+      !coordinator || current.phase !== 'ready' || current.matchId !== matchId ||
+      !current.round.terminal
+    ) return
     if (revealPending || fx !== null) return
     if (!canRequestReveal(
       duelTerminalPhase(current.round.endReason),
@@ -348,7 +357,10 @@ export function DuelPlayScreen({ matchId, t }: DuelPlayScreenProps) {
 
   const handleNextRound = useCallback(async () => {
     const current = viewRef.current
-    if (!coordinator || current.phase !== 'ready' || !current.round.terminal) return
+    if (
+      !coordinator || current.phase !== 'ready' || current.matchId !== matchId ||
+      !current.round.terminal
+    ) return
     if (!current.canAdvance || requestPending || fx !== null || revealPending) return
 
     setRequestPending(true)
@@ -357,6 +369,7 @@ export function DuelPlayScreen({ matchId, t }: DuelPlayScreenProps) {
       if (!state.activeRound) {
         setView({
           phase: 'ready',
+          matchId: state.matchId,
           totalRounds: state.totalRounds,
           round: current.round,
           canAdvance: false,
@@ -369,6 +382,7 @@ export function DuelPlayScreen({ matchId, t }: DuelPlayScreenProps) {
       setRetryBag(null)
       setView({
         phase: 'ready',
+        matchId: state.matchId,
         totalRounds: state.totalRounds,
         round: { ...state.activeRound, terminal: false },
         canAdvance: false,
@@ -385,7 +399,7 @@ export function DuelPlayScreen({ matchId, t }: DuelPlayScreenProps) {
     if (!coordinator || resultPendingRef.current) return
     const current = viewRef.current
     if (
-      current.phase !== 'ready' || !current.round.terminal ||
+      current.phase !== 'ready' || current.matchId !== matchId || !current.round.terminal ||
       current.round.roundNumber !== current.totalRounds
     ) return
     resultPendingRef.current = true
@@ -401,7 +415,7 @@ export function DuelPlayScreen({ matchId, t }: DuelPlayScreenProps) {
     }
   }, [coordinator, matchId])
 
-  if (view.phase === 'loading') {
+  if (view.phase === 'loading' || view.matchId !== matchId) {
     return <div className="duel-play-status" role="status">{t.duelPlayLoading}</div>
   }
   if (view.phase === 'error') {
