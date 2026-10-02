@@ -65,6 +65,7 @@ export interface DuelPlayState {
   readonly selfProgress: {
     readonly completedRounds: number
     readonly totalCapturedCoins: number
+    readonly threeCoinsComplete: number
   }
   readonly activeRound: DuelActiveRound | null
   readonly latestTerminalRound: DuelTerminalRound | null
@@ -129,6 +130,8 @@ export type DuelResultWinner = DuelResultRole | 'draw'
 export interface DuelResultParticipantSummary {
   readonly role: DuelResultRole
   readonly totalCapturedCoins: number
+  readonly threeCoinsComplete: number
+  readonly bombsHit: number
   readonly coinBagHits: number
   readonly totalOpens: number
   readonly hitRate: {
@@ -310,9 +313,10 @@ function parsePlayState(value: unknown, expected: string): DuelPlayState {
     ? null
     : integer(item.nextPlayableRoundNumber, 1, totalRounds)
   const progress = record(item.selfProgress)
-  exactKeys(progress, ['completedRounds', 'totalCapturedCoins'])
+  exactKeys(progress, ['completedRounds', 'totalCapturedCoins', 'threeCoinsComplete'])
   const completedRounds = integer(progress.completedRounds, 0, totalRounds)
   const totalCapturedCoins = integer(progress.totalCapturedCoins, 0, completedRounds * 3)
+  const threeCoinsComplete = integer(progress.threeCoinsComplete, 0, completedRounds)
   if (
     item.participantCompleted
       ? active !== null || next !== null || terminal?.roundNumber !== totalRounds ||
@@ -329,7 +333,7 @@ function parsePlayState(value: unknown, expected: string): DuelPlayState {
     totalRounds,
     participantCompleted: item.participantCompleted,
     nextPlayableRoundNumber: next,
-    selfProgress: { completedRounds, totalCapturedCoins },
+    selfProgress: { completedRounds, totalCapturedCoins, threeCoinsComplete },
     activeRound: active,
     latestTerminalRound: terminal,
   }
@@ -470,10 +474,13 @@ function resultSummary(
 ): DuelResultParticipantSummary {
   const item = record(value)
   exactKeys(item, [
-    'role', 'totalCapturedCoins', 'coinBagHits', 'totalOpens', 'hitRate', 'rounds',
+    'role', 'totalCapturedCoins', 'threeCoinsComplete', 'bombsHit',
+    'coinBagHits', 'totalOpens', 'hitRate', 'rounds',
   ])
   if (resultRole(item.role) !== expectedRole) return fail('malformed-response')
   const totalCapturedCoins = integer(item.totalCapturedCoins, 0, totalRounds * 3)
+  const threeCoinsComplete = integer(item.threeCoinsComplete, 0, totalRounds)
+  const bombsHit = integer(item.bombsHit, 0, totalRounds)
   const coinBagHits = integer(item.coinBagHits, 0, totalRounds * 8)
   const totalOpens = integer(item.totalOpens, 1, totalRounds * 8)
   if (coinBagHits > totalOpens) return fail('malformed-response')
@@ -506,9 +513,13 @@ function resultSummary(
       openedBagCount,
     }
   })
+  const clearedCount = rounds.filter((round) => round.endReason === 'cleared').length
+  if (threeCoinsComplete !== clearedCount) return fail('malformed-response')
   return {
     role: expectedRole,
     totalCapturedCoins,
+    threeCoinsComplete,
+    bombsHit,
     coinBagHits,
     totalOpens,
     hitRate: { numerator: coinBagHits, denominator: totalOpens },
@@ -542,16 +553,20 @@ function parseFinalResult(value: unknown, expected: string): DuelFinalResult {
   const totalRounds = integer(item.totalRounds, 1, 20)
   const participants = record(item.participants)
   exactKeys(participants, ['A', 'B'])
+  const summaryA = resultSummary(participants.A, 'A', totalRounds)
+  const summaryB = resultSummary(participants.B, 'B', totalRounds)
+  const bombedA = summaryA.rounds.filter((round) => round.endReason === 'bombed').length
+  const bombedB = summaryB.rounds.filter((round) => round.endReason === 'bombed').length
+  if (summaryA.bombsHit !== bombedB || summaryB.bombsHit !== bombedA) {
+    return fail('malformed-response')
+  }
   return {
     matchId: expected,
     status: 'completed',
     viewerRole,
     totalRounds,
     winner: item.winner,
-    participants: {
-      A: resultSummary(participants.A, 'A', totalRounds),
-      B: resultSummary(participants.B, 'B', totalRounds),
-    },
+    participants: { A: summaryA, B: summaryB },
   }
 }
 

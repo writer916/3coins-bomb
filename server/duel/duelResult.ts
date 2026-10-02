@@ -41,6 +41,14 @@ export interface DuelResultRoundSummary {
 export interface DuelParticipantResultSummary {
   readonly role: DuelResultRole
   readonly totalCapturedCoins: number
+  /** Rounds where this explorer captured all 3 coins (`cleared`). */
+  readonly threeCoinsComplete: number
+  /**
+   * Rounds where the opponent explorer hit this player's placed bomb.
+   * Filled by `pairDuelParticipantResults` (not by single-side aggregate).
+   */
+  readonly bombsHit: number
+  /** Retained for shared analytics; not used by DUEL RESULT ranking/UI. */
   readonly coinBagHits: number
   readonly totalOpens: number
   readonly hitRate: {
@@ -93,6 +101,7 @@ export function aggregateDuelParticipantResult(
   ) fail()
 
   let totalCapturedCoins = 0
+  let threeCoinsComplete = 0
   let coinBagHits = 0
   let totalOpens = 0
   const rounds: DuelResultRoundSummary[] = []
@@ -158,6 +167,7 @@ export function aggregateDuelParticipantResult(
     }
 
     totalCapturedCoins += integer(round.capturedCoins, 0, 3)
+    if (round.endReason === 'cleared') threeCoinsComplete += 1
     totalOpens += round.openedBagCount
     rounds.push({
       roundNumber: expectedRound,
@@ -168,9 +178,13 @@ export function aggregateDuelParticipantResult(
   }
 
   if (totalOpens <= 0 || coinBagHits > totalOpens) fail()
+  if (threeCoinsComplete > totalRounds) fail()
   return {
     role: input.role,
     totalCapturedCoins,
+    threeCoinsComplete,
+    // Placer bombs-hit needs the opponent explorer's bombed rounds.
+    bombsHit: 0,
     coinBagHits,
     totalOpens,
     hitRate: { numerator: coinBagHits, denominator: totalOpens },
@@ -178,18 +192,48 @@ export function aggregateDuelParticipantResult(
   }
 }
 
+function bombedRoundCount(
+  rounds: readonly DuelResultRoundSummary[],
+): number {
+  let count = 0
+  for (const round of rounds) {
+    if (round.endReason === 'bombed') count += 1
+  }
+  return count
+}
+
+/**
+ * Attaches BOMBS HIT for each placer:
+ * A.bombsHit = rounds where B (explorer) hit A's bomb, and vice versa.
+ */
+export function pairDuelParticipantResults(
+  a: DuelParticipantResultSummary,
+  b: DuelParticipantResultSummary,
+): Readonly<Record<DuelResultRole, DuelParticipantResultSummary>> {
+  if (a.role !== 'A' || b.role !== 'B') fail()
+  if (a.rounds.length !== b.rounds.length) fail()
+  return {
+    A: { ...a, bombsHit: bombedRoundCount(b.rounds) },
+    B: { ...b, bombsHit: bombedRoundCount(a.rounds) },
+  }
+}
+
 function validateSummary(summary: DuelParticipantResultSummary): void {
   integer(summary.totalCapturedCoins, 0, 60)
+  integer(summary.threeCoinsComplete, 0, 20)
+  integer(summary.bombsHit, 0, 20)
   integer(summary.coinBagHits, 0, 160)
   integer(summary.totalOpens, 1, 160)
   if (
+    summary.threeCoinsComplete > summary.rounds.length ||
+    summary.bombsHit > summary.rounds.length ||
     summary.coinBagHits > summary.totalOpens ||
     summary.hitRate.numerator !== summary.coinBagHits ||
     summary.hitRate.denominator !== summary.totalOpens
   ) fail()
 }
 
-/** TOTAL COINS, then exact COIN-BAG HIT RATE cross-products, otherwise DRAW. */
+/** TOTAL COINS → 3COINS COMPLETE → BOMBS HIT, otherwise DRAW. */
 export function compareDuelParticipantResults(
   a: DuelParticipantResultSummary,
   b: DuelParticipantResultSummary,
@@ -200,8 +244,11 @@ export function compareDuelParticipantResults(
   if (a.totalCapturedCoins !== b.totalCapturedCoins) {
     return a.totalCapturedCoins > b.totalCapturedCoins ? 'A' : 'B'
   }
-  const aRateProduct = a.coinBagHits * b.totalOpens
-  const bRateProduct = b.coinBagHits * a.totalOpens
-  if (aRateProduct === bRateProduct) return 'draw'
-  return aRateProduct > bRateProduct ? 'A' : 'B'
+  if (a.threeCoinsComplete !== b.threeCoinsComplete) {
+    return a.threeCoinsComplete > b.threeCoinsComplete ? 'A' : 'B'
+  }
+  if (a.bombsHit !== b.bombsHit) {
+    return a.bombsHit > b.bombsHit ? 'A' : 'B'
+  }
+  return 'draw'
 }

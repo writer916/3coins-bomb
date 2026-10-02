@@ -87,6 +87,9 @@ export type AppStrings = {
   duelLose: string
   duelDraw: string
   duelTotalCoins: string
+  duelThreeCoinsComplete: string
+  duelBombsHit: string
+  /** Kept for shared/future modes; DUEL RESULT does not display this. */
   duelCoinBagHitRate: string
   duelYou: string
   duelOpponent: string

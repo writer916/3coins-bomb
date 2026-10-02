@@ -28,7 +28,7 @@ const activeState = {
   totalRounds: 3,
   participantCompleted: false,
   nextPlayableRoundNumber: 1,
-  selfProgress: { completedRounds: 0, totalCapturedCoins: 0 },
+  selfProgress: { completedRounds: 0, totalCapturedCoins: 0, threeCoinsComplete: 0 },
   activeRound: {
     roundNumber: 1,
     bagCount: 4,
@@ -126,7 +126,7 @@ assert.equal(canAdvanceDuelPlay({
   ...activeState,
   participantCompleted: true,
   nextPlayableRoundNumber: null,
-  selfProgress: { completedRounds: 3, totalCapturedCoins: 0 },
+  selfProgress: { completedRounds: 3, totalCapturedCoins: 0, threeCoinsComplete: 0 },
   activeRound: null,
   latestTerminalRound: {
     roundNumber: 3,
@@ -510,6 +510,14 @@ assert.match(screen, /interactionLockedRef\.current = true[\s\S]*setRequestPendi
 assert.match(screen, /catch \{[\s\S]*setRetryBag\(bagId\)/)
 assert.match(screen, /view\.selfProgress\.completedRounds/)
 assert.match(screen, /view\.selfProgress\.totalCapturedCoins/)
+assert.match(screen, /view\.selfProgress\.threeCoinsComplete/)
+assert.match(screen, /3COINS COMPLETE/)
+assert.match(screen, /score-row--secondary/)
+const appCss = await readFile('src/App.css', 'utf8')
+assert.match(appCss, /\.score-stack/)
+assert.match(appCss, /\.duel-final-stat/)
+assert.match(appCss, /--duel-button-field-h:\s*9\.35rem/)
+assert.doesNotMatch(appCss, /14\.74vh/)
 assert.match(screen, /if \(result\.roundEnded\) refreshSelfProgress\(\)/)
 assert.match(screen, /visualHiddenBagIds\(opened, coinFxSample\)/)
 assert.match(screen, /const next = new Set\(opened\)[\s\S]*next\.delete\(fx\.bagId\)/)

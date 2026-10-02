@@ -696,15 +696,23 @@ export function DuelPlayScreen({ matchId, t }: DuelPlayScreenProps) {
       {retryBag ? <p className="duel-play-error" role="alert">{t.duelOpenRetry}</p> : null}
       {resultError ? <p className="duel-play-error" role="alert">{t.duelResultError}</p> : null}
       <div className="group-session" aria-live="polite">
-        <div className="score-row">
-          <p className="score-item">
-            <span className="score-label">ROUNDS</span>
-            <span className="score-num">{view.selfProgress.completedRounds} / {view.totalRounds}</span>
-          </p>
-          <p className="score-item">
-            <span className="score-label">COINS</span>
-            <span className="score-num">{view.selfProgress.totalCapturedCoins}</span>
-          </p>
+        <div className="score-stack">
+          <div className="score-row">
+            <p className="score-item">
+              <span className="score-label">ROUNDS</span>
+              <span className="score-num">{view.selfProgress.completedRounds} / {view.totalRounds}</span>
+            </p>
+            <p className="score-item">
+              <span className="score-label">COINS</span>
+              <span className="score-num">{view.selfProgress.totalCapturedCoins}</span>
+            </p>
+          </div>
+          <div className="score-row score-row--secondary">
+            <p className="score-item">
+              <span className="score-label">3COINS COMPLETE</span>
+              <span className="score-num">{view.selfProgress.threeCoinsComplete}</span>
+            </p>
+          </div>
         </div>
       </div>
     </div>

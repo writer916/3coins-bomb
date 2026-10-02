@@ -38,6 +38,7 @@ export interface PersistedDuelPlayState {
   readonly selfProgress: {
     readonly completedRounds: number
     readonly totalCapturedCoins: number
+    readonly threeCoinsComplete: number
   }
   readonly activeRound: DuelActiveRoundView | null
   readonly latestTerminalRound: DuelTerminalRoundView | null
@@ -65,6 +66,7 @@ interface DuelPlayStateRow extends Record<string, unknown> {
   readonly total_rounds: number
   readonly completed_round_count: number
   readonly total_captured_coins: number
+  readonly three_coins_complete: number
   readonly integrity_ok: boolean
   readonly active_round: RoundJson | null
   readonly latest_terminal_round: RoundJson | null
@@ -172,6 +174,10 @@ export async function getDuelPlayStateForParticipant(
         candidate.*,
         count(result.*)::smallint as completed_round_count,
         coalesce(sum(result.captured_coins), 0)::integer as total_captured_coins,
+        coalesce(
+          sum(case when result.end_reason = 'cleared' then 1 else 0 end),
+          0
+        )::integer as three_coins_complete,
         count(distinct result.round_number)::smallint as distinct_result_count,
         min(result.round_number)::smallint as first_result_round,
         max(result.round_number)::smallint as last_result_round
@@ -334,6 +340,7 @@ export async function getDuelPlayStateForParticipant(
       result_integrity.total_rounds,
       result_integrity.completed_round_count,
       result_integrity.total_captured_coins,
+      result_integrity.three_coins_complete,
       (
         result_integrity.results_contiguous
         and open_integrity.opens_contiguous
@@ -378,7 +385,10 @@ export async function getDuelPlayStateForParticipant(
   if (
     !Number.isInteger(row.total_captured_coins) ||
     row.total_captured_coins < 0 ||
-    row.total_captured_coins > row.completed_round_count * 3
+    row.total_captured_coins > row.completed_round_count * 3 ||
+    !Number.isInteger(row.three_coins_complete) ||
+    row.three_coins_complete < 0 ||
+    row.three_coins_complete > row.completed_round_count
   ) throw new Error('DUEL play state is inconsistent.')
 
   const completed = row.completed_round_count === row.total_rounds
@@ -391,6 +401,7 @@ export async function getDuelPlayStateForParticipant(
     selfProgress: {
       completedRounds: row.completed_round_count,
       totalCapturedCoins: row.total_captured_coins,
+      threeCoinsComplete: row.three_coins_complete,
     },
     activeRound: activeRound(row.active_round),
     latestTerminalRound: terminalRound(row.latest_terminal_round),

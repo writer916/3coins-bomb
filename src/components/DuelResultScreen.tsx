@@ -9,10 +9,38 @@ type DuelResultScreenProps = {
   readonly t: AppStrings
 }
 
-function hitRate(summary: DuelResultParticipantSummary): string {
-  const percentage = (summary.hitRate.numerator / summary.hitRate.denominator) * 100
-  const formatted = Number.isInteger(percentage) ? percentage.toFixed(0) : percentage.toFixed(1)
-  return `${summary.hitRate.numerator} / ${summary.hitRate.denominator} (${formatted}%)`
+function StatRow({
+  label,
+  value,
+}: {
+  readonly label: string
+  readonly value: number
+}) {
+  return (
+    <p className="duel-final-stat">
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </p>
+  )
+}
+
+function PlayerCard({
+  title,
+  summary,
+  t,
+}: {
+  readonly title: string
+  readonly summary: DuelResultParticipantSummary
+  readonly t: AppStrings
+}) {
+  return (
+    <div className="duel-final-player">
+      <h3>{title}</h3>
+      <StatRow label={t.duelTotalCoins} value={summary.totalCapturedCoins} />
+      <StatRow label={t.duelThreeCoinsComplete} value={summary.threeCoinsComplete} />
+      <StatRow label={t.duelBombsHit} value={summary.bombsHit} />
+    </div>
+  )
 }
 
 export function DuelResultScreen({ result, pending, error, onCheck, t }: DuelResultScreenProps) {
@@ -46,16 +74,8 @@ export function DuelResultScreen({ result, pending, error, onCheck, t }: DuelRes
       <p className="duel-final-kicker">{t.duelResult}</p>
       <h2 className="duel-final-verdict">{verdict}</h2>
       <div className="duel-final-scores">
-        <div className="duel-final-player">
-          <h3>{t.duelYou}</h3>
-          <p><span>{t.duelTotalCoins}</span><strong>{self.totalCapturedCoins}</strong></p>
-          <p><span>{t.duelCoinBagHitRate}</span><strong>{hitRate(self)}</strong></p>
-        </div>
-        <div className="duel-final-player">
-          <h3>{t.duelOpponent}</h3>
-          <p><span>{t.duelTotalCoins}</span><strong>{opponent.totalCapturedCoins}</strong></p>
-          <p><span>{t.duelCoinBagHitRate}</span><strong>{hitRate(opponent)}</strong></p>
-        </div>
+        <PlayerCard title={t.duelYou} summary={self} t={t} />
+        <PlayerCard title={t.duelOpponent} summary={opponent} t={t} />
       </div>
     </section>
   )

@@ -24,19 +24,29 @@ function storageWithParticipant() {
   return storage
 }
 
-const round = (roundNumber: number) => ({
+const round = (roundNumber: number, endReason: 'cleared' | 'bombed' | 'cashed_out' = 'cleared') => ({
   roundNumber,
-  endReason: 'cleared',
-  capturedCoins: 3,
+  endReason,
+  capturedCoins: endReason === 'cleared' ? 3 : endReason === 'cashed_out' ? 2 : 0,
   openedBagCount: 2,
 })
-const summary = (role: 'A' | 'B', hits: number, opens: number) => ({
+const summary = (
+  role: 'A' | 'B',
+  coins: number,
+  completes: number,
+  bombsHit: number,
+  hits: number,
+  opens: number,
+  rounds: ReturnType<typeof round>[],
+) => ({
   role,
-  totalCapturedCoins: 6,
+  totalCapturedCoins: coins,
+  threeCoinsComplete: completes,
+  bombsHit,
   coinBagHits: hits,
   totalOpens: opens,
   hitRate: { numerator: hits, denominator: opens },
-  rounds: [round(1), round(2)],
+  rounds,
 })
 const waiting = {
   matchId: MATCH_ID,
@@ -50,7 +60,10 @@ const completed = {
   viewerRole: 'A',
   totalRounds: 2,
   winner: 'B',
-  participants: { A: summary('A', 2, 4), B: summary('B', 4, 6) },
+  participants: {
+    A: summary('A', 6, 2, 1, 2, 4, [round(1), round(2)]),
+    B: summary('B', 3, 1, 0, 2, 3, [round(1), round(2, 'bombed')]),
+  },
 }
 
 function clientFor(value: unknown, calls: { url: string; init?: RequestInit }[] = []) {
@@ -88,6 +101,8 @@ for (const invalid of [
   { ...completed, participants: { ...completed.participants, A: { ...completed.participants.A, totalOpens: 0 } } },
   { ...completed, participants: { ...completed.participants, B: { ...completed.participants.B, hitRate: { numerator: 3, denominator: 6 } } } },
   { ...completed, participants: { ...completed.participants, A: { ...completed.participants.A, rounds: [round(1)] } } },
+  { ...completed, participants: { ...completed.participants, A: { ...completed.participants.A, threeCoinsComplete: 1 } } },
+  { ...completed, participants: { ...completed.participants, A: { ...completed.participants.A, bombsHit: 0 } } },
 ]) await malformed(invalid)
 
 let coordinatorCalls = 0
@@ -108,12 +123,14 @@ const coordinator = createDuelPlayCoordinator({
 assert.equal((await coordinator.getFinalResult(MATCH_ID)).status, 'completed')
 assert.equal(coordinatorCalls, 1)
 
-const [screen, resultScreen, client, coordinatorSource, strings, css] = await Promise.all([
+const [screen, resultScreen, client, coordinatorSource, strings, en, ja, css] = await Promise.all([
   readFile('src/components/DuelPlayScreen.tsx', 'utf8'),
   readFile('src/components/DuelResultScreen.tsx', 'utf8'),
   readFile('src/duel/duelPlayClient.ts', 'utf8'),
   readFile('src/duel/duelPlayCoordinator.ts', 'utf8'),
   readFile('src/i18n/types.ts', 'utf8'),
+  readFile('src/i18n/en.ts', 'utf8'),
+  readFile('src/i18n/ja.ts', 'utf8'),
   readFile('src/App.css', 'utf8'),
 ])
 for (const required of [
@@ -123,19 +140,41 @@ for (const required of [
 assert.match(screen, /showResult = showEndActions && !canAdvance/)
 assert.match(screen, /showRevealBtn/)
 assert.match(screen, /resultPendingRef\.current/)
+assert.match(screen, /3COINS COMPLETE/)
+assert.match(screen, /threeCoinsComplete/)
 for (const required of [
   "result.status === 'waiting'", 't.duelWaitingTitle', 't.duelCheckResult',
   "result.winner === 'draw'", 'result.winner === result.viewerRole',
-  'self.totalCapturedCoins', 'opponent.totalCapturedCoins',
-  'summary.hitRate.numerator', 'summary.hitRate.denominator',
+  'summary.totalCapturedCoins', 'summary.threeCoinsComplete', 'summary.bombsHit',
+  't.duelThreeCoinsComplete', 't.duelBombsHit', 't.duelTotalCoins',
+  'PlayerCard title={t.duelYou}', 'PlayerCard title={t.duelOpponent}',
 ]) assert.match(resultScreen, new RegExp(required.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')))
-assert.doesNotMatch(resultScreen, /coinBagHits\s*[<>]=?|totalCapturedCoins\s*[<>]=?|roundWins|bombHit/)
+assert.doesNotMatch(resultScreen, /duelCoinBagHitRate|hitRate|COIN-BAG HIT RATE/)
+assert.doesNotMatch(resultScreen, /coinBagHits\s*[<>]=?|totalCapturedCoins\s*[<>]=?|roundWins/)
+assert.doesNotMatch(resultScreen, /(?<!bombs)bombHit/)
+// Display order: TOTAL COINS → 3COINS COMPLETE → BOMBS HIT
+const totalIdx = resultScreen.indexOf('t.duelTotalCoins')
+const completeIdx = resultScreen.indexOf('t.duelThreeCoinsComplete')
+const bombsIdx = resultScreen.indexOf('t.duelBombsHit')
+assert.ok(totalIdx > 0 && completeIdx > totalIdx && bombsIdx > completeIdx)
 assert.match(client, /status === 'waiting'/)
 assert.match(client, /status !== 'completed'/)
 assert.match(client, /exactKeys\(item, \['matchId', 'status', 'selfCompleted', 'opponentCompleted'\]\)/)
+assert.match(client, /threeCoinsComplete/)
+assert.match(client, /bombsHit/)
 assert.match(coordinatorSource, /getFinalResult/)
+assert.match(strings, /duelThreeCoinsComplete/)
+assert.match(strings, /duelBombsHit/)
 assert.match(strings, /duelCoinBagHitRate/)
+assert.match(en, /duelThreeCoinsComplete: '3COINS COMPLETE'/)
+assert.match(ja, /duelThreeCoinsComplete: '3COINS COMPLETE'/)
+assert.match(en, /duelBombsHit: 'BOMBS HIT'/)
+assert.match(ja, /duelBombsHit: 'BOMBS HIT'/)
 assert.match(css, /\.duel-final-scores/)
+assert.match(css, /\.duel-final-stat/)
+assert.match(css, /justify-content:\s*space-between/)
+assert.match(css, /\.score-stack/)
+assert.match(css, /--duel-button-field-h:\s*9\.35rem/)
 for (const source of [screen, resultScreen, client, coordinatorSource]) {
   assert.doesNotMatch(source, /setInterval|console\.|\.\.\/server\/|server\/db/)
 }

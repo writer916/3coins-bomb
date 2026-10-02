@@ -3,6 +3,7 @@ import {
   aggregateDuelParticipantResult,
   compareDuelParticipantResults,
   DuelResultDataError,
+  pairDuelParticipantResults,
   type DuelParticipantResultInput,
   type DuelParticipantResultSummary,
   type DuelResultEndReason,
@@ -251,18 +252,20 @@ export async function getDuelResultForParticipant(
   }
 
   const data = record(row.result_data)
-  const a = aggregateDuelParticipantResult(
-    participantInput(data.A, 'A', row.total_rounds),
-  )
-  const b = aggregateDuelParticipantResult(
-    participantInput(data.B, 'B', row.total_rounds),
+  const participants = pairDuelParticipantResults(
+    aggregateDuelParticipantResult(
+      participantInput(data.A, 'A', row.total_rounds),
+    ),
+    aggregateDuelParticipantResult(
+      participantInput(data.B, 'B', row.total_rounds),
+    ),
   )
   return {
     matchId: row.match_id,
     status: 'completed',
     viewerRole: row.viewer_role,
     totalRounds: row.total_rounds,
-    winner: compareDuelParticipantResults(a, b),
-    participants: { A: a, B: b },
+    winner: compareDuelParticipantResults(participants.A, participants.B),
+    participants,
   }
 }

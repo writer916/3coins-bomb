@@ -78,6 +78,8 @@ export const en: AppStrings = {
   duelLose: 'LOSE',
   duelDraw: 'DRAW',
   duelTotalCoins: 'TOTAL COINS',
+  duelThreeCoinsComplete: '3COINS COMPLETE',
+  duelBombsHit: 'BOMBS HIT',
   duelCoinBagHitRate: 'COIN-BAG HIT RATE',
   duelYou: 'YOU',
   duelOpponent: 'OPPONENT',

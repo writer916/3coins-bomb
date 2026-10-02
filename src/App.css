@@ -241,6 +241,16 @@
   min-height: 2.55rem;
 }
 
+.score-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  width: max-content;
+  max-width: 100%;
+  min-width: 0;
+}
+
 .score-row {
   box-sizing: border-box;
   display: flex;
@@ -253,6 +263,10 @@
   max-width: 100%;
   min-width: 0;
   color: #f5ebd8;
+}
+
+.score-row--secondary {
+  gap: 0.55rem;
 }
 
 .score-item {
@@ -1178,28 +1192,55 @@
   letter-spacing: 0.06em;
 }
 
-.duel-final-player p {
+.duel-final-player p,
+.duel-final-stat {
   display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.55rem;
+  width: 100%;
+  min-width: 0;
 }
 
-.duel-final-player p + p {
-  margin-top: 0.8rem;
+.duel-final-player p + p,
+.duel-final-stat + .duel-final-stat {
+  margin-top: 0.55rem;
 }
 
-.duel-final-player span {
-  font-size: 0.72rem;
+.duel-final-player span,
+.duel-final-stat span {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: clamp(0.62rem, 2.4vw, 0.72rem);
   letter-spacing: 0.05em;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.duel-final-player strong {
+.duel-final-player strong,
+.duel-final-stat strong {
+  flex: 0 0 auto;
   font-variant-numeric: tabular-nums;
+  text-align: right;
 }
 
 @media (max-width: 420px) {
   .duel-final-scores {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 360px) {
+  .score-label {
+    font-size: clamp(0.82rem, 3.2vw, 1.05rem);
+  }
+
+  .score-num {
+    font-size: clamp(0.95rem, 3.8vw, 1.2rem);
   }
 }
 
