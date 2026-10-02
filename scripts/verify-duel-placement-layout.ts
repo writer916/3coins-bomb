@@ -75,6 +75,33 @@ assert.match(
   /@media \(max-height: 600px\)[\s\S]*--duel-slot-instruction-h:\s*2\.75rem/,
 )
 assert.match(
+  appCss,
+  /@media \(min-width: 768px\) and \(min-height: 700px\)[\s\S]*--duel-place-block-gap/,
+  'roomy tablet/PC place spacing must be gated off phones',
+)
+assert.match(
+  appCss,
+  /@media \(min-width: 768px\) and \(min-height: 700px\)[\s\S]*\.duel-slot-instruction\s*{[^}]*margin-top:\s*var\(--duel-place-block-gap\)/s,
+)
+assert.match(
+  appCss,
+  /@media \(min-width: 768px\) and \(min-height: 700px\)[\s\S]*\.duel-slot-buttons\s*{[^}]*margin-top:\s*var\(--duel-place-block-gap\)/s,
+)
+assert.match(
+  appCss,
+  /\.duel-flow--place \.duel-slot-instruction\s*{[^}]*justify-content:\s*flex-end/s,
+  'place instruction must bottom-align so EN/JA share last-line edge',
+)
+assert.match(
+  appCss,
+  /\.duel-flow--place > \.duel-setup-spacer--mid\s*{[^}]*height:\s*0\.75rem/s,
+  'language-agnostic instruction-slot → buttons air',
+)
+assert.doesNotMatch(
+  appCss,
+  /\.duel-flow--place \.duel-slot-instruction\s*{[^}]*justify-content:\s*flex-start/s,
+)
+assert.match(
   flowSource,
   /withDuelNumsAndBreaks\(placeCopy\.instruction\)/,
 )
@@ -113,15 +140,39 @@ const viewports = [
 
 for (const viewport of viewports) {
   const short = viewport.height <= 600
+  const roomy = viewport.width >= 768 && viewport.height >= 700
   const boardHeight = short
     ? Math.min(viewport.height * 0.34, 13 * 16)
     : Math.min(viewport.height * 0.42, 17.5 * 16)
-  const flowGap = (short ? 0.15 : 0.35) * 16
+  const flowGap = (short ? 0.15 : roomy ? 0.7 : 0.35) * 16
+  const blockGap = roomy ? 1.15 * 16 : 0
+  const midMin = short ? 0.55 * 16 : roomy ? 0.85 * 16 : 0.75 * 16
   const instructionH = (short ? 2.75 : 2.9) * 16
   const buttonsH = 9.35 * 16
   const roundH = (short ? 1.35 : 1.55) * 16
-  const instructionTop = boardHeight + flowGap
-  const buttonsTop = instructionTop + instructionH + flowGap
+  const instructionTop = boardHeight + flowGap + blockGap
+  const buttonsTop = instructionTop + instructionH + flowGap + blockGap + midMin
+
+  if (roomy) {
+    assert(
+      blockGap >= 1.0 * 16,
+      `roomy viewport ${viewport.width}x${viewport.height} must open board→instruction air`,
+    )
+    assert(
+      midMin <= 1.35 * 16,
+      `roomy mid spacer must stay modest (no leftover-height stretch)`,
+    )
+  } else if (!short) {
+    assert.equal(
+      blockGap,
+      0,
+      `phone/compact viewport ${viewport.width}x${viewport.height} must keep compact block gaps`,
+    )
+    assert(
+      midMin >= 0.75 * 16,
+      `compact place must keep instruction→buttons air`,
+    )
+  }
 
   for (const count of BAG_COUNTS) {
     const lowestCenter = Math.max(...FORMATIONS[count].map((slot) => slot.y))
@@ -139,7 +190,14 @@ for (const viewport of viewports) {
 
   // Place stack (round + board + instruction + buttons + gaps) stays in-flow.
   const stack =
-    roundH + boardHeight + instructionH + buttonsH + flowGap * 3 + 0.25 * 16
+    roundH +
+    boardHeight +
+    instructionH +
+    buttonsH +
+    flowGap * 3 +
+    blockGap * 2 +
+    midMin +
+    0.25 * 16
   assert(
     stack < viewport.height,
     `place stack overflows viewport ${viewport.width}x${viewport.height}: ${stack}`,
