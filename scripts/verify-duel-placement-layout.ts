@@ -2,10 +2,15 @@
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import { BAG_COUNTS, FORMATIONS, type BagCount } from '../src/game/formations'
+import { en } from '../src/i18n/en'
+import { ja } from '../src/i18n/ja'
 
 const appCss = await readFile('src/App.css', 'utf8')
 const flowSource = await readFile('src/components/DuelFlow.tsx', 'utf8')
 const bagCss = await readFile('src/components/BagBoard.css', 'utf8')
+const numsSource = await readFile('src/ui/withDuelNums.tsx', 'utf8')
+const playScreen = await readFile('src/components/DuelPlayScreen.tsx', 'utf8')
+const optimistic = await readFile('src/duel/duelOptimisticOpen.ts', 'utf8')
 
 assert.doesNotMatch(
   appCss,
@@ -21,6 +26,63 @@ assert(
     flowSource.indexOf('className="duel-slot duel-slot-instruction"'),
   'instruction must follow the complete board slot in document flow',
 )
+assert(
+  flowSource.indexOf('className="duel-slot duel-slot-instruction"') <
+    flowSource.indexOf('className="duel-slot duel-slot-buttons"'),
+  'buttons must stay below the instruction slot',
+)
+
+// Japanese place copy: shared intentional break to avoid mid-phrase wrap.
+assert.equal(ja.duelPlaceBomb, '袋をタップして\n爆弾を置いてください')
+assert.equal(ja.duelPlaceCoins, '袋をタップして\n3枚のコインを置いてください')
+assert.ok(ja.duelPlaceBomb.includes('\n'))
+assert.ok(ja.duelPlaceCoins.includes('\n'))
+assert.equal(
+  ja.duelPlaceBomb.split('\n')[0],
+  ja.duelPlaceCoins.split('\n')[0],
+  'BOMB and COIN share the same first instruction line',
+)
+for (const line of [
+  ...ja.duelPlaceBomb.split('\n'),
+  ...ja.duelPlaceCoins.split('\n'),
+]) {
+  assert.ok(line.length > 0)
+  assert.ok(
+    line.length <= 14,
+    `intentional JA place line too long for narrow panes: ${line}`,
+  )
+}
+
+// English place copy unchanged (no forced JA breaks).
+assert.equal(en.duelPlaceBomb, 'Tap to place the bomb.')
+assert.equal(en.duelPlaceCoins, 'Tap to place 3 coins.')
+assert.ok(!en.duelPlaceBomb.includes('\n'))
+assert.ok(!en.duelPlaceCoins.includes('\n'))
+
+assert.match(numsSource, /duel-instruction-line/)
+assert.match(
+  appCss,
+  /\.duel-instruction-line\s*{[^}]*white-space:\s*nowrap/s,
+  'intentional instruction lines must not mid-phrase wrap',
+)
+assert.match(appCss, /\.duel-instruction\s*{[^}]*line-break:\s*strict/s)
+assert.match(
+  appCss,
+  /\.duel-flow--place\s*{[^}]*--duel-slot-instruction-h:\s*2\.9rem/s,
+)
+assert.match(
+  appCss,
+  /@media \(max-height: 600px\)[\s\S]*--duel-slot-instruction-h:\s*2\.75rem/,
+)
+assert.match(
+  flowSource,
+  /withDuelNumsAndBreaks\(placeCopy\.instruction\)/,
+)
+
+// OPEN optimistic path must stay untouched by this layout work.
+assert.match(playScreen, /createOptimisticOpenGate|startPredictedOpenFx/)
+assert.match(optimistic, /markOptimisticFxDone/)
+assert.doesNotMatch(playScreen, /duel-instruction-line/)
 
 const bagSizePx = (count: BagCount, width: number): number => {
   const rules: Record<BagCount, readonly [number, number, number]> = {
@@ -35,18 +97,31 @@ const bagSizePx = (count: BagCount, width: number): number => {
   return Math.min(max, Math.max(min, width * vw))
 }
 
-for (const viewport of [
+const viewports = [
   { width: 320, height: 568 },
   { width: 375, height: 600 },
-  { width: 390, height: 667 },
+  { width: 375, height: 667 },
+  { width: 390, height: 844 },
+  { width: 412, height: 915 },
   { width: 768, height: 900 },
-]) {
+  { width: 768, height: 1024 },
+  { width: 820, height: 1180 },
+  { width: 1024, height: 768 },
+  { width: 1280, height: 720 },
+  { width: 1440, height: 900 },
+]
+
+for (const viewport of viewports) {
   const short = viewport.height <= 600
   const boardHeight = short
     ? Math.min(viewport.height * 0.34, 13 * 16)
     : Math.min(viewport.height * 0.42, 17.5 * 16)
   const flowGap = (short ? 0.15 : 0.35) * 16
+  const instructionH = (short ? 2.75 : 2.9) * 16
+  const buttonsH = 9.35 * 16
+  const roundH = (short ? 1.35 : 1.55) * 16
   const instructionTop = boardHeight + flowGap
+  const buttonsTop = instructionTop + instructionH + flowGap
 
   for (const count of BAG_COUNTS) {
     const lowestCenter = Math.max(...FORMATIONS[count].map((slot) => slot.y))
@@ -56,7 +131,19 @@ for (const viewport of [
       lowestBagBottom < instructionTop,
       `${count} bags overlap instruction at ${viewport.width}x${viewport.height}`,
     )
+    assert(
+      lowestBagBottom < buttonsTop,
+      `${count} bags reach button band at ${viewport.width}x${viewport.height}`,
+    )
   }
+
+  // Place stack (round + board + instruction + buttons + gaps) stays in-flow.
+  const stack =
+    roundH + boardHeight + instructionH + buttonsH + flowGap * 3 + 0.25 * 16
+  assert(
+    stack < viewport.height,
+    `place stack overflows viewport ${viewport.width}x${viewport.height}: ${stack}`,
+  )
 }
 
 assert.match(bagCss, /\.bag-board\s*{/)

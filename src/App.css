@@ -604,7 +604,7 @@
 */
 .duel-instruction {
   margin: 0;
-  max-width: 18.5rem;
+  max-width: min(20rem, calc(100% - 1rem));
   align-self: center;
   font-family: Georgia, 'Times New Roman', serif;
   font-size: clamp(1.08rem, 4.4vw, 1.3rem);
@@ -612,6 +612,16 @@
   letter-spacing: 0.02em;
   color: #f2e6d0;
   text-align: center;
+  line-break: strict;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
+/* Intentional copy lines from withDuelNumsAndBreaks — never mid-phrase wrap. */
+.duel-instruction-line {
+  display: inline-block;
+  max-width: 100%;
+  white-space: nowrap;
 }
 
 /*
@@ -652,7 +662,7 @@
 .duel-flow--place {
   --duel-slot-round-h: 1.55rem; /* match setup status band for ROUND style */
   --duel-slot-board-h: min(42vh, 17.5rem);
-  --duel-slot-instruction-h: 2.65rem; /* JA 2-line without Y shift */
+  --duel-slot-instruction-h: 2.9rem; /* JA 2-line room without Y drift into bags */
   --duel-slot-buttons-h: 9.35rem; /* 3 × 2.75rem + 2 × 0.55rem */
   gap: 0.35rem;
   /* Match .duel-flow / setup so ROUND does not jump on SET. */
@@ -1349,7 +1359,7 @@
   .duel-flow--place {
     --duel-slot-round-h: 1.35rem;
     --duel-slot-board-h: min(34vh, 13rem);
-    --duel-slot-instruction-h: 2.45rem;
+    --duel-slot-instruction-h: 2.75rem; /* keep JA 2-line above buttons on short viewports */
     --duel-slot-buttons-h: 9.35rem;
     gap: 0.15rem;
     padding-top: 0.25rem;

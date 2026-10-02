@@ -87,10 +87,19 @@ assert.equal(
   'すべての設定をリセットしてトップに戻りますか？',
 )
 assert.equal(
+  ja.duelPlaceBomb,
+  '袋をタップして\n爆弾を置いてください',
+)
+assert.ok(ja.duelPlaceBomb.includes('\n'))
+assert.equal(
   ja.duelPlaceCoins,
-  '袋をタップして3枚のコインを\n置いてください',
+  '袋をタップして\n3枚のコインを置いてください',
 )
 assert.ok(ja.duelPlaceCoins.includes('\n'))
+assert.equal(
+  ja.duelPlaceBomb.split('\n')[0],
+  ja.duelPlaceCoins.split('\n')[0],
+)
 assert.equal(ja.duelRoundsReady, 'ALL ROUNDS READY')
 assert.equal(en.duelRoundsReady, 'ALL ROUNDS READY')
 assert.equal(ja.duelRoundsReady, en.duelRoundsReady)

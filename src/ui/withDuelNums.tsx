@@ -17,15 +17,15 @@ export function withDuelNums(text: string): ReactNode {
 }
 
 /**
- * Digits via `.duel-num`, plus explicit line breaks for `\n` in copy
- * (avoids mid-phrase wrap on narrow viewports).
+ * Digits via `.duel-num`, plus explicit line breaks for `\n` in copy.
+ * Each intentional line is nowrap so CJK cannot mid-phrase wrap inside it.
  */
 export function withDuelNumsAndBreaks(text: string): ReactNode {
   const lines = text.split('\n')
   return lines.map((line, li) => (
     <Fragment key={li}>
       {li > 0 ? <br /> : null}
-      {withDuelNums(line)}
+      <span className="duel-instruction-line">{withDuelNums(line)}</span>
     </Fragment>
   ))
 }
