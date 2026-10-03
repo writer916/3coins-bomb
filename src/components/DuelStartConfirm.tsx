@@ -12,6 +12,7 @@ export type DuelStartConfirmProps = {
 /**
  * Post–both-LOCK start gate (A/B shared). START is client-session only;
  * does not call a start API or wait for the opponent.
+ * TOP is a bottom secondary exit; START stays in the upper cluster.
  */
 export function DuelStartConfirm({
   createdAt,
@@ -48,20 +49,23 @@ export function DuelStartConfirm({
           >
             {t.duelStartConfirmStart}
           </button>
-          {onGoTop ? (
-            <button
-              type="button"
-              className="duel-btn duel-start-confirm__top"
-              data-duel-metric="secondary"
-              onClick={onGoTop}
-            >
-              {t.duelReturnToTop}
-            </button>
-          ) : (
-            <span className="duel-start-confirm__top-slot" aria-hidden="true" />
-          )}
         </div>
       </div>
+      {onGoTop ? (
+        <button
+          type="button"
+          className="duel-btn duel-btn--quiet-top duel-start-confirm__top"
+          data-duel-metric="secondary"
+          onClick={onGoTop}
+        >
+          {t.duelReturnToTop}
+        </button>
+      ) : (
+        <span
+          className="duel-btn duel-btn--quiet-top duel-start-confirm__top-slot"
+          aria-hidden="true"
+        />
+      )}
     </div>
   )
 }

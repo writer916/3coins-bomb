@@ -62,6 +62,7 @@ export const ja: AppStrings = {
   duelJoinError: '対戦への参加に失敗しました。もう一度お試しください。',
   duelCreatorInviteOpened: 'この対戦はあなたが作成しました',
   duelPlacementsLocked: '配置をロックしました',
+  duelWaitingForOpponentPlacement: '相手の配置を待っています',
   duelInviteUrlLabel: '相手用URL',
   duelInviteOpponentIntro:
     '相手にこのURLを送り、コインと爆弾の位置を決めてもらいましょう。',

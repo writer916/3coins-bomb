@@ -169,7 +169,10 @@ async function main() {
     ),
   )
   assert(panelSource.includes('opponent.claimed'))
-  assert(panelSource.includes('duelInviteOpponentJoined'))
+  /* Wait UI no longer shows joined copy; polling still updates setJoined. */
+  assert(panelSource.includes('setJoined(true)'))
+  assert(!panelSource.includes('duelInviteOpponentJoined'))
+  assert(panelSource.includes('DuelPlacementWait'))
   assert(!panelSource.includes('console.'))
 
   const jaSource = await readFile('src/i18n/ja.ts', 'utf8')

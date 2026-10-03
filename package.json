@@ -54,6 +54,7 @@
     "verify:duel-invite-share-client": "tsx scripts/verify-duel-invite-share-client.ts",
     "verify:duel-invite-self-url-client": "tsx scripts/verify-duel-invite-self-url-client.ts",
     "verify:duel-start-confirm-client": "tsx scripts/verify-duel-start-confirm-client.ts",
+    "verify:duel-placement-wait-client": "tsx scripts/verify-duel-placement-wait-client.ts",
     "verify:duel-mobile-ui-client": "tsx scripts/verify-duel-mobile-ui-client.ts",
     "verify:duel-setup-locale-client": "tsx scripts/verify-duel-setup-locale-client.ts",
     "verify:duel-invite-locale-client": "tsx scripts/verify-duel-invite-locale-client.ts",

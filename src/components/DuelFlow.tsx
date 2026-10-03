@@ -27,6 +27,7 @@ import { createDuelParticipantLockCoordinator } from '../duel/duelParticipantLoc
 import { withDuelNumsAndBreaks } from '../ui/withDuelNums'
 import { BagBoard } from './BagBoard'
 import { DuelInvitePanel } from './DuelInvitePanel'
+import { DuelPlacementWait } from './DuelPlacementWait'
 import { DuelPlayScreen } from './DuelPlayScreen'
 import { DuelPlacementOverlay } from './DuelPlacementOverlay'
 import { DuelStartConfirm } from './DuelStartConfirm'
@@ -334,20 +335,10 @@ export function DuelFlow({
           />
         )
       }
-      // Missing createdAt (should not happen for claim path) — stay locked, no auto-PLAY.
-      return (
-        <div className="duel-flow duel-flow--locked">
-          <div className="duel-status-slot" aria-hidden="true" />
-          <p className="duel-locked-label">{t.duelPlacementsLocked}</p>
-        </div>
-      )
+      // Missing createdAt (should not happen for claim path) — wait UI, no auto-PLAY.
+      return <DuelPlacementWait t={t} onGoTop={onGoTop} />
     }
-    return (
-      <div className="duel-flow duel-flow--locked">
-        <div className="duel-status-slot" aria-hidden="true" />
-        <p className="duel-locked-label">{t.duelPlacementsLocked}</p>
-      </div>
-    )
+    return <DuelPlacementWait t={t} onGoTop={onGoTop} />
   }
 
   /* ——— ROUND count setup (TOP create A only) ——— */

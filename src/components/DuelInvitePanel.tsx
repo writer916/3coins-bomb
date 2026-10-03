@@ -11,6 +11,7 @@ import {
 } from '../duel/duelInviteActions'
 import { readParticipant, type StorageAdapter } from '../duel/duelPersistence'
 import { isDuelPlayReady } from '../duel/duelPlayCoordinator'
+import { DuelPlacementWait } from './DuelPlacementWait'
 import { DuelPlayScreen } from './DuelPlayScreen'
 import { DuelStartConfirm } from './DuelStartConfirm'
 
@@ -96,7 +97,8 @@ export function DuelInvitePanel({
   const [feedback, setFeedback] = useState<Feedback>('idle')
   const [qrOpen, setQrOpen] = useState(false)
   const [qrSvg, setQrSvg] = useState<string | null>(null)
-  const [joined, setJoined] = useState(false)
+  /* Joined is polled for bookkeeping; wait UI no longer branches on it. */
+  const [, setJoined] = useState(false)
   const [playReady, setPlayReady] = useState(false)
   const [matchMeta, setMatchMeta] = useState<MatchMeta | null>(null)
   /** Session-only: explicit exit from opponent→self URL wizard. */
@@ -258,22 +260,7 @@ export function DuelInvitePanel({
         />
       )
     }
-    return (
-      <div className="duel-flow duel-flow--locked">
-        <div className="duel-status-slot" aria-hidden="true" />
-        <p className="duel-locked-label">{t.duelPlacementsLocked}</p>
-        {joined ? (
-          <p className="duel-invite-note">{t.duelInviteOpponentJoined}</p>
-        ) : null}
-        {onGoTop ? (
-          <div className="duel-field duel-field--actions">
-            <button type="button" className="duel-btn" onClick={onGoTop}>
-              {t.duelReturnToTop}
-            </button>
-          </div>
-        ) : null}
-      </div>
-    )
+    return <DuelPlacementWait t={t} onGoTop={onGoTop} />
   }
 
   // Degraded wait (no invite plaintext): both LOCK → start-confirm (0 OPEN resume
@@ -293,32 +280,13 @@ export function DuelInvitePanel({
 
   // Resume / degraded wait: participant auth exists but invitation plaintext does not
   // (e.g. A #p= on a new device). Keep polling; do not mint a new invite token.
+  // UI matches wizard-finished wait (joined is bookkeeping only).
   if (!inviteUrl && selfUrl) {
-    return (
-      <div className="duel-flow duel-flow--locked">
-        <div className="duel-status-slot" aria-hidden="true" />
-        <p className="duel-locked-label">{t.duelPlacementsLocked}</p>
-        {joined ? (
-          <p className="duel-invite-note">{t.duelInviteOpponentJoined}</p>
-        ) : null}
-        {onGoTop ? (
-          <div className="duel-field duel-field--actions">
-            <button type="button" className="duel-btn" onClick={onGoTop}>
-              {t.duelReturnToTop}
-            </button>
-          </div>
-        ) : null}
-      </div>
-    )
+    return <DuelPlacementWait t={t} onGoTop={onGoTop} />
   }
 
   if (!inviteUrl || !selfUrl) {
-    return (
-      <div className="duel-flow duel-flow--locked">
-        <div className="duel-status-slot" aria-hidden="true" />
-        <p className="duel-locked-label">{t.duelPlacementsLocked}</p>
-      </div>
-    )
+    return <DuelPlacementWait t={t} onGoTop={onGoTop} />
   }
 
   const feedbackText =

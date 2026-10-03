@@ -57,6 +57,13 @@ assert.match(
   appCss,
   /\.duel-start-confirm__start[\s\S]*?height:\s*2\.75rem/,
 )
+/* TOP is quiet bottom secondary — not equal-strength to START. */
+assert.match(confirmSource, /duel-btn--quiet-top duel-start-confirm__top/)
+assert.match(appCss, /\.duel-btn--quiet-top\s*{[^}]*margin-top:\s*auto/s)
+assert.doesNotMatch(
+  confirmSource,
+  /duel-start-confirm__actions[\s\S]*duel-start-confirm__top[\s\S]*<\/div>\s*<\/div>/s,
+)
 
 /* 3. PLAY footer: centered max-content (not space-between widen); ROUNDS min-width only. */
 assert.match(playScreenSource, /score-label">ROUNDS/)

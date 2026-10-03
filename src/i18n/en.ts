@@ -61,6 +61,7 @@ export const en: AppStrings = {
   duelJoinError: 'Could not join the match. Please try again.',
   duelCreatorInviteOpened: 'YOU CREATED THIS MATCH',
   duelPlacementsLocked: 'PLACEMENTS LOCKED',
+  duelWaitingForOpponentPlacement: 'WAITING FOR OPPONENT PLACEMENT',
   duelInviteUrlLabel: 'OPPONENT URL',
   duelInviteOpponentIntro:
     'Send this URL to your opponent and have them place their coins and bomb.',

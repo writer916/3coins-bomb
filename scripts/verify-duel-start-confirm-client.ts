@@ -44,6 +44,14 @@ assert(confirmSource.includes('totalRounds'))
 assert(confirmSource.includes('onStart'))
 assert(confirmSource.includes('withDuelNums'))
 assert(confirmSource.includes('withDuelNums(createdLabel)'))
+/* START stays in upper actions; TOP is bottom quiet secondary. */
+assert(confirmSource.includes('duel-start-confirm__actions'))
+assert(confirmSource.includes('duel-btn--quiet-top duel-start-confirm__top'))
+assert(
+  /duel-start-confirm__actions[\s\S]*duel-start-confirm__start[\s\S]*<\/div>\s*\{onGoTop/s.test(
+    confirmSource,
+  ),
+)
 assert(!confirmSource.includes('fetch('))
 assert(!confirmSource.includes('/api/'))
 assert(!confirmSource.includes('localStorage'))

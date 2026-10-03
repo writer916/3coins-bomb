@@ -70,6 +70,8 @@ export type AppStrings = {
   duelJoinError: string
   duelCreatorInviteOpened: string
   duelPlacementsLocked: string
+  /** Wait: self locked / opponent unlocked (locale-invariant hierarchy). */
+  duelWaitingForOpponentPlacement: string
   duelInviteUrlLabel: string
   duelInviteOpponentIntro: string
   duelInviteNext: string
