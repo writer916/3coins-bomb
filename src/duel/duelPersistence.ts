@@ -442,11 +442,17 @@ export function validateParticipant(value: unknown): DuelParticipantRecord {
   if (
     record.version !== DUEL_STORAGE_VERSION ||
     (record.role !== 'A' && record.role !== 'B') ||
-    typeof record.token !== 'string' ||
-    (record.role === 'A'
-      ? !PARTICIPANT_A_TOKEN_PATTERN.test(record.token)
-      : !PARTICIPANT_B_TOKEN_PATTERN.test(record.token))
+    typeof record.token !== 'string'
   ) {
+    throw new DuelStorageError('INVALID_DATA')
+  }
+  // A: pa1 only. B: legacy pb1, or promoted invitation pi1 (role B context only).
+  const tokenOk =
+    record.role === 'A'
+      ? PARTICIPANT_A_TOKEN_PATTERN.test(record.token)
+      : PARTICIPANT_B_TOKEN_PATTERN.test(record.token) ||
+        INVITATION_TOKEN_PATTERN.test(record.token)
+  if (!tokenOk) {
     throw new DuelStorageError('INVALID_DATA')
   }
   return {
@@ -645,7 +651,11 @@ export function persistParticipantCapability(
   return participant
 }
 
-/** Persists B and the index before removing the only retryable claim secret. */
+/**
+ * Persists B and the index before removing the only retryable claim secret.
+ * May replace a prior A (or different B token) for the same match after the
+ * claim API has authenticated the invitation capability.
+ */
 export function completeParticipantBClaim(
   storage: StorageAdapter,
   input: CompleteParticipantBClaimInput,
@@ -654,28 +664,13 @@ export function completeParticipantBClaim(
   if (!pending || pending.matchId !== input.matchId.toLowerCase()) {
     throw new DuelStorageError('INVALID_DATA')
   }
-  const participant = validateParticipant({
-    version: DUEL_STORAGE_VERSION,
+  persistParticipantCapability(storage, {
     matchId: input.matchId,
     role: 'B',
     token: input.participantToken,
   })
-  const existing = readParticipant(storage, participant.matchId)
-  if (existing?.role === 'A') throw new DuelStorageError('INVALID_DATA')
-  if (existing && existing.token !== participant.token) {
-    throw new DuelStorageError('INVALID_DATA')
-  }
-  writeVerified(storage, participantStorageKey(participant.matchId), participant)
-  const current = readMatchIndex(storage)
-  const next = validateMatchIndex({
-    version: DUEL_STORAGE_VERSION,
-    matchIds: current.matchIds.includes(participant.matchId)
-      ? current.matchIds
-      : [...current.matchIds, participant.matchId],
-  })
-  writeVerified(storage, DUEL_MATCH_INDEX_KEY, next)
   removeVerified(storage, DUEL_PENDING_CLAIM_KEY)
-  return next
+  return readMatchIndex(storage)
 }
 
 export type DuelARecoveryState =

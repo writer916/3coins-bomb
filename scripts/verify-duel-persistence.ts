@@ -22,6 +22,7 @@ import {
   readInvitation,
   readMatchIndex,
   readParticipant,
+  readPendingClaim,
   readPendingCreate,
   readPendingLock,
   savePendingCreate,
@@ -274,6 +275,29 @@ assert(readPendingLock(removeFailure))
 assert.equal(readARecoveryState(removeFailure).phase, 'lock-retry')
 
 const bToken = `3cb_pb1_${'d'.repeat(42)}A`
+assert.deepEqual(
+  validateParticipant({
+    version: 1,
+    matchId,
+    role: 'B',
+    token: invitationToken,
+  }),
+  { version: 1, matchId, role: 'B', token: invitationToken },
+)
+assert.deepEqual(
+  validateParticipant({ version: 1, matchId, role: 'B', token: bToken }),
+  { version: 1, matchId, role: 'B', token: bToken },
+)
+expectStorageCode(
+  () =>
+    validateParticipant({
+      version: 1,
+      matchId,
+      role: 'A',
+      token: invitationToken,
+    }),
+  'INVALID_DATA',
+)
 const bStorage = new MemoryStorage()
 bStorage.setItem(
   participantStorageKey(matchId),
@@ -301,14 +325,13 @@ bClaimStorage.setItem(
   participantStorageKey(matchId),
   JSON.stringify({ version: 1, matchId, role: 'A', token: participantToken }),
 )
-expectStorageCode(
-  () =>
-    completeParticipantBClaim(bClaimStorage, {
-      matchId,
-      participantToken: bToken,
-    }),
-  'INVALID_DATA',
-)
+completeParticipantBClaim(bClaimStorage, {
+  matchId,
+  participantToken: bToken,
+})
+assert.equal(readParticipant(bClaimStorage, matchId)?.role, 'B')
+assert.equal(readParticipant(bClaimStorage, matchId)?.token, bToken)
+assert.equal(readPendingClaim(bClaimStorage), null)
 
 const silentRemoveFailure = new MemoryStorage()
 savePendingCreate(silentRemoveFailure, pendingCreate)

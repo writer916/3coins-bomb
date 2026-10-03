@@ -35,8 +35,9 @@ function isoTimestamp(value: Date | string): string {
 
 /**
  * Claims participant B or recognizes an exact retry in one atomic statement.
- * A retry must reproduce the auth hash derived from both the original invite
- * token and the original claim recovery secret.
+ * New claims promote invitation → auth (`participantTokenHash` should equal
+ * `invitationTokenHash` for pi1 promotion). A retry must present the same
+ * auth hash already stored after the first successful claim.
  */
 export async function claimDuelParticipant(
   input: ClaimDuelParticipantInput,

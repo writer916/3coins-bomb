@@ -17,6 +17,7 @@ import {
   validateCreateRequestId,
   validateClaimRecoverySecret,
   validateDuelInvitationToken,
+  validateDuelParticipantToken,
   validateMatchId,
 } from '../server/auth/duelTokens.ts'
 
@@ -172,6 +173,17 @@ assert.equal(parseBearerToken(`bearer ${first.invitationToken}`), first.invitati
 expectCode(() => parseBearerToken(undefined), 'INVALID_BEARER_TOKEN')
 expectCode(() => parseBearerToken('Basic credential'), 'INVALID_BEARER_TOKEN')
 expectCode(() => parseBearerToken('Bearer two values'), 'INVALID_BEARER_TOKEN')
+
+assert.equal(
+  validateDuelParticipantToken(first.participantToken),
+  first.participantToken,
+)
+assert.equal(validateDuelParticipantToken(participantB), participantB)
+assert.equal(
+  validateDuelParticipantToken(first.invitationToken),
+  first.invitationToken,
+)
+expectCode(() => validateDuelParticipantToken('not-a-token'), 'INVALID_PARTICIPANT_TOKEN')
 
 const clientFiles = filesBelow(resolve(root, 'src'))
 for (const file of clientFiles) {

@@ -319,9 +319,49 @@ function cleanFragment(history: HistoryAdapter, cleanPath: string): void {
 }
 
 /**
+ * Writes or reuses pending-claim for an invitation. Does not touch history —
+ * fragment removal happens only after authenticated claim/import success.
+ */
+export function ensureDuelPendingClaim(
+  matchId: string,
+  invitationToken: string,
+  storage: StorageAdapter,
+  cryptoSource: Pick<Crypto, 'getRandomValues'> = globalThis.crypto,
+): { readonly kind: 'new-claim' | 'claim-retry'; readonly pending: PendingClaimRecord } {
+  const invitation = validatedInvitation(matchId, invitationToken)
+  const existingPending = readPendingClaim(storage)
+  if (existingPending) {
+    if (
+      existingPending.matchId !== invitation.matchId ||
+      existingPending.invitationToken !== invitation.token
+    ) {
+      return invalid()
+    }
+    return { kind: 'claim-retry', pending: existingPending }
+  }
+  const pending = createPendingClaimRecord(
+    invitation.matchId,
+    invitation.token,
+    cryptoSource,
+  )
+  savePendingClaim(storage, pending)
+  return { kind: 'new-claim', pending }
+}
+
+export function cleanDuelMatchFragment(
+  history: HistoryAdapter,
+  cleanPath: string,
+): void {
+  cleanFragment(history, cleanPath)
+}
+
+/**
  * Prepares a future claim without making a network request. A new pending
  * claim is durably written and read back before the invitation fragment is
  * removed from the current history entry.
+ *
+ * Prefer {@link ensureDuelPendingClaim} + post-auth {@link cleanDuelMatchFragment}
+ * for bootstrap so fragments are not stripped before server verification.
  */
 export function prepareDuelInvitationEntry(
   urlValue: string,
@@ -341,27 +381,17 @@ export function prepareDuelInvitationEntry(
     }
   }
 
-  const existingPending = readPendingClaim(storage)
-  let pending: PendingClaimRecord
-  let kind: 'new-claim' | 'claim-retry'
-  if (existingPending) {
-    if (
-      existingPending.matchId !== parsed.matchId ||
-      existingPending.invitationToken !== parsed.invitationToken
-    ) {
-      return invalid()
-    }
-    pending = existingPending
-    kind = 'claim-retry'
-  } else {
-    pending = createPendingClaimRecord(
-      parsed.matchId,
-      parsed.invitationToken,
-      cryptoSource,
-    )
-    savePendingClaim(storage, pending)
-    kind = 'new-claim'
-  }
+  const ensured = ensureDuelPendingClaim(
+    parsed.matchId,
+    parsed.invitationToken,
+    storage,
+    cryptoSource,
+  )
   cleanFragment(history, parsed.cleanPath)
-  return { kind, matchId: parsed.matchId, pending, cleanPath: parsed.cleanPath }
+  return {
+    kind: ensured.kind,
+    matchId: parsed.matchId,
+    pending: ensured.pending,
+    cleanPath: parsed.cleanPath,
+  }
 }

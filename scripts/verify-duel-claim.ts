@@ -16,12 +16,16 @@ import type {
   ClaimedDuelParticipant,
 } from '../server/db/claimDuelParticipant.ts'
 import {
+  DUEL_INVITATION_TOKEN_PREFIX,
   DUEL_PARTICIPANT_B_TOKEN_PREFIX,
+  DUEL_PARTICIPANT_TOKEN_PREFIX,
   DUEL_TOKEN_HMAC_KEY_ENV,
   deriveMatchCreationTokens,
   deriveParticipantBToken,
   hashDuelToken,
+  validateDuelParticipantToken,
 } from '../server/auth/duelTokens.ts'
+import { validateGetDuelMatchRequest } from '../server/duel/getMatch.ts'
 
 const root = resolve(import.meta.dirname, '..')
 const matchId = '550e8400-e29b-41d4-a716-446655440000'
@@ -168,19 +172,21 @@ function memoryPersistence(...initial: ParticipantState[]) {
   return { states, persist }
 }
 
-const deriveToken = (input: ClaimParticipantRequest) =>
-  deriveParticipantBToken(input, fixtureEnvironment)
 const memory = memoryPersistence(initialState())
-const dependencies = { deriveToken, persist: memory.persist }
+const dependencies = { persist: memory.persist }
 
 const first = await claimParticipant(request, dependencies)
 assert.equal(first.claimed, true)
 assert.equal(first.response.matchId, matchId)
 assert.equal(first.response.participant.role, 'B')
-assert(first.response.participant.token.startsWith(DUEL_PARTICIPANT_B_TOKEN_PREFIX))
+assert.equal(first.response.participant.token, invitationToken)
+assert(first.response.participant.token.startsWith(DUEL_INVITATION_TOKEN_PREFIX))
+assert(!first.response.participant.token.startsWith(DUEL_PARTICIPANT_B_TOKEN_PREFIX))
+assert(!first.response.participant.token.startsWith(DUEL_PARTICIPANT_TOKEN_PREFIX))
 const claimedState = memory.states.get(matchId)
 assert(claimedState)
 assert.equal(claimedState.invitationTokenHash, null)
+assert.equal(claimedState.participantTokenHash, hashDuelToken(invitationToken))
 assert.equal(
   claimedState.participantTokenHash,
   hashDuelToken(first.response.participant.token),
@@ -189,21 +195,26 @@ assert.equal(claimedState.version, 1)
 assert.equal(claimedState.placementLockedAt, null)
 const originalClaimedAt = claimedState.claimedAt
 
+/* Response-lost retry: same pi1 must restore without minting pb1 */
 const retry = await claimParticipant(request, dependencies)
 assert.equal(retry.claimed, false)
+assert.equal(retry.response.participant.token, invitationToken)
 assert.equal(retry.response.participant.token, first.response.participant.token)
 assert.equal(memory.states.get(matchId)?.version, 1)
 assert.equal(memory.states.get(matchId)?.claimedAt, originalClaimedAt)
-
-await assert.rejects(
-  claimParticipant(
-    { ...request, claimRecoverySecret: otherClaimRecoverySecret },
-    dependencies,
-  ),
-  (error: unknown) =>
-    error instanceof ClaimParticipantError &&
-    error.code === 'INVITATION_UNAVAILABLE',
+assert.equal(
+  memory.states.get(matchId)?.participantTokenHash,
+  hashDuelToken(invitationToken),
 )
+
+/* Different recovery secret still yields the same durable pi1 auth */
+const retryOtherSecret = await claimParticipant(
+  { ...request, claimRecoverySecret: otherClaimRecoverySecret },
+  dependencies,
+)
+assert.equal(retryOtherSecret.claimed, false)
+assert.equal(retryOtherSecret.response.participant.token, invitationToken)
+
 await assert.rejects(
   claimParticipant({ ...request, invitationToken: otherInvitationToken }, dependencies),
   (error: unknown) =>
@@ -215,7 +226,7 @@ const invalidInviteMemory = memoryPersistence(initialState())
 await assert.rejects(
   claimParticipant(
     { ...request, invitationToken: otherInvitationToken },
-    { deriveToken, persist: invalidInviteMemory.persist },
+    { persist: invalidInviteMemory.persist },
   ),
   (error: unknown) =>
     error instanceof ClaimParticipantError &&
@@ -228,7 +239,7 @@ const otherMatchMemory = memoryPersistence(
 await assert.rejects(
   claimParticipant(
     { ...request, matchId: otherMatchId },
-    { deriveToken, persist: otherMatchMemory.persist },
+    { persist: otherMatchMemory.persist },
   ),
   (error: unknown) =>
     error instanceof ClaimParticipantError &&
@@ -237,7 +248,7 @@ await assert.rejects(
 
 const expiredMemory = memoryPersistence(initialState(matchId, invitationToken, true))
 await assert.rejects(
-  claimParticipant(request, { deriveToken, persist: expiredMemory.persist }),
+  claimParticipant(request, { persist: expiredMemory.persist }),
   (error: unknown) =>
     error instanceof ClaimParticipantError &&
     error.code === 'INVITATION_UNAVAILABLE',
@@ -247,7 +258,7 @@ const creatorUnlockedMemory = memoryPersistence(
   initialState(matchId, invitationToken, false, false),
 )
 await assert.rejects(
-  claimParticipant(request, { deriveToken, persist: creatorUnlockedMemory.persist }),
+  claimParticipant(request, { persist: creatorUnlockedMemory.persist }),
   (error: unknown) =>
     error instanceof ClaimParticipantError &&
     error.code === 'INVITATION_UNAVAILABLE',
@@ -260,10 +271,7 @@ assert.equal(
 const sameConcurrentMemory = memoryPersistence(initialState())
 const sameConcurrent = await Promise.all(
   Array.from({ length: 8 }, () =>
-    claimParticipant(request, {
-      deriveToken,
-      persist: sameConcurrentMemory.persist,
-    }),
+    claimParticipant(request, { persist: sameConcurrentMemory.persist }),
   ),
 )
 assert.equal(sameConcurrent.filter((result) => result.claimed).length, 1)
@@ -271,33 +279,76 @@ assert.equal(
   new Set(sameConcurrent.map((result) => result.response.participant.token)).size,
   1,
 )
+assert.equal(sameConcurrent[0]?.response.participant.token, invitationToken)
 assert.equal(sameConcurrentMemory.states.get(matchId)?.version, 1)
 
-const differentConcurrentMemory = memoryPersistence(initialState())
-const differentConcurrent = await Promise.allSettled([
-  claimParticipant(request, {
-    deriveToken,
-    persist: differentConcurrentMemory.persist,
-  }),
-  claimParticipant(
-    { ...request, claimRecoverySecret: otherClaimRecoverySecret },
-    { deriveToken, persist: differentConcurrentMemory.persist },
-  ),
-])
+/* Different recovery secrets no longer fork tokens — both resolve to pi1 */
+const differentSecretMemory = memoryPersistence(initialState())
+const differentSecretResults = await Promise.all(
+  [
+    claimParticipant(request, { persist: differentSecretMemory.persist }),
+    claimParticipant(
+      { ...request, claimRecoverySecret: otherClaimRecoverySecret },
+      { persist: differentSecretMemory.persist },
+    ),
+  ],
+)
+assert.equal(differentSecretResults.filter((result) => result.claimed).length, 1)
 assert.equal(
-  differentConcurrent.filter((result) => result.status === 'fulfilled').length,
+  new Set(
+    differentSecretResults.map((result) => result.response.participant.token),
+  ).size,
   1,
 )
+assert.equal(differentSecretResults[0]?.response.participant.token, invitationToken)
 assert.equal(
-  differentConcurrent.filter(
-    (result) =>
-      result.status === 'rejected' &&
-      result.reason instanceof ClaimParticipantError &&
-      result.reason.code === 'INVITATION_UNAVAILABLE',
-  ).length,
-  1,
+  differentSecretMemory.states.get(matchId)?.participantTokenHash,
+  hashDuelToken(invitationToken),
 )
-assert.equal(differentConcurrentMemory.states.get(matchId)?.version, 1)
+
+/* pi1 is a valid participant Bearer format; role comes from DB hash match */
+assert.equal(validateDuelParticipantToken(invitationToken), invitationToken)
+const legacyPb1 = deriveParticipantBToken(
+  {
+    matchId,
+    invitationToken,
+    claimRecoverySecret,
+  },
+  fixtureEnvironment,
+)
+assert.equal(validateDuelParticipantToken(legacyPb1), legacyPb1)
+const getWithPi1 = validateGetDuelMatchRequest(
+  matchId,
+  `Bearer ${invitationToken}`,
+)
+assert.equal(getWithPi1.participantToken, invitationToken)
+assert.equal(hashDuelToken(getWithPi1.participantToken), hashDuelToken(invitationToken))
+
+/* Legacy claimed B (auth=pb1) retry path still works when persist sees pb1 auth */
+const legacyMemory = memoryPersistence({
+  ...initialState(),
+  invitationTokenHash: null,
+  participantTokenHash: hashDuelToken(legacyPb1),
+  claimedAt: '2026-01-01T00:00:01.000Z',
+  version: 1,
+})
+const legacyRetry = await claimParticipant(request, {
+  deriveToken: () => legacyPb1,
+  persist: legacyMemory.persist,
+})
+assert.equal(legacyRetry.claimed, false)
+assert.equal(legacyRetry.response.participant.token, legacyPb1)
+assert.equal(
+  legacyMemory.states.get(matchId)?.participantTokenHash,
+  hashDuelToken(legacyPb1),
+)
+
+const claimSource = readFileSync(
+  resolve(root, 'server/duel/claimParticipant.ts'),
+  'utf8',
+)
+assert(!claimSource.includes('deriveParticipantBToken'))
+assert(claimSource.includes('request.invitationToken'))
 
 const persistenceSource = readFileSync(
   resolve(root, 'server/db/claimDuelParticipant.ts'),
@@ -358,7 +409,9 @@ assert.deepEqual(Object.keys(responseJson).sort(), [
   'totalRounds',
 ])
 const serializedResponse = JSON.stringify(responseJson)
-assert(!serializedResponse.includes(invitationToken))
+const participantJson = responseJson.participant as { role: string; token: string }
+assert.equal(participantJson.role, 'B')
+assert.equal(participantJson.token, invitationToken)
 assert(!serializedResponse.includes(claimRecoverySecret))
 assert(!serializedResponse.toLowerCase().includes('tokenhash'))
 assert(!serializedResponse.toLowerCase().includes('placement'))

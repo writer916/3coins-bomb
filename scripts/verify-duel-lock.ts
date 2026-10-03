@@ -102,9 +102,14 @@ expectCode(
   () => validateLockPlacementsRequest(matchId, 'Bearer invalid', requestBody()),
   'MATCH_UNAVAILABLE',
 )
-expectCode(
-  () => validateLockPlacementsRequest(matchId, `Bearer ${tokens.invitationToken}`, requestBody()),
-  'MATCH_UNAVAILABLE',
+/* Promoted B may authenticate with the invitation token format; DB hash decides role. */
+assert.equal(
+  validateLockPlacementsRequest(
+    matchId,
+    `Bearer ${tokens.invitationToken}`,
+    requestBody(),
+  ).participantToken,
+  tokens.invitationToken,
 )
 
 const invalidBodies: unknown[] = [

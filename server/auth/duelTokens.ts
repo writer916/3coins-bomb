@@ -118,12 +118,16 @@ export function validateDuelInvitationToken(value: unknown): string {
   return value
 }
 
+/**
+ * Validates Bearer token *format* for participant-authenticated APIs.
+ * Role is never inferred from the prefix alone — DB `auth_token_hash` match
+ * decides identity. Accepted shapes:
+ * - `3cb_pa1_…` (A)
+ * - `3cb_pb1_…` (legacy claimed B)
+ * - `3cb_pi1_…` (B after invitation→auth promotion; also pre-claim invite Bearer on claim API uses {@link validateDuelInvitationToken})
+ */
 export function validateDuelParticipantToken(value: unknown): string {
-  if (
-    typeof value !== 'string' ||
-    (!value.startsWith(DUEL_PARTICIPANT_TOKEN_PREFIX) &&
-      !value.startsWith(DUEL_PARTICIPANT_B_TOKEN_PREFIX))
-  ) {
+  if (typeof value !== 'string') {
     throw new DuelTokenError(
       'INVALID_PARTICIPANT_TOKEN',
       'A valid DUEL participant token is required.',
@@ -132,7 +136,18 @@ export function validateDuelParticipantToken(value: unknown): string {
 
   const prefix = value.startsWith(DUEL_PARTICIPANT_TOKEN_PREFIX)
     ? DUEL_PARTICIPANT_TOKEN_PREFIX
-    : DUEL_PARTICIPANT_B_TOKEN_PREFIX
+    : value.startsWith(DUEL_PARTICIPANT_B_TOKEN_PREFIX)
+      ? DUEL_PARTICIPANT_B_TOKEN_PREFIX
+      : value.startsWith(DUEL_INVITATION_TOKEN_PREFIX)
+        ? DUEL_INVITATION_TOKEN_PREFIX
+        : null
+  if (!prefix) {
+    throw new DuelTokenError(
+      'INVALID_PARTICIPANT_TOKEN',
+      'A valid DUEL participant token is required.',
+    )
+  }
+
   decodeCanonicalBase64Url(
     value.slice(prefix.length),
     32,

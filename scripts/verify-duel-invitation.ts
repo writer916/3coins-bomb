@@ -267,20 +267,20 @@ expectInvalid(() =>
 )
 assert(readPendingClaim(partialStorage))
 
+/* Authenticated claim completion may replace a prior A for the same match. */
 const protectAStorage = new MemoryStorage()
 savePendingClaim(
   protectAStorage,
   createPendingClaimRecord(MATCH_ID, INVITATION_TOKEN, cryptoFixture),
 )
 setParticipant(protectAStorage, MATCH_ID, 'A', PARTICIPANT_A_TOKEN)
-expectInvalid(() =>
-  completeParticipantBClaim(protectAStorage, {
-    matchId: MATCH_ID,
-    participantToken: PARTICIPANT_B_TOKEN,
-  }),
-)
-assert.equal(readParticipant(protectAStorage, MATCH_ID)?.role, 'A')
-assert(readPendingClaim(protectAStorage))
+completeParticipantBClaim(protectAStorage, {
+  matchId: MATCH_ID,
+  participantToken: PARTICIPANT_B_TOKEN,
+})
+assert.equal(readParticipant(protectAStorage, MATCH_ID)?.role, 'B')
+assert.equal(readParticipant(protectAStorage, MATCH_ID)?.token, PARTICIPANT_B_TOKEN)
+assert.equal(readPendingClaim(protectAStorage), null)
 
 assert.equal(invitationStorageKey(MATCH_ID), `3cb:duel:v1:invitation:${MATCH_ID}`)
 const vercel = JSON.parse(await readFile('vercel.json', 'utf8'))

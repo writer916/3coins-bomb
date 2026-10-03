@@ -1,8 +1,11 @@
 import {
   classifyDuelMatchUrlFragment,
+  cleanDuelMatchFragment,
+  ensureDuelPendingClaim,
+  parseDuelInvitationUrl,
   parseDuelMatchRouteUrl,
-  prepareDuelInvitationEntry,
   type HistoryAdapter,
+  DuelInvitationUrlError,
 } from './duelInvitation'
 import {
   importDuelParticipantCapability,
@@ -10,6 +13,7 @@ import {
 } from './duelParticipantCapability'
 import {
   completeParticipantBClaim,
+  persistParticipantCapability,
   readParticipant,
   readPendingClaim,
   validateParticipant,
@@ -190,12 +194,24 @@ function participantState(value: unknown, expectedMatchId: string): DuelParticip
   }
 }
 
-async function responseJson(response: Response): Promise<unknown> {
-  if (!response.ok) return invalid()
+async function tryGetParticipantState(
+  matchId: string,
+  participantToken: string,
+  fetcher: typeof fetch,
+): Promise<DuelParticipantState | null> {
   try {
-    return await response.json()
+    const response = await fetcher(
+      `/api/duel/matches/${encodeURIComponent(matchId)}`,
+      {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${participantToken}` },
+      },
+    )
+    if (!response.ok) return null
+    const body: unknown = await response.json()
+    return participantState(body, matchId)
   } catch {
-    return invalid()
+    return null
   }
 }
 
@@ -204,33 +220,98 @@ async function getParticipantState(
   participantToken: string,
   fetcher: typeof fetch,
 ): Promise<DuelParticipantState> {
-  const response = await fetcher(`/api/duel/matches/${encodeURIComponent(matchId)}`, {
-    method: 'GET',
-    headers: { Authorization: `Bearer ${participantToken}` },
-  })
-  return participantState(await responseJson(response), matchId)
+  const state = await tryGetParticipantState(matchId, participantToken, fetcher)
+  if (!state) return invalid()
+  return state
+}
+
+/**
+ * Claimed B re-entry (or response-lost recovery): pi1 already authenticates
+ * via auth_token_hash. Persist then strip the invite fragment.
+ */
+async function importPromotedBFromInvite(
+  matchId: string,
+  invitationToken: string,
+  cleanPath: string,
+  dependencies: DuelClaimBootstrapDependencies,
+): Promise<DuelClaimBootstrapResult | null> {
+  const state = await tryGetParticipantState(
+    matchId,
+    invitationToken,
+    dependencies.fetch,
+  )
+  if (!state) return null
+  const pending = readPendingClaim(dependencies.storage)
+  if (
+    pending?.matchId === matchId &&
+    pending.invitationToken === invitationToken
+  ) {
+    completeParticipantBClaim(dependencies.storage, {
+      matchId,
+      participantToken: invitationToken,
+    })
+  } else {
+    persistParticipantCapability(dependencies.storage, {
+      matchId,
+      role: 'B',
+      token: invitationToken,
+    })
+  }
+  const stored = readParticipant(dependencies.storage, matchId)
+  if (
+    !stored ||
+    stored.role !== 'B' ||
+    stored.token !== invitationToken ||
+    stored.matchId !== matchId
+  ) {
+    return invalid()
+  }
+  try {
+    cleanDuelMatchFragment(dependencies.history, cleanPath)
+  } catch {
+    return invalid()
+  }
+  return { kind: 'participant-b', matchId, state }
 }
 
 async function claimPending(
   pending: PendingClaimRecord,
+  cleanPath: string,
   dependencies: DuelClaimBootstrapDependencies,
 ): Promise<DuelClaimBootstrapResult> {
-  const response = await dependencies.fetch(
-    `/api/duel/matches/${encodeURIComponent(pending.matchId)}/claim`,
-    {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${pending.invitationToken}`,
-        'Content-Type': 'application/json',
+  let response: Response
+  try {
+    response = await dependencies.fetch(
+      `/api/duel/matches/${encodeURIComponent(pending.matchId)}/claim`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${pending.invitationToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ claimRecoverySecret: pending.claimRecoverySecret }),
       },
-      body: JSON.stringify({ claimRecoverySecret: pending.claimRecoverySecret }),
-    },
-  )
-  const claimed = parseClaimResponse(await responseJson(response), pending.matchId)
+    )
+  } catch {
+    return invalid()
+  }
+  if (!response.ok) return invalid()
+  let body: unknown
+  try {
+    body = await response.json()
+  } catch {
+    return invalid()
+  }
+  const claimed = parseClaimResponse(body, pending.matchId)
   completeParticipantBClaim(dependencies.storage, {
     matchId: claimed.matchId,
     participantToken: claimed.participantToken,
   })
+  try {
+    cleanDuelMatchFragment(dependencies.history, cleanPath)
+  } catch {
+    return invalid()
+  }
   const state = await getParticipantState(
     claimed.matchId,
     claimed.participantToken,
@@ -238,6 +319,62 @@ async function claimPending(
   )
   if (state.totalRounds !== claimed.totalRounds) return invalid()
   return { kind: 'participant-b', matchId: claimed.matchId, state }
+}
+
+/**
+ * Same `#invite=pi1` URL for first claim and post-claim re-entry.
+ * Order: GET as durable B auth → else claim → else legacy LS B fallback.
+ * Fragment is removed only after authenticated persist.
+ */
+async function bootstrapInvitationUrl(
+  urlValue: string,
+  dependencies: DuelClaimBootstrapDependencies,
+): Promise<DuelClaimBootstrapResult> {
+  let parsed
+  try {
+    parsed = parseDuelInvitationUrl(urlValue)
+  } catch (error: unknown) {
+    if (error instanceof DuelInvitationUrlError) return invalid()
+    return invalid()
+  }
+
+  const imported = await importPromotedBFromInvite(
+    parsed.matchId,
+    parsed.invitationToken,
+    parsed.cleanPath,
+    dependencies,
+  )
+  if (imported) return imported
+
+  try {
+    const ensured = ensureDuelPendingClaim(
+      parsed.matchId,
+      parsed.invitationToken,
+      dependencies.storage,
+      dependencies.crypto,
+    )
+    return await claimPending(ensured.pending, parsed.cleanPath, dependencies)
+  } catch (claimError: unknown) {
+    const existing = readParticipant(dependencies.storage, parsed.matchId)
+    if (existing?.role === 'B') {
+      const state = await tryGetParticipantState(
+        parsed.matchId,
+        existing.token,
+        dependencies.fetch,
+      )
+      if (state) {
+        try {
+          cleanDuelMatchFragment(dependencies.history, parsed.cleanPath)
+        } catch {
+          return invalid()
+        }
+        return { kind: 'participant-b', matchId: parsed.matchId, state }
+      }
+    }
+    if (claimError instanceof DuelClaimBootstrapError) throw claimError
+    if (claimError instanceof DuelInvitationUrlError) return invalid()
+    return invalid()
+  }
 }
 
 async function executeBootstrap(
@@ -274,25 +411,7 @@ async function executeBootstrap(
         }
       }
       if (fragmentKind !== 'invite') return invalid()
-
-      const entry = prepareDuelInvitationEntry(
-        urlValue,
-        dependencies.storage,
-        dependencies.history,
-        dependencies.crypto,
-      )
-      if (entry.kind === 'participant-a') {
-        return { kind: 'participant-a', matchId: entry.matchId }
-      }
-      if (entry.kind === 'participant-b') {
-        const state = await getParticipantState(
-          entry.matchId,
-          entry.participant.token,
-          dependencies.fetch,
-        )
-        return { kind: 'participant-b', matchId: entry.matchId, state }
-      }
-      return await claimPending(entry.pending, dependencies)
+      return await bootstrapInvitationUrl(urlValue, dependencies)
     }
 
     const participant = readParticipant(dependencies.storage, route.matchId)
@@ -309,10 +428,13 @@ async function executeBootstrap(
     }
     const pending = readPendingClaim(dependencies.storage)
     if (!pending || pending.matchId !== route.matchId) return invalid()
-    return await claimPending(pending, dependencies)
+    return await claimPending(pending, `/duel/${route.matchId}`, dependencies)
   } catch (error: unknown) {
     if (error instanceof DuelClaimBootstrapError) throw error
     if (error instanceof DuelParticipantCapabilityError) {
+      throw new DuelClaimBootstrapError()
+    }
+    if (error instanceof DuelInvitationUrlError) {
       throw new DuelClaimBootstrapError()
     }
     throw new DuelClaimBootstrapError()

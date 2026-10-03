@@ -92,12 +92,18 @@ const requestB = validateGetDuelMatchRequest(
   `Bearer ${participantBToken}`,
 )
 assert.deepEqual(requestB, { matchId, participantToken: participantBToken })
+const invitationToken = creationTokens.invitationToken
+const requestPromotedB = validateGetDuelMatchRequest(
+  matchId,
+  `Bearer ${invitationToken}`,
+)
+assert.deepEqual(requestPromotedB, {
+  matchId,
+  participantToken: invitationToken,
+})
 expectUnavailable(() => validateGetDuelMatchRequest('invalid', `Bearer ${participantAToken}`))
 expectUnavailable(() => validateGetDuelMatchRequest(matchId, 'Bearer invalid'))
 expectUnavailable(() => validateGetDuelMatchRequest(matchId, 'Basic invalid'))
-expectUnavailable(() =>
-  validateGetDuelMatchRequest(matchId, `Bearer ${creationTokens.invitationToken}`),
-)
 
 function memoryGet(
   expectedMatchId: string,
@@ -156,6 +162,19 @@ for (const expected of [bDuringPlacement, bAfterLock]) {
   assert.deepEqual(actual, expected)
   assert.equal(actual.role, 'B')
 }
+
+/* Promoted B auth: same pi1 invitation token is the Bearer capability */
+for (const expected of [bDuringPlacement, bAfterLock]) {
+  const actual = await getDuelMatch(requestPromotedB, {
+    getMatch: memoryGet(matchId, invitationToken, expected),
+  })
+  assert.deepEqual(actual, expected)
+  assert.equal(actual.role, 'B')
+}
+assert.equal(
+  hashDuelToken(invitationToken),
+  hashDuelToken(requestPromotedB.participantToken),
+)
 
 await assert.rejects(
   getDuelMatch(requestA, { getMatch: memoryGet(matchId, participantAToken, null) }),

@@ -1,5 +1,4 @@
 import {
-  deriveParticipantBToken,
   hashDuelToken,
   parseBearerToken,
   validateClaimRecoverySecret,
@@ -58,6 +57,10 @@ export interface ClaimParticipantResult {
 }
 
 export interface ClaimParticipantDependencies {
+  /**
+   * Optional override for tests. Production promotes the invitation token
+   * itself to durable B auth (no separate pb1 issuance).
+   */
   readonly deriveToken?: (input: ClaimParticipantRequest) => string
   readonly persist?: (
     input: ClaimDuelParticipantInput,
@@ -98,18 +101,25 @@ export function validateClaimParticipantRequest(
   }
 }
 
+/**
+ * Claims B by promoting the invitation token to durable auth.
+ * `auth_token_hash = hash(invitationToken)`; response token is the same pi1.
+ * `claimRecoverySecret` remains part of the request contract for client
+ * pending-claim / retry compatibility but does not mint a new token.
+ */
 export async function claimParticipant(
   request: ClaimParticipantRequest,
   dependencies: ClaimParticipantDependencies = {},
 ): Promise<ClaimParticipantResult> {
-  const deriveToken =
-    dependencies.deriveToken ?? ((input) => deriveParticipantBToken(input))
   const persist = dependencies.persist ?? claimDuelParticipant
-  const participantToken = deriveToken(request)
+  const participantToken =
+    dependencies.deriveToken?.(request) ?? request.invitationToken
+  const invitationTokenHash = hashDuelToken(request.invitationToken)
+  const participantTokenHash = hashDuelToken(participantToken)
   const claimed = await persist({
     matchId: request.matchId,
-    invitationTokenHash: hashDuelToken(request.invitationToken),
-    participantTokenHash: hashDuelToken(participantToken),
+    invitationTokenHash,
+    participantTokenHash,
   })
 
   if (!claimed) {

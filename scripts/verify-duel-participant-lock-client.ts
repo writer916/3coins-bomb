@@ -12,6 +12,7 @@ import {
   participantStorageKey,
   readARecoveryState,
   readBRecoveryState,
+  readParticipant,
   savePendingClaim,
   savePendingLock,
   type StorageAdapter,
@@ -229,14 +230,12 @@ async function main() {
       },
     }),
   )
-  assert.throws(
-    () =>
-      completeParticipantBClaim(aOverwriteStorage, {
-        matchId: MATCH_ID,
-        participantToken: B_TOKEN,
-      }),
-    (error: unknown) => error instanceof DuelStorageError,
-  )
+  completeParticipantBClaim(aOverwriteStorage, {
+    matchId: MATCH_ID,
+    participantToken: B_TOKEN,
+  })
+  assert.equal(readParticipant(aOverwriteStorage, MATCH_ID)?.role, 'B')
+  assert.equal(readParticipant(aOverwriteStorage, MATCH_ID)?.token, B_TOKEN)
 
   const bPendingStorage = new MemoryStorage()
   setParticipant(bPendingStorage, 'B', B_TOKEN)

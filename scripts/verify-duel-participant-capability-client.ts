@@ -207,7 +207,7 @@ assert.equal(
   assert.equal(readParticipant(storage, MATCH_ID)?.token, PARTICIPANT_A_TOKEN)
 }
 
-/* 6: #invite= still enters claim path (pending write before network) */
+/* 6: #invite= bootstrap — GET-first import when pi1 already authenticates */
 {
   const storage = new MemoryStorage()
   const history = new MemoryHistory()
@@ -221,7 +221,7 @@ assert.equal(
         return json({
           matchId: MATCH_ID,
           totalRounds: 5,
-          participant: { role: 'B', token: PARTICIPANT_B_TOKEN },
+          participant: { role: 'B', token: INVITATION_TOKEN },
           createdAt: CREATED_AT,
           claimedAt: '2026-01-01T00:01:00.000Z',
           expiresAt: null,
@@ -238,8 +238,11 @@ assert.equal(
   })
   const result = await coordinator.run(INVITE_URL)
   assert.equal(result.kind, 'participant-b')
-  assert(events.some((event) => event.endsWith('/claim')))
+  assert(events.some((event) => event.endsWith(`/matches/${MATCH_ID}`)))
+  assert(!events.some((event) => event.endsWith('/claim')))
   assert.equal(readParticipant(storage, MATCH_ID)?.role, 'B')
+  assert.equal(readParticipant(storage, MATCH_ID)?.token, INVITATION_TOKEN)
+  assert.deepEqual(history.urls, [`/duel/${MATCH_ID}`])
 }
 
 /* 7–8, 13: invalid / network — no LS write, no fragment clean */

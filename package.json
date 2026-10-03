@@ -52,6 +52,7 @@
     "verify:duel-participant-lock-client": "tsx scripts/verify-duel-participant-lock-client.ts",
     "verify:duel-invite-share-client": "tsx scripts/verify-duel-invite-share-client.ts",
     "verify:duel-invite-self-url-client": "tsx scripts/verify-duel-invite-self-url-client.ts",
+    "verify:duel-invite-b-reentry-client": "tsx scripts/verify-duel-invite-b-reentry-client.ts",
     "verify:open-fx-fallback": "tsx scripts/verify-open-fx-fallback.ts",
     "db:generate": "drizzle-kit generate",
     "preview": "vite preview"
