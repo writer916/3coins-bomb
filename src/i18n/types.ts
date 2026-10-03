@@ -68,6 +68,11 @@ export type AppStrings = {
   duelCreatorInviteOpened: string
   duelPlacementsLocked: string
   duelInviteUrlLabel: string
+  duelInviteOpponentIntro: string
+  duelInviteNext: string
+  duelSelfUrlLabel: string
+  duelSelfUrlIntro: string
+  duelReturnToTop: string
   duelInviteCopy: string
   duelInviteCopied: string
   duelInviteCopyFailed: string

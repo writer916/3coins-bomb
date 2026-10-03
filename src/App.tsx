@@ -100,7 +100,7 @@ function soloResultFromEndedRound(state: RoundState): SoloRoundResult | null {
 }
 
 function App() {
-  const [duelBootstrapUrl] = useState<string | null>(() =>
+  const [duelBootstrapUrl, setDuelBootstrapUrl] = useState<string | null>(() =>
     typeof window !== 'undefined' && isDuelMatchRouteUrl(window.location.href)
       ? window.location.href
       : null,
@@ -374,6 +374,14 @@ function App() {
   const goTop = useCallback(() => {
     setComingMode(null)
     setScreen('top')
+    setDuelBootstrapUrl(null)
+    try {
+      if (typeof window !== 'undefined') {
+        window.history.replaceState(null, '', '/')
+      }
+    } catch {
+      /* keep TOP screen even if history cannot be rewritten */
+    }
   }, [])
 
   const handleModeSelect = useCallback((mode: PlayMode) => {
@@ -476,7 +484,9 @@ function App() {
   )
 
   if (duelBootstrapUrl) {
-    return <DuelClaimBootstrap initialUrl={duelBootstrapUrl} t={t} />
+    return (
+      <DuelClaimBootstrap initialUrl={duelBootstrapUrl} t={t} onGoTop={goTop} />
+    )
   }
 
   if (screen === 'top') {

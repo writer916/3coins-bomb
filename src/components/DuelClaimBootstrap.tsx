@@ -10,6 +10,7 @@ import { DuelInvitePanel } from './DuelInvitePanel'
 type DuelClaimBootstrapProps = {
   readonly initialUrl: string
   readonly t: AppStrings
+  readonly onGoTop?: () => void
 }
 
 type BootstrapViewState =
@@ -38,7 +39,11 @@ function DuelBootstrapShell({
   )
 }
 
-export function DuelClaimBootstrap({ initialUrl, t }: DuelClaimBootstrapProps) {
+export function DuelClaimBootstrap({
+  initialUrl,
+  t,
+  onGoTop,
+}: DuelClaimBootstrapProps) {
   const [state, setState] = useState<BootstrapViewState>({ phase: 'loading' })
   const coordinatorRef = useRef<ReturnType<
     typeof createDuelClaimBootstrapCoordinator
@@ -92,7 +97,7 @@ export function DuelClaimBootstrap({ initialUrl, t }: DuelClaimBootstrapProps) {
   if (state.result.kind === 'participant-a') {
     return (
       <DuelBootstrapShell t={t}>
-        <DuelInvitePanel matchId={state.result.matchId} t={t} />
+        <DuelInvitePanel matchId={state.result.matchId} t={t} onGoTop={onGoTop} />
       </DuelBootstrapShell>
     )
   }

@@ -60,6 +60,12 @@ export const ja: AppStrings = {
   duelCreatorInviteOpened: 'この対戦はあなたが作成しました',
   duelPlacementsLocked: '配置をロックしました',
   duelInviteUrlLabel: '相手用URL',
+  duelInviteOpponentIntro: '相手にこのURLを送ってください。',
+  duelInviteNext: '次へ',
+  duelSelfUrlLabel: 'あなた用URL',
+  duelSelfUrlIntro:
+    '相手が配置を完了すると、このURLで対戦を始められます。勝負が終わるまで保管してください。',
+  duelReturnToTop: 'トップへ戻る',
   duelInviteCopy: 'コピー',
   duelInviteCopied: 'コピーしました',
   duelInviteCopyFailed: 'コピーに失敗しました。もう一度お試しください。',

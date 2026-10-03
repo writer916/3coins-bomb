@@ -59,6 +59,12 @@ export const en: AppStrings = {
   duelCreatorInviteOpened: 'YOU CREATED THIS MATCH',
   duelPlacementsLocked: 'PLACEMENTS LOCKED',
   duelInviteUrlLabel: 'Invite URL',
+  duelInviteOpponentIntro: 'Send this URL to your opponent.',
+  duelInviteNext: 'NEXT',
+  duelSelfUrlLabel: 'Your URL',
+  duelSelfUrlIntro:
+    'Once your opponent finishes placement, you can start the match from this URL. Keep it until the match ends.',
+  duelReturnToTop: 'Back to top',
   duelInviteCopy: 'COPY',
   duelInviteCopied: 'Copied',
   duelInviteCopyFailed: 'Could not copy. Please try again.',

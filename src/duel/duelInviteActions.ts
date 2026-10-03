@@ -1,5 +1,8 @@
 import { renderSVG } from 'uqr'
-import { createDuelInvitationUrl } from './duelInvitation'
+import {
+  buildDuelParticipantUrl,
+  createDuelInvitationUrl,
+} from './duelInvitation'
 import {
   readInvitation,
   readParticipant,
@@ -34,6 +37,36 @@ export function readDuelInviteUrl(
     return createDuelInvitationUrl(origin, matchId, invitation.token)
   } catch {
     throw new DuelInviteActionError()
+  }
+}
+
+/**
+ * Builds A's durable participant capability URL (`#p=`).
+ * Never logs the URL or token.
+ */
+export function readDuelParticipantCapabilityUrl(
+  storage: StorageAdapter,
+  matchId: string,
+  origin: string,
+): string {
+  const participant = readParticipant(storage, matchId)
+  if (!participant || participant.role !== 'A' || participant.matchId !== matchId) {
+    throw new DuelInviteActionError()
+  }
+  try {
+    return buildDuelParticipantUrl(origin, matchId, participant.token)
+  } catch {
+    throw new DuelInviteActionError()
+  }
+}
+
+/** Short display form; clipboard/share must keep the full URL. */
+export function formatDuelShareUrlForDisplay(url: string): string {
+  try {
+    const parsed = new URL(url)
+    return `${parsed.host}/duel/…`
+  } catch {
+    return '…'
   }
 }
 

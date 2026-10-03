@@ -283,7 +283,7 @@ export function DuelFlow({
 
   if (serverLocked || session?.locked) {
     if (!participantB && lockedMatchId) {
-      return <DuelInvitePanel matchId={lockedMatchId} t={t} />
+      return <DuelInvitePanel matchId={lockedMatchId} t={t} onGoTop={onGoTop} />
     }
     if (participantB && lockedMatchId) {
       return <DuelPlayScreen matchId={lockedMatchId} t={t} />

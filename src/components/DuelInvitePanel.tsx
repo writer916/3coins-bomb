@@ -4,7 +4,9 @@ import {
   canUseWebShare,
   copyDuelInviteUrl,
   DuelInviteActionError,
+  formatDuelShareUrlForDisplay,
   readDuelInviteUrl,
+  readDuelParticipantCapabilityUrl,
   renderDuelInviteQrSvg,
   shareDuelInviteUrl,
 } from '../duel/duelInviteActions'
@@ -15,11 +17,13 @@ import { DuelPlayScreen } from './DuelPlayScreen'
 type DuelInvitePanelProps = {
   readonly matchId: string
   readonly t: AppStrings
+  readonly onGoTop?: () => void
   readonly storage?: StorageAdapter
   readonly origin?: string
 }
 
 type Feedback = 'idle' | 'copied' | 'copy-failed' | 'share-failed'
+type InvitePage = 'opponent' | 'self'
 
 const DUEL_READY_POLL_INTERVAL_MS = 5_000
 
@@ -37,9 +41,11 @@ function opponentClaimed(value: unknown, matchId: string): boolean {
 export function DuelInvitePanel({
   matchId,
   t,
+  onGoTop,
   storage = typeof window !== 'undefined' ? window.localStorage : undefined,
   origin = typeof window !== 'undefined' ? window.location.origin : '',
 }: DuelInvitePanelProps) {
+  const [page, setPage] = useState<InvitePage>('opponent')
   const [feedback, setFeedback] = useState<Feedback>('idle')
   const [qrOpen, setQrOpen] = useState(false)
   const [qrSvg, setQrSvg] = useState<string | null>(null)
@@ -51,6 +57,15 @@ export function DuelInvitePanel({
     if (!storage || !origin) return null
     try {
       return readDuelInviteUrl(storage, matchId, origin)
+    } catch {
+      return null
+    }
+  }, [storage, matchId, origin])
+
+  const selfUrl = useMemo(() => {
+    if (!storage || !origin) return null
+    try {
+      return readDuelParticipantCapabilityUrl(storage, matchId, origin)
     } catch {
       return null
     }
@@ -102,20 +117,22 @@ export function DuelInvitePanel({
     }
   }, [storage, matchId, playReady])
 
+  const activeUrl = page === 'opponent' ? inviteUrl : selfUrl
+
   const onCopy = useCallback(async () => {
-    if (!inviteUrl) {
+    if (!activeUrl) {
       setFeedback('copy-failed')
       return
     }
-    const result = await copyDuelInviteUrl(inviteUrl)
+    const result = await copyDuelInviteUrl(activeUrl)
     setFeedback(result === 'copied' ? 'copied' : 'copy-failed')
-  }, [inviteUrl])
+  }, [activeUrl])
 
   const onShare = useCallback(async () => {
-    if (!inviteUrl || !shareAvailable) return
-    const result = await shareDuelInviteUrl(inviteUrl, t.brandTitle)
+    if (!activeUrl || !shareAvailable) return
+    const result = await shareDuelInviteUrl(activeUrl, t.brandTitle)
     if (result === 'failed') setFeedback('share-failed')
-  }, [inviteUrl, shareAvailable, t.brandTitle])
+  }, [activeUrl, shareAvailable, t.brandTitle])
 
   const onOpenQr = useCallback(() => {
     if (!inviteUrl) {
@@ -138,11 +155,18 @@ export function DuelInvitePanel({
     setQrSvg(null)
   }, [])
 
+  const onNext = useCallback(() => {
+    setPage('self')
+    setQrOpen(false)
+    setQrSvg(null)
+    setFeedback('idle')
+  }, [])
+
   if (playReady) {
     return <DuelPlayScreen matchId={matchId} t={t} />
   }
 
-  if (!inviteUrl) {
+  if (!inviteUrl || !selfUrl) {
     return (
       <div className="duel-flow duel-flow--locked">
         <div className="duel-status-slot" aria-hidden="true" />
@@ -170,13 +194,19 @@ export function DuelInvitePanel({
           ? t.duelInviteShareFailed
           : null
 
+  const label = page === 'opponent' ? t.duelInviteUrlLabel : t.duelSelfUrlLabel
+  const intro =
+    page === 'opponent' ? t.duelInviteOpponentIntro : t.duelSelfUrlIntro
+  const displayUrl = formatDuelShareUrlForDisplay(activeUrl!)
+
   return (
     <div className="duel-flow duel-flow--locked duel-flow--invite">
       <div className="duel-status-slot" aria-hidden="true" />
       <p className="duel-locked-label">{t.duelPlacementsLocked}</p>
-      <p className="duel-invite-label">{t.duelInviteUrlLabel}</p>
-      <p className="duel-invite-url" title={t.duelInviteUrlLabel}>
-        {inviteUrl}
+      <p className="duel-invite-label">{label}</p>
+      <p className="duel-invite-note">{intro}</p>
+      <p className="duel-invite-url" title={label}>
+        {displayUrl}
       </p>
       <div className="duel-field duel-field--actions duel-field--stack-actions">
         <div className="duel-btn-stack">
@@ -188,9 +218,15 @@ export function DuelInvitePanel({
               {t.duelInviteShare}
             </button>
           ) : null}
-          <button type="button" className="duel-btn" onClick={onOpenQr}>
-            {t.duelInviteQr}
-          </button>
+          {page === 'opponent' ? (
+            <button type="button" className="duel-btn" onClick={onOpenQr}>
+              {t.duelInviteQr}
+            </button>
+          ) : (
+            <button type="button" className="duel-btn" onClick={onGoTop}>
+              {t.duelReturnToTop}
+            </button>
+          )}
         </div>
       </div>
       {feedbackText ? (
@@ -201,7 +237,19 @@ export function DuelInvitePanel({
           {feedbackText}
         </p>
       ) : null}
-      {qrOpen && qrSvg ? (
+      {page === 'opponent' ? (
+        <div className="duel-field duel-field--actions">
+          <button
+            type="button"
+            className="duel-btn duel-btn--primary"
+            data-duel-metric="primary"
+            onClick={onNext}
+          >
+            {t.duelInviteNext}
+          </button>
+        </div>
+      ) : null}
+      {qrOpen && qrSvg && page === 'opponent' ? (
         <div className="duel-invite-qr-overlay" role="dialog" aria-modal="true">
           <div className="duel-invite-qr-panel">
             <div
