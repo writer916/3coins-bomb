@@ -672,6 +672,20 @@
   word-break: normal;
 }
 
+/*
+  Setup ROUND/BAG: fixed instruction slot so JA/EN wrap cannot shift the stepper.
+  Place slots its own instruction via --duel-slot-instruction-h; do not apply here.
+*/
+.duel-flow--setup .duel-instruction {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  /* 2 lines at max setup font-size × line-height. */
+  min-height: calc(1.3rem * 1.35 * 2);
+}
+
 /* Intentional copy lines from withDuelNumsAndBreaks — never mid-phrase wrap. */
 .duel-instruction-line {
   display: inline-block;
@@ -963,12 +977,22 @@
   gap: 0.7rem;
 }
 
+/*
+  Fixed label slot: JA “BAGS（3–8）” (fullwidth parens) vs EN “BAGS (3–8)”
+  must share the same height so value / ▲▼ do not shift on locale toggle.
+*/
 .num-stepper-label {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   margin: 0;
+  min-height: 1.6rem;
   font-family: Georgia, 'Times New Roman', serif;
   font-size: clamp(0.92rem, 3.5vw, 1.05rem);
   font-weight: 700;
   letter-spacing: 0.1em;
+  line-height: 1.35;
   color: #c4b49a;
 }
 
@@ -1713,6 +1737,10 @@
 
   .duel-instruction {
     font-size: clamp(1rem, 4vw, 1.15rem);
+  }
+
+  .duel-flow--setup .duel-instruction {
+    min-height: calc(1.15rem * 1.35 * 2);
   }
 
   .app--duel .duel-setup-heading {

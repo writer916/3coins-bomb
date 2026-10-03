@@ -181,6 +181,17 @@ assert.equal(en.duelPlaceCoins, 'Tap to place 3 coins.')
   assert.ok(!appSrc.includes('duel-setup-heading--locale-ja'))
   assert.ok(!cssSrc.includes('duel-setup-heading--locale-ja'))
   assert.ok(src.includes('withDuelNumsAndBreaks'))
+  // Setup ROUND/BAG: shared geometry slots (no locale margin hacks)
+  assert.ok(
+    cssSrc.includes('.duel-flow--setup .duel-instruction') &&
+      cssSrc.includes('min-height: calc(1.3rem * 1.35 * 2)'),
+    'setup instruction slot must reserve 2-line height',
+  )
+  assert.ok(
+    /\.num-stepper-label\s*{[^}]*min-height:\s*1\.6rem/s.test(cssSrc),
+    'stepper label slot must fix JA/EN paren metric height',
+  )
+  assert.ok(!/:lang\s*\(/.test(cssSrc), 'no :lang() CSS')
 
   // RESET ALL / START OVER: confirm → discard session + reset draft → goTop
   const soStart = src.indexOf('const onStartOver = useCallback')
