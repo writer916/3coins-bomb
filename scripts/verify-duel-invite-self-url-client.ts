@@ -134,6 +134,20 @@ assert.equal([...panelSource.matchAll(/\buseEffect\s*\(/g)].length, 1)
 assert.equal([...panelSource.matchAll(/setInterval\s*\(/g)].length, 1)
 assert(panelSource.includes('playReady'))
 assert(panelSource.includes('DuelPlayScreen'))
+assert(panelSource.includes('inInviteWizard'))
+assert(panelSource.includes('setJoined(true)'))
+assert(panelSource.includes('setPlayReady(true)'))
+/* Wizard URLs present → never auto-Play / never joined wait UI. */
+assert(panelSource.includes('playReady && !inInviteWizard'))
+assert(!panelSource.includes('if (joined)'))
+assert(!panelSource.includes('if (playReady) {\n    return <DuelPlayScreen'))
+/* Polling contract unchanged. */
+assert(panelSource.includes('DUEL_READY_POLL_INTERVAL_MS = 5_000'))
+assert(panelSource.includes("visibilitychange"))
+assert(panelSource.includes("addEventListener('focus'"))
+/* No new persisted invite-complete flag. */
+assert(!panelSource.includes('inviteFlowComplete'))
+assert(!panelSource.includes('localStorage.setItem'))
 assert(!panelSource.includes('console.'))
 
 const actionsSource = await readFile('src/duel/duelInviteActions.ts', 'utf8')
@@ -154,6 +168,11 @@ const bootstrapSource = await readFile(
   'utf8',
 )
 assert(bootstrapSource.includes('onGoTop={onGoTop}'))
+
+/* B flow / resume routing untouched in this phase. */
+assert(flowSource.includes('participantB && lockedMatchId'))
+assert(flowSource.includes('DuelPlayScreen'))
+assert(bootstrapSource.includes("kind === 'play'"))
 
 /* TOP return must not clear participant LS helpers */
 assert(!appSource.includes('removeItem(participantStorageKey'))

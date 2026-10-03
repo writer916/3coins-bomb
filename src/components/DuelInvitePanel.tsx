@@ -197,7 +197,12 @@ export function DuelInvitePanel({
     setFeedback('idle')
   }, [])
 
-  if (playReady) {
+  // Full invite wizard (opponent → self URLs). While this UI is up, keep polling
+  // joined/playReady but never displace the wizard for B claim/LOCK.
+  const inInviteWizard = Boolean(inviteUrl && selfUrl)
+
+  // Auto-PLAY only outside the URL-sharing wizard (e.g. degraded resume).
+  if (playReady && !inInviteWizard) {
     return <DuelPlayScreen matchId={matchId} t={t} />
   }
 
@@ -227,16 +232,6 @@ export function DuelInvitePanel({
       <div className="duel-flow duel-flow--locked">
         <div className="duel-status-slot" aria-hidden="true" />
         <p className="duel-locked-label">{t.duelPlacementsLocked}</p>
-      </div>
-    )
-  }
-
-  if (joined) {
-    return (
-      <div className="duel-flow duel-flow--locked">
-        <div className="duel-status-slot" aria-hidden="true" />
-        <p className="duel-locked-label">{t.duelPlacementsLocked}</p>
-        <p className="duel-invite-note">{t.duelInviteOpponentJoined}</p>
       </div>
     )
   }
