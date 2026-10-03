@@ -48,9 +48,8 @@ assert.match(appCss, /\.duel-play \.score-row/)
 assert.match(appCss, /min-width: 7\.5ch/)
 assert.match(appCss, /Do not shrink fonts to pack/)
 
-/* RESULT path untouched this phase. */
+/* RESULT presentation still exists; same-session reveal is a later/parallel concern. */
 assert.match(resultScreenSource, /phase === 'result-ready'/)
 assert.match(resultScreenSource, /t\.duelViewResult/)
-assert.doesNotMatch(playScreenSource, /initialRevealed/)
 
 console.log('verify-duel-mobile-ui-client: all checks passed')

@@ -10,6 +10,12 @@ type DuelResultScreenProps = {
   readonly initialResult: DuelFinalResult
   readonly fetchResult: () => Promise<DuelFinalResult>
   readonly t: AppStrings
+  /**
+   * Same-session PLAY RESULT click already expressed reveal intent.
+   * Only honored when initialResult.status === 'completed'.
+   * Waiting / resume / bootstrap leave this unset (false).
+   */
+  readonly initialRevealed?: boolean
 }
 
 function StatRow({
@@ -79,9 +85,12 @@ export function DuelResultScreen({
   initialResult,
   fetchResult,
   t,
+  initialRevealed = false,
 }: DuelResultScreenProps) {
   const [result, setResult] = useState<DuelFinalResult>(initialResult)
-  const [revealed, setRevealed] = useState(false)
+  const [revealed, setRevealed] = useState(
+    () => initialRevealed === true && initialResult.status === 'completed',
+  )
   const fetchResultRef = useRef(fetchResult)
   fetchResultRef.current = fetchResult
 

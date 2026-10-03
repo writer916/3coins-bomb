@@ -131,7 +131,27 @@ assert.match(presentation, /waiting-for-opponent-complete/)
 assert.match(playScreen, /initialResult=\{finalResult\}/)
 assert.match(playScreen, /fetchResult=\{\(\) => coordinator\.getFinalResult\(matchId\)\}/)
 assert.match(playScreen, /matchId=\{matchId\}/)
+assert.match(
+  playScreen,
+  /initialRevealed=\{finalResult\.status === 'completed'\}/,
+)
 assert.doesNotMatch(playScreen, /onCheck/)
+
+/* Same-session PLAY RESULT + completed → start revealed; waiting stays false. */
+assert.match(resultScreen, /initialRevealed\?: boolean/)
+assert.match(resultScreen, /initialRevealed = false/)
+assert.match(
+  resultScreen,
+  /initialRevealed === true && initialResult\.status === 'completed'/,
+)
+assert.equal(
+  resolveDuelResultPresentation(MATCH_ID, completed, true),
+  'result',
+)
+assert.equal(
+  resolveDuelResultPresentation(MATCH_ID, waiting, true),
+  'waiting-for-opponent-complete',
+)
 
 assert.match(types, /duelViewResult/)
 assert.match(ja, /duelViewResult: '結果を見る'/)
@@ -140,6 +160,14 @@ assert.match(en, /duelViewResult:/)
 // InvitePanel polling must remain local (no shared helper refactor)
 assert.match(invitePanel, /DUEL_READY_POLL_INTERVAL_MS = 5_000/)
 assert.doesNotMatch(invitePanel, /attachDuelMatchVisibilityPoll|duelResultPresentation/)
+
+/* Bootstrap resume must not force initialRevealed. */
+const bootstrap = await readFile(
+  'src/components/DuelClaimBootstrap.tsx',
+  'utf8',
+)
+assert.match(bootstrap, /DuelResultScreen/)
+assert.doesNotMatch(bootstrap, /initialRevealed/)
 
 assert.doesNotMatch(resultScreen, /console\.|\.\.\/server\/|server\/db/)
 assert.doesNotMatch(presentation, /console\.|setInterval|localStorage/)
