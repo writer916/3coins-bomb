@@ -239,7 +239,7 @@ export function DuelInvitePanel({
   }, [])
 
   if (startedPlay) {
-    return <DuelPlayScreen matchId={matchId} t={t} />
+    return <DuelPlayScreen matchId={matchId} t={t} onGoTop={onGoTop} />
   }
 
   // Full invite wizard (opponent → self URLs). While this UI is up, keep polling

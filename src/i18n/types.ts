@@ -99,7 +99,9 @@ export type AppStrings = {
   duelPlayError: string
   duelOpenRetry: string
   duelResult: string
+  /** Completion shell heading: self play finished (waiting + result-ready). */
   duelWaitingTitle: string
+  /** Completion waiting body: opponent still playing. */
   duelWaitingBody: string
   duelCheckResult: string
   /** Post-completion: reveal RESULT only after explicit press. */

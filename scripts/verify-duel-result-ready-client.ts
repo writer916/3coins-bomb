@@ -108,19 +108,23 @@ assert.equal([...resultScreen.matchAll(/setInterval\s*\(/g)].length, 1)
 assert.match(resultScreen, /document\.addEventListener\('visibilitychange'/)
 assert.match(resultScreen, /removeEventListener\('visibilitychange'/)
 
-// Waiting UI must not leak completed stats
-const waitingBlock = resultScreen.slice(
-  resultScreen.indexOf("phase === 'waiting-for-opponent-complete'"),
-  resultScreen.indexOf("phase === 'result-ready'"),
+// Waiting / ready share CompletionShell; must not leak completed stats there.
+const shellStart = resultScreen.indexOf('function CompletionShell')
+assert.ok(shellStart > 0)
+const shellEnd = resultScreen.indexOf('export function DuelResultScreen')
+const shellBlockEarly = resultScreen.slice(shellStart, shellEnd)
+assert.match(shellBlockEarly, /t\.duelWaitingTitle/)
+assert.match(shellBlockEarly, /t\.duelWaitingBody/)
+assert.match(shellBlockEarly, /t\.duelViewResult/)
+assert.doesNotMatch(
+  shellBlockEarly,
+  /winner|totalCapturedCoins|duelWin|duelLose|CompletedResult/,
 )
-assert.match(waitingBlock, /t\.duelWaitingTitle/)
-assert.match(waitingBlock, /t\.duelWaitingBody/)
-assert.doesNotMatch(waitingBlock, /winner|totalCapturedCoins|duelWin|duelLose/)
 
 const readyStart = resultScreen.indexOf("phase === 'result-ready'")
 assert.ok(readyStart > 0)
-const readyBlock = resultScreen.slice(readyStart, readyStart + 350)
-assert.match(readyBlock, /t\.duelViewResult/)
+const readyBlock = resultScreen.slice(readyStart, readyStart + 200)
+assert.match(readyBlock, /mode="ready"/)
 assert.doesNotMatch(readyBlock, /winner|totalCapturedCoins|duelWin|CompletedResult/)
 
 assert.match(presentation, /duelResumeCompletionFromResult/)
@@ -155,7 +159,20 @@ assert.equal(
 
 assert.match(types, /duelViewResult/)
 assert.match(ja, /duelViewResult: '結果を見る'/)
-assert.match(en, /duelViewResult:/)
+assert.match(en, /duelViewResult: 'VIEW RESULT'/)
+assert.match(ja, /duelWaitingTitle: 'プレイが完了しました'/)
+assert.match(en, /duelWaitingTitle: 'PLAY COMPLETE'/)
+assert.match(ja, /duelWaitingBody: '相手のプレイ終了を待っています。'/)
+assert.match(en, /duelWaitingBody: 'WAITING FOR OPPONENT TO FINISH'/)
+assert.match(resultScreen, /CompletionShell/)
+assert.match(resultScreen, /duel-final-completion-slot/)
+assert.match(resultScreen, /t\.duelReturnToTop/)
+assert.match(resultScreen, /onGoTop/)
+const shellBlock = resultScreen.slice(
+  resultScreen.indexOf('function CompletionShell'),
+  resultScreen.indexOf('export function DuelResultScreen'),
+)
+assert.doesNotMatch(shellBlock, /duelReturnToTop/)
 
 // InvitePanel polling must remain local (no shared helper refactor)
 assert.match(invitePanel, /DUEL_READY_POLL_INTERVAL_MS = 5_000/)

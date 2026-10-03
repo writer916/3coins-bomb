@@ -63,6 +63,7 @@
     "verify:duel-result-presentation": "tsx scripts/verify-duel-result-presentation.ts",
     "verify:duel-result-ready-client": "tsx scripts/verify-duel-result-ready-client.ts",
     "verify:duel-result-locale-client": "tsx scripts/verify-duel-result-locale-client.ts",
+    "verify:duel-completion-flow-client": "tsx scripts/verify-duel-completion-flow-client.ts",
     "verify:duel-locked-resume": "tsx scripts/verify-duel-locked-resume.ts",
     "verify:duel-locked-resume-client": "tsx scripts/verify-duel-locked-resume-client.ts",
     "verify:duel-a-placement-resume": "tsx scripts/verify-duel-a-placement-resume.ts",

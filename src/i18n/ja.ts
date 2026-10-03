@@ -89,7 +89,7 @@ export const ja: AppStrings = {
   duelPlayError: '対戦を読み込めませんでした。もう一度お試しください。',
   duelOpenRetry: '袋を開けませんでした。同じ袋をもう一度タップしてください。',
   duelResult: 'RESULT',
-  duelWaitingTitle: 'WAITING FOR OPPONENT',
+  duelWaitingTitle: 'プレイが完了しました',
   duelWaitingBody: '相手のプレイ終了を待っています。',
   duelCheckResult: 'CHECK RESULT',
   duelViewResult: '結果を見る',

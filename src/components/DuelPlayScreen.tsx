@@ -52,6 +52,7 @@ import { DuelResultScreen } from './DuelResultScreen'
 type DuelPlayScreenProps = {
   readonly matchId: string
   readonly t: AppStrings
+  readonly onGoTop?: () => void
 }
 
 type ReadyView = {
@@ -144,7 +145,7 @@ function applyCashOut(round: DuelActiveRound, result: DuelCashOutResult): DuelDi
   }
 }
 
-export function DuelPlayScreen({ matchId, t }: DuelPlayScreenProps) {
+export function DuelPlayScreen({ matchId, t, onGoTop }: DuelPlayScreenProps) {
   const [coordinator] = useState(() => typeof window === 'undefined' ? null :
     createDuelPlayCoordinator(createDuelPlayClient({
       storage: window.localStorage,
@@ -583,6 +584,7 @@ export function DuelPlayScreen({ matchId, t }: DuelPlayScreenProps) {
         fetchResult={() => coordinator.getFinalResult(matchId)}
         t={t}
         initialRevealed={finalResult.status === 'completed'}
+        onGoTop={onGoTop}
       />
     )
   }

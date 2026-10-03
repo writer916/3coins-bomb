@@ -16,6 +16,8 @@ type DuelResultScreenProps = {
    * Waiting / resume / bootstrap leave this unset (false).
    */
   readonly initialRevealed?: boolean
+  /** Final RESULT exit only. Waiting / result-ready never show TOP. */
+  readonly onGoTop?: () => void
 }
 
 function StatRow({
@@ -57,9 +59,11 @@ function PlayerCard({
 function CompletedResult({
   result,
   t,
+  onGoTop,
 }: {
   readonly result: Extract<DuelFinalResult, { status: 'completed' }>
   readonly t: AppStrings
+  readonly onGoTop?: () => void
 }) {
   const self = result.participants[result.viewerRole]
   const opponentRole = result.viewerRole === 'A' ? 'B' : 'A'
@@ -70,11 +74,64 @@ function CompletedResult({
 
   return (
     <section className="duel-final duel-final--completed">
-      <p className="duel-final-kicker">{t.duelResult}</p>
-      <h2 className="duel-final-verdict">{verdict}</h2>
-      <div className="duel-final-scores">
-        <PlayerCard title={t.duelYou} summary={self} t={t} />
-        <PlayerCard title={t.duelOpponent} summary={opponent} t={t} />
+      <div className="duel-final-body">
+        <p className="duel-final-kicker">{t.duelResult}</p>
+        <h2 className="duel-final-verdict">{verdict}</h2>
+        <div className="duel-final-scores">
+          <PlayerCard title={t.duelYou} summary={self} t={t} />
+          <PlayerCard title={t.duelOpponent} summary={opponent} t={t} />
+        </div>
+      </div>
+      {onGoTop ? (
+        <button
+          type="button"
+          className="duel-btn duel-btn--quiet-top duel-final-return"
+          data-duel-metric="secondary"
+          onClick={onGoTop}
+        >
+          {t.duelReturnToTop}
+        </button>
+      ) : null}
+    </section>
+  )
+}
+
+/**
+ * Shared completion shell: heading stays; body slot swaps waiting copy ↔ reveal CTA.
+ * No TOP on waiting / result-ready (exit lives on final RESULT only).
+ */
+function CompletionShell({
+  t,
+  mode,
+  onReveal,
+}: {
+  readonly t: AppStrings
+  readonly mode: 'waiting' | 'ready'
+  readonly onReveal?: () => void
+}) {
+  return (
+    <section
+      className={
+        mode === 'waiting'
+          ? 'duel-final duel-final--completion duel-final--waiting'
+          : 'duel-final duel-final--completion duel-final--ready'
+      }
+      aria-live="polite"
+    >
+      <p className="duel-final-kicker">{t.duelWaitingTitle}</p>
+      <div className="duel-final-completion-slot">
+        {mode === 'waiting' ? (
+          <p className="duel-final-copy">{t.duelWaitingBody}</p>
+        ) : (
+          <button
+            type="button"
+            className="duel-btn duel-btn--primary duel-final-view"
+            data-duel-metric="primary"
+            onClick={onReveal}
+          >
+            {t.duelViewResult}
+          </button>
+        )}
       </div>
     </section>
   )
@@ -86,6 +143,7 @@ export function DuelResultScreen({
   fetchResult,
   t,
   initialRevealed = false,
+  onGoTop,
 }: DuelResultScreenProps) {
   const [result, setResult] = useState<DuelFinalResult>(initialResult)
   const [revealed, setRevealed] = useState(
@@ -142,36 +200,16 @@ export function DuelResultScreen({
   }, [result])
 
   if (phase === 'waiting-for-opponent-complete') {
-    return (
-      <section className="duel-final duel-final--waiting" aria-live="polite">
-        <p className="duel-final-kicker">{t.duelWaitingTitle}</p>
-        <p className="duel-final-copy">{t.duelWaitingBody}</p>
-      </section>
-    )
+    return <CompletionShell t={t} mode="waiting" />
   }
 
   if (phase === 'result-ready') {
-    return (
-      <section className="duel-final duel-final--ready" aria-live="polite">
-        <button
-          type="button"
-          className="dev-btn"
-          onClick={onReveal}
-        >
-          {t.duelViewResult}
-        </button>
-      </section>
-    )
+    return <CompletionShell t={t} mode="ready" onReveal={onReveal} />
   }
 
   if (result.status !== 'completed') {
-    return (
-      <section className="duel-final duel-final--waiting" aria-live="polite">
-        <p className="duel-final-kicker">{t.duelWaitingTitle}</p>
-        <p className="duel-final-copy">{t.duelWaitingBody}</p>
-      </section>
-    )
+    return <CompletionShell t={t} mode="waiting" />
   }
 
-  return <CompletedResult result={result} t={t} />
+  return <CompletedResult result={result} t={t} onGoTop={onGoTop} />
 }

@@ -81,7 +81,7 @@ function DuelResumeStartConfirm({
 }) {
   const [startedPlay, setStartedPlay] = useState(false)
   if (startedPlay) {
-    return <DuelPlayScreen matchId={matchId} t={t} />
+    return <DuelPlayScreen matchId={matchId} t={t} onGoTop={onGoTop} />
   }
   return (
     <DuelStartConfirm
@@ -203,7 +203,7 @@ export function DuelClaimBootstrap({
     if (lockedResume.kind === 'play') {
       return (
         <DuelBootstrapShell t={t} topControls={topControls}>
-          <DuelPlayScreen matchId={lockedResume.matchId} t={t} />
+          <DuelPlayScreen matchId={lockedResume.matchId} t={t} onGoTop={onGoTop} />
         </DuelBootstrapShell>
       )
     }
@@ -227,6 +227,7 @@ export function DuelClaimBootstrap({
           initialResult={lockedResume.initialResult}
           fetchResult={() => client.getFinalResult(lockedResume.matchId)}
           t={t}
+          onGoTop={onGoTop}
         />
       </DuelBootstrapShell>
     )

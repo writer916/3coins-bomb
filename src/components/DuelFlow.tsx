@@ -322,7 +322,7 @@ export function DuelFlow({
     // B normal flow: LOCK → start-confirm → explicit START → PLAY.
     if (participantB && lockedMatchId) {
       if (bStartedPlay) {
-        return <DuelPlayScreen matchId={lockedMatchId} t={t} />
+        return <DuelPlayScreen matchId={lockedMatchId} t={t} onGoTop={onGoTop} />
       }
       if (existingCreatedAt && existingTotalRounds != null) {
         return (

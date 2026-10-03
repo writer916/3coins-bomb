@@ -1235,29 +1235,71 @@
 }
 
 /*
-  Completion waiting: fixed locale slots so JA/EN copy height
-  (incl. EN wrap at 320px) cannot shift the centered cluster.
-  Keep justify-content:center; do not restyle UX.
+  Completion shell (waiting + result-ready): fixed locale slots so
+  JA/EN heading/body/CTA cannot shift the centered cluster.
+  Keep justify-content:center on .duel-final.
 */
-.duel-final--waiting .duel-final-kicker {
+.duel-final--waiting .duel-final-kicker,
+.duel-final--ready .duel-final-kicker {
   box-sizing: border-box;
   width: 100%;
-  min-height: 1.35em;
+  /*
+    Absorb Georgia CJK vs Latin line-box
+    (JA プレイが完了しました ~26px, EN PLAY COMPLETE ~22px).
+  */
+  min-height: 1.65rem;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.duel-final--waiting .duel-final-copy {
+.duel-final-completion-slot {
   box-sizing: border-box;
   width: min(100%, 26rem);
   max-width: 26rem;
-  /* 2 lines covers EN “Waiting for your opponent…” wrap @ 320px. */
+  /* 2 lines covers EN “WAITING FOR OPPONENT TO FINISH” wrap @ 320px. */
   min-height: calc(1em * 1.5 * 2);
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
   text-align: center;
+}
+
+.duel-final--waiting .duel-final-copy {
+  box-sizing: border-box;
+  width: 100%;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.duel-final-view {
+  box-sizing: border-box;
+  /* Shared JA/EN width so LanguageToggle does not resize the CTA. */
+  width: 11.5rem;
+  min-width: 11.5rem;
+  max-width: 11.5rem;
+  min-height: 2.55rem;
+  padding: 0.45rem 0.85rem;
+}
+
+.duel-final--completed {
+  gap: 1.35rem;
+}
+
+.duel-final-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.2rem;
+  width: 100%;
+}
+
+.duel-final-return {
+  /* Override quiet-top's margin-top:auto — sit under RESULT body, not viewport foot. */
+  margin-top: 0.15rem;
 }
 
 .duel-final-verdict {
