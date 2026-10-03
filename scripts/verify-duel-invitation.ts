@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import {
+  buildDuelParticipantUrl,
   createDuelInvitationUrl,
   DuelInvitationUrlError,
   parseDuelInvitationUrl,
+  parseDuelParticipantUrl,
   prepareDuelInvitationEntry,
   type HistoryAdapter,
 } from '../src/duel/duelInvitation'
@@ -110,6 +112,25 @@ expectInvalid(() => parseDuelInvitationUrl(`${ORIGIN}/duel/${MATCH_ID}#invite=ba
 expectInvalid(() => parseDuelInvitationUrl(`${ORIGIN}/duel/${MATCH_ID}#invite=${INVITATION_TOKEN}&extra=1`))
 expectInvalid(() => parseDuelInvitationUrl(`${ORIGIN}/duel/${MATCH_ID}#invite=${INVITATION_TOKEN}&invite=${INVITATION_TOKEN}`))
 expectInvalid(() => parseDuelInvitationUrl(`${ORIGIN}/duel/${MATCH_ID}?invite=${INVITATION_TOKEN}#invite=${INVITATION_TOKEN}`))
+expectInvalid(() =>
+  parseDuelInvitationUrl(`${ORIGIN}/duel/${MATCH_ID}#p=${PARTICIPANT_A_TOKEN}`),
+)
+expectInvalid(() =>
+  parseDuelInvitationUrl(`${ORIGIN}/duel/${MATCH_ID}#invite=${PARTICIPANT_A_TOKEN}`),
+)
+expectInvalid(() =>
+  parseDuelInvitationUrl(
+    `${ORIGIN}/duel/${MATCH_ID}#invite=${INVITATION_TOKEN}&p=${PARTICIPANT_A_TOKEN}`,
+  ),
+)
+assert.throws(
+  () => parseDuelParticipantUrl(`${ORIGIN}/duel/${MATCH_ID}#invite=${INVITATION_TOKEN}`),
+  (error: unknown) => error instanceof Error && !error.message.includes(INVITATION_TOKEN),
+)
+assert.equal(
+  buildDuelParticipantUrl(ORIGIN, MATCH_ID, PARTICIPANT_A_TOKEN),
+  `${ORIGIN}/duel/${MATCH_ID}#p=${PARTICIPANT_A_TOKEN}`,
+)
 
 const pendingStorage = new MemoryStorage()
 const pending = createPendingClaimRecord(MATCH_ID, INVITATION_TOKEN, cryptoFixture)
@@ -276,8 +297,11 @@ for (const source of [invitationSource, persistenceSource]) {
   assert(!source.includes('Math.random'))
   assert(!source.includes('console.'))
 }
-assert(!invitationSource.includes('participantToken: string'))
 assert(!invitationSource.includes('authToken'))
+assert(invitationSource.includes('buildDuelParticipantUrl'))
+assert(invitationSource.includes('parseDuelParticipantUrl'))
+assert(invitationSource.includes('{ p: participant.token }'))
+assert(invitationSource.includes("{ invite: invitation.token }"))
 assert(!new DuelInvitationUrlError().message.includes(INVITATION_TOKEN))
 
 console.log('verify-duel-invitation: all checks passed')

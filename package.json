@@ -46,6 +46,8 @@
     "verify:duel-persistence": "tsx scripts/verify-duel-persistence.ts",
     "verify:duel-create-lock-client": "tsx scripts/verify-duel-create-lock-client.ts",
     "verify:duel-invitation": "tsx scripts/verify-duel-invitation.ts",
+    "verify:duel-participant-url": "tsx scripts/verify-duel-participant-url.ts",
+    "verify:duel-participant-capability-client": "tsx scripts/verify-duel-participant-capability-client.ts",
     "verify:duel-claim-client": "tsx scripts/verify-duel-claim-client.ts",
     "verify:duel-participant-lock-client": "tsx scripts/verify-duel-participant-lock-client.ts",
     "verify:duel-invite-share-client": "tsx scripts/verify-duel-invite-share-client.ts",

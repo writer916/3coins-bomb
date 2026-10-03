@@ -4,6 +4,7 @@ import {
   readPendingClaim,
   savePendingClaim,
   validateInvitation,
+  validateParticipant,
   type DuelParticipantRecord,
   type PendingClaimRecord,
   type StorageAdapter,
@@ -25,9 +26,22 @@ export class DuelInvitationUrlError extends Error {
   }
 }
 
+export class DuelParticipantUrlError extends Error {
+  constructor() {
+    super('The DUEL participant URL is invalid or unavailable.')
+    this.name = 'DuelParticipantUrlError'
+  }
+}
+
 export interface ParsedDuelInvitationUrl {
   readonly matchId: string
   readonly invitationToken: string
+  readonly cleanPath: string
+}
+
+export interface ParsedDuelParticipantUrl {
+  readonly matchId: string
+  readonly participantToken: string
   readonly cleanPath: string
 }
 
@@ -70,6 +84,10 @@ function invalid(): never {
   throw new DuelInvitationUrlError()
 }
 
+function invalidParticipantUrl(): never {
+  throw new DuelParticipantUrlError()
+}
+
 function validatedInvitation(matchId: unknown, token: unknown) {
   try {
     return validateInvitation({
@@ -79,6 +97,27 @@ function validatedInvitation(matchId: unknown, token: unknown) {
     })
   } catch {
     return invalid()
+  }
+}
+
+/** Accepts A (`3cb_pa1_…`) or B (`3cb_pb1_…`) only — never invitation (`3cb_pi1_…`). */
+function validatedParticipantCapability(
+  matchId: unknown,
+  token: unknown,
+): DuelParticipantRecord {
+  if (typeof token !== 'string') return invalidParticipantUrl()
+  const role =
+    token.startsWith('3cb_pa1_') ? 'A' : token.startsWith('3cb_pb1_') ? 'B' : null
+  if (!role) return invalidParticipantUrl()
+  try {
+    return validateParticipant({
+      version: 1,
+      matchId,
+      role,
+      token,
+    })
+  } catch {
+    return invalidParticipantUrl()
   }
 }
 
@@ -109,6 +148,28 @@ export function createDuelInvitationUrl(
   const invitation = validatedInvitation(matchId, invitationToken)
   const url = new URL(`/duel/${invitation.matchId}`, parseOrigin(origin))
   url.hash = new URLSearchParams({ invite: invitation.token }).toString()
+  return url.toString()
+}
+
+/**
+ * Durable participant capability URL (A or B).
+ * Format: `{origin}/duel/{matchId}#p={participantToken}`
+ * Secret stays in the fragment only — never query or path.
+ */
+export function buildDuelParticipantUrl(
+  origin: string,
+  matchId: string,
+  participantToken: string,
+): string {
+  const participant = validatedParticipantCapability(matchId, participantToken)
+  let base: URL
+  try {
+    base = parseOrigin(origin)
+  } catch {
+    return invalidParticipantUrl()
+  }
+  const url = new URL(`/duel/${participant.matchId}`, base)
+  url.hash = new URLSearchParams({ p: participant.token }).toString()
   return url.toString()
 }
 
@@ -143,6 +204,75 @@ export function parseDuelInvitationUrl(urlValue: string): ParsedDuelInvitationUr
     invitationToken: invitation.token,
     cleanPath: `/duel/${invitation.matchId}`,
   }
+}
+
+export function parseDuelParticipantUrl(urlValue: string): ParsedDuelParticipantUrl {
+  let url: URL
+  try {
+    url = new URL(urlValue)
+  } catch {
+    return invalidParticipantUrl()
+  }
+  if (
+    (url.protocol !== 'https:' && url.protocol !== 'http:') ||
+    url.username ||
+    url.password ||
+    url.search
+  ) {
+    return invalidParticipantUrl()
+  }
+  const pathMatch = /^\/duel\/([^/]+)$/.exec(url.pathname)
+  if (!pathMatch || !url.hash.startsWith('#')) return invalidParticipantUrl()
+  let matchId: string
+  try {
+    matchId = decodeURIComponent(pathMatch[1])
+  } catch {
+    return invalidParticipantUrl()
+  }
+  const fields = [...new URLSearchParams(url.hash.slice(1)).entries()]
+  if (fields.length !== 1 || fields[0][0] !== 'p') return invalidParticipantUrl()
+  const participant = validatedParticipantCapability(matchId, fields[0][1])
+  return {
+    matchId: participant.matchId,
+    participantToken: participant.token,
+    cleanPath: `/duel/${participant.matchId}`,
+  }
+}
+
+export type DuelMatchUrlFragmentKind =
+  | 'none'
+  | 'invite'
+  | 'participant'
+  | 'invalid'
+
+/**
+ * Classifies `/duel/{matchId}` fragment without validating token material.
+ * Used to route `#invite=` vs `#p=` before either parser runs.
+ */
+export function classifyDuelMatchUrlFragment(
+  urlValue: string,
+): DuelMatchUrlFragmentKind {
+  let url: URL
+  try {
+    url = new URL(urlValue)
+  } catch {
+    return 'invalid'
+  }
+  if (
+    (url.protocol !== 'https:' && url.protocol !== 'http:') ||
+    url.username ||
+    url.password ||
+    url.search ||
+    !/^\/duel\/[^/]+$/.test(url.pathname)
+  ) {
+    return 'invalid'
+  }
+  if (!url.hash || url.hash === '#') return 'none'
+  if (!url.hash.startsWith('#')) return 'invalid'
+  const fields = [...new URLSearchParams(url.hash.slice(1)).entries()]
+  if (fields.length === 1 && fields[0][0] === 'invite') return 'invite'
+  if (fields.length === 1 && fields[0][0] === 'p') return 'participant'
+  return 'invalid'
 }
 
 export function isDuelMatchRouteUrl(urlValue: string): boolean {

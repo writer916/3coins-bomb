@@ -1,8 +1,13 @@
 import {
+  classifyDuelMatchUrlFragment,
   parseDuelMatchRouteUrl,
   prepareDuelInvitationEntry,
   type HistoryAdapter,
 } from './duelInvitation'
+import {
+  importDuelParticipantCapability,
+  DuelParticipantCapabilityError,
+} from './duelParticipantCapability'
 import {
   completeParticipantBClaim,
   readParticipant,
@@ -242,6 +247,34 @@ async function executeBootstrap(
   try {
     const route = parseDuelMatchRouteUrl(urlValue)
     if (route.hasFragment) {
+      const fragmentKind = classifyDuelMatchUrlFragment(urlValue)
+      if (fragmentKind === 'participant') {
+        const imported = await importDuelParticipantCapability(urlValue, {
+          storage: dependencies.storage,
+          history: dependencies.history,
+          fetch: dependencies.fetch,
+        })
+        if (imported.kind === 'participant-a') {
+          return { kind: 'participant-a', matchId: imported.matchId }
+        }
+        return {
+          kind: 'participant-b',
+          matchId: imported.matchId,
+          state: {
+            matchId: imported.matchId,
+            totalRounds: imported.totalRounds,
+            role: 'B',
+            createdAt: imported.createdAt,
+            expiresAt: imported.expiresAt,
+            formationVersion: imported.formationVersion,
+            ruleVersion: imported.ruleVersion,
+            self: imported.self,
+            opponent: imported.opponent,
+          },
+        }
+      }
+      if (fragmentKind !== 'invite') return invalid()
+
       const entry = prepareDuelInvitationEntry(
         urlValue,
         dependencies.storage,
@@ -279,6 +312,9 @@ async function executeBootstrap(
     return await claimPending(pending, dependencies)
   } catch (error: unknown) {
     if (error instanceof DuelClaimBootstrapError) throw error
+    if (error instanceof DuelParticipantCapabilityError) {
+      throw new DuelClaimBootstrapError()
+    }
     throw new DuelClaimBootstrapError()
   }
 }

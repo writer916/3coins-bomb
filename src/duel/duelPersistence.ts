@@ -614,6 +614,37 @@ export interface CompleteParticipantBClaimInput {
   readonly participantToken: string
 }
 
+/**
+ * Persists an authenticated participant capability into the existing
+ * `3cb:duel:v1:participant:{matchId}` record shape (and match index).
+ * May replace a prior role/token for the same match after server verification.
+ */
+export function persistParticipantCapability(
+  storage: StorageAdapter,
+  input: {
+    readonly matchId: string
+    readonly role: DuelParticipantRole
+    readonly token: string
+  },
+): DuelParticipantRecord {
+  const participant = validateParticipant({
+    version: DUEL_STORAGE_VERSION,
+    matchId: input.matchId,
+    role: input.role,
+    token: input.token,
+  })
+  writeVerified(storage, participantStorageKey(participant.matchId), participant)
+  const current = readMatchIndex(storage)
+  const next = validateMatchIndex({
+    version: DUEL_STORAGE_VERSION,
+    matchIds: current.matchIds.includes(participant.matchId)
+      ? current.matchIds
+      : [...current.matchIds, participant.matchId],
+  })
+  writeVerified(storage, DUEL_MATCH_INDEX_KEY, next)
+  return participant
+}
+
 /** Persists B and the index before removing the only retryable claim secret. */
 export function completeParticipantBClaim(
   storage: StorageAdapter,
