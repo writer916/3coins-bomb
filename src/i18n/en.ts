@@ -58,14 +58,16 @@ export const en: AppStrings = {
   duelJoinError: 'Could not join the match. Please try again.',
   duelCreatorInviteOpened: 'YOU CREATED THIS MATCH',
   duelPlacementsLocked: 'PLACEMENTS LOCKED',
-  duelInviteUrlLabel: 'Invite URL',
-  duelInviteOpponentIntro: 'Send this URL to your opponent.',
+  duelInviteUrlLabel: 'OPPONENT URL',
+  duelInviteOpponentIntro:
+    'Send this URL to your opponent and have them place their coins and bomb.',
   duelInviteNext: 'NEXT',
   duelSelfUrlLabel: 'Your URL',
   duelSelfUrlIntro:
     'Once your opponent finishes placement, you can start the match from this URL. Keep it until the match ends.',
   duelReturnToTop: 'Back to top',
   duelInviteCopy: 'COPY',
+  duelInviteCopyAria: 'Copy URL',
   duelInviteCopied: 'Copied',
   duelInviteCopyFailed: 'Could not copy. Please try again.',
   duelInviteShare: 'SHARE',

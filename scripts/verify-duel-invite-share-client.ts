@@ -141,18 +141,43 @@ async function main() {
   const actionsSource = await readFile('src/duel/duelInviteActions.ts', 'utf8')
 
   assert(flowSource.includes('DuelInvitePanel'))
-  assert(flowSource.includes('!participantB && lockedMatchId'))
+  // A (TOP create + #p resume) → invite panel; B → play (not invite).
+  assert(flowSource.includes("lockedMatchId && existingRole !== 'B'"))
   assert(!flowSource.includes('duelLockConfirm'))
   assert(flowSource.includes('window.confirm(t.duelStartOverConfirm)'))
   assert(bootstrapSource.includes('DuelInvitePanel'))
   assert(panelSource.includes('duelInviteCopy'))
+  assert(panelSource.includes('duelInviteCopyAria'))
   assert(panelSource.includes('duelInviteShare'))
   assert(panelSource.includes('duelInviteQr'))
   assert(panelSource.includes('duelInviteNext'))
   assert(panelSource.includes('duelSelfUrlLabel'))
+  assert(panelSource.includes('duel-invite-url-bar'))
+  assert(panelSource.includes('duel-invite-copy'))
+  assert(panelSource.includes('duel-invite-actions'))
+  assert(panelSource.includes('duel-btn--invite-next'))
+  assert(panelSource.includes('InviteCopyIcon'))
+  // Share is always rendered (dokodesho UX); not gated by canUseWebShare.
+  assert(!panelSource.includes('canUseWebShare'))
+  assert(!panelSource.includes('shareAvailable'))
+  assert(panelSource.includes('duel-invite-actions'))
+  assert(panelSource.includes('{t.duelInviteShare}'))
+  // URL share pages no longer use the LOCK-complete headline as the main title.
+  assert(
+    !panelSource.includes(
+      '<p className="duel-locked-label">{t.duelPlacementsLocked}</p>\n      <p className="duel-invite-label"',
+    ),
+  )
   assert(panelSource.includes('opponent.claimed'))
   assert(panelSource.includes('duelInviteOpponentJoined'))
   assert(!panelSource.includes('console.'))
+
+  const jaSource = await readFile('src/i18n/ja.ts', 'utf8')
+  assert(jaSource.includes("duelInviteQr: 'QRコード'"))
+  assert(jaSource.includes("duelInviteCopyAria: 'URLをコピー'"))
+  const enSource = await readFile('src/i18n/en.ts', 'utf8')
+  assert(enSource.includes("duelInviteQr: 'QR'"))
+  assert(enSource.includes("duelInviteCopyAria: 'Copy URL'"))
   assert(actionsSource.includes("from 'uqr'"))
   assert(actionsSource.includes('createDuelInvitationUrl'))
   assert(actionsSource.includes('readDuelParticipantCapabilityUrl'))

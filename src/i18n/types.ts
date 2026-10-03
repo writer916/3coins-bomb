@@ -74,6 +74,8 @@ export type AppStrings = {
   duelSelfUrlIntro: string
   duelReturnToTop: string
   duelInviteCopy: string
+  /** Icon-only copy control label (accessibility). */
+  duelInviteCopyAria: string
   duelInviteCopied: string
   duelInviteCopyFailed: string
   duelInviteShare: string

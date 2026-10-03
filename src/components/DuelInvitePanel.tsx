@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { AppStrings } from '../i18n'
 import {
-  canUseWebShare,
   copyDuelInviteUrl,
   DuelInviteActionError,
   formatDuelShareUrlForDisplay,
@@ -38,6 +37,35 @@ function opponentClaimed(value: unknown, matchId: string): boolean {
   return value.opponent.claimed === true
 }
 
+function InviteCopyIcon({ done }: { done: boolean }) {
+  if (done) {
+    return (
+      <svg
+        className="duel-invite-copy-icon"
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+      >
+        <path
+          fill="currentColor"
+          d="M9.55 17.3 4.8 12.55l1.4-1.4 3.35 3.35 8.25-8.25 1.4 1.4z"
+        />
+      </svg>
+    )
+  }
+  return (
+    <svg
+      className="duel-invite-copy-icon"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+      <path
+        fill="currentColor"
+        d="M9 3h9a2 2 0 0 1 2 2v11h-2V5H9V3zm-4 4h9a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2zm0 2v11h9V9H5z"
+      />
+    </svg>
+  )
+}
+
 export function DuelInvitePanel({
   matchId,
   t,
@@ -51,7 +79,6 @@ export function DuelInvitePanel({
   const [qrSvg, setQrSvg] = useState<string | null>(null)
   const [joined, setJoined] = useState(false)
   const [playReady, setPlayReady] = useState(false)
-  const shareAvailable = useMemo(() => canUseWebShare(), [])
 
   const inviteUrl = useMemo(() => {
     if (!storage || !origin) return null
@@ -99,7 +126,9 @@ export function DuelInvitePanel({
         refreshPending = false
       }
     }
-    const onFocus = () => { void refresh() }
+    const onFocus = () => {
+      void refresh()
+    }
     const onVisibility = () => {
       if (document.visibilityState === 'visible') void refresh()
     }
@@ -128,11 +157,17 @@ export function DuelInvitePanel({
     setFeedback(result === 'copied' ? 'copied' : 'copy-failed')
   }, [activeUrl])
 
+  // Same UX as dokodesho: always show 共有; Web Share when available, else copy.
   const onShare = useCallback(async () => {
-    if (!activeUrl || !shareAvailable) return
+    if (!activeUrl) {
+      setFeedback('share-failed')
+      return
+    }
     const result = await shareDuelInviteUrl(activeUrl, t.brandTitle)
-    if (result === 'failed') setFeedback('share-failed')
-  }, [activeUrl, shareAvailable, t.brandTitle])
+    if (result === 'shared' || result === 'cancelled') return
+    const copied = await copyDuelInviteUrl(activeUrl)
+    setFeedback(copied === 'copied' ? 'copied' : 'share-failed')
+  }, [activeUrl, t.brandTitle])
 
   const onOpenQr = useCallback(() => {
     if (!inviteUrl) {
@@ -219,26 +254,43 @@ export function DuelInvitePanel({
   const intro =
     page === 'opponent' ? t.duelInviteOpponentIntro : t.duelSelfUrlIntro
   const displayUrl = formatDuelShareUrlForDisplay(activeUrl!)
+  const copied = feedback === 'copied'
 
   return (
     <div className="duel-flow duel-flow--locked duel-flow--invite">
-      <div className="duel-status-slot" aria-hidden="true" />
-      <p className="duel-locked-label">{t.duelPlacementsLocked}</p>
-      <p className="duel-invite-label">{label}</p>
-      <p className="duel-invite-note">{intro}</p>
-      <p className="duel-invite-url" title={label}>
-        {displayUrl}
-      </p>
-      <div className="duel-field duel-field--actions duel-field--stack-actions">
-        <div className="duel-btn-stack">
-          <button type="button" className="duel-btn duel-btn--primary" onClick={onCopy}>
-            {t.duelInviteCopy}
+      <div className="duel-invite-page">
+        <h2 className="duel-invite-label">{label}</h2>
+        <p className="duel-invite-note">{intro}</p>
+        <div className="duel-invite-url-bar">
+          <p className="duel-invite-url-text" title={activeUrl!}>
+            {displayUrl}
+          </p>
+          <button
+            type="button"
+            className={
+              copied
+                ? 'duel-invite-copy duel-invite-copy--done'
+                : 'duel-invite-copy'
+            }
+            aria-label={t.duelInviteCopyAria}
+            title={t.duelInviteCopy}
+            onClick={() => {
+              void onCopy()
+            }}
+          >
+            <InviteCopyIcon done={copied} />
           </button>
-          {shareAvailable ? (
-            <button type="button" className="duel-btn" onClick={onShare}>
-              {t.duelInviteShare}
-            </button>
-          ) : null}
+        </div>
+        <div className="duel-invite-actions">
+          <button
+            type="button"
+            className="duel-btn"
+            onClick={() => {
+              void onShare()
+            }}
+          >
+            {t.duelInviteShare}
+          </button>
           {page === 'opponent' ? (
             <button type="button" className="duel-btn" onClick={onOpenQr}>
               {t.duelInviteQr}
@@ -249,27 +301,29 @@ export function DuelInvitePanel({
             </button>
           )}
         </div>
-      </div>
-      {feedbackText ? (
         <p
           className="duel-invite-feedback"
-          role={feedback === 'copied' ? 'status' : 'alert'}
+          role={
+            feedback === 'copied'
+              ? 'status'
+              : feedbackText
+                ? 'alert'
+                : 'status'
+          }
         >
-          {feedbackText}
+          {feedbackText ?? '\u00a0'}
         </p>
-      ) : null}
-      {page === 'opponent' ? (
-        <div className="duel-field duel-field--actions">
+        {page === 'opponent' ? (
           <button
             type="button"
-            className="duel-btn duel-btn--primary"
+            className="duel-btn duel-btn--invite-next"
             data-duel-metric="primary"
             onClick={onNext}
           >
             {t.duelInviteNext}
           </button>
-        </div>
-      ) : null}
+        ) : null}
+      </div>
       {qrOpen && qrSvg && page === 'opponent' ? (
         <div className="duel-invite-qr-overlay" role="dialog" aria-modal="true">
           <div className="duel-invite-qr-panel">

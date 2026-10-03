@@ -102,7 +102,15 @@ assert.equal(ja.duelSelfUrlLabel, 'あなた用URL')
 assert.equal(ja.duelInviteNext, '次へ')
 assert.equal(ja.duelReturnToTop, 'トップへ戻る')
 assert(ja.duelSelfUrlIntro.includes('保管'))
-assert.equal(en.duelInviteUrlLabel, 'Invite URL')
+assert.equal(en.duelInviteUrlLabel, 'OPPONENT URL')
+assert.equal(
+  ja.duelInviteOpponentIntro,
+  '相手にこのURLを送り、コインと爆弾の位置を決めてもらいましょう。',
+)
+assert.equal(
+  en.duelInviteOpponentIntro,
+  'Send this URL to your opponent and have them place their coins and bomb.',
+)
 assert.equal(en.duelSelfUrlLabel, 'Your URL')
 assert.equal(en.duelInviteNext, 'NEXT')
 
@@ -115,7 +123,11 @@ assert(panelSource.includes('formatDuelShareUrlForDisplay'))
 assert(panelSource.includes('t.duelInviteNext'))
 assert(panelSource.includes('t.duelReturnToTop'))
 assert(panelSource.includes('t.duelSelfUrlLabel'))
+assert(panelSource.includes('duel-invite-url-bar'))
+assert(panelSource.includes('t.duelInviteCopyAria'))
 assert(panelSource.includes('onGoTop'))
+/* Self page reuses the same URL-bar + secondary-actions language; no new URLs. */
+assert(panelSource.includes("page === 'opponent' ? inviteUrl : selfUrl"))
 assert(panelSource.includes('DUEL_READY_POLL_INTERVAL_MS = 5_000'))
 assert(panelSource.includes('setInterval'))
 assert.equal([...panelSource.matchAll(/\buseEffect\s*\(/g)].length, 1)
