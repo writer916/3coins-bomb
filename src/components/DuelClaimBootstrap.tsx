@@ -192,6 +192,7 @@ export function DuelClaimBootstrap({
           participantA={{
             matchId: result.matchId,
             totalRounds: result.state.totalRounds,
+            createdAt: result.state.createdAt,
           }}
           initiallyLocked={false}
         />
@@ -207,6 +208,7 @@ export function DuelClaimBootstrap({
         participantB={{
           matchId: result.matchId,
           totalRounds: result.state.totalRounds,
+          createdAt: result.state.createdAt,
         }}
         initiallyLocked={false}
       />

@@ -1,3 +1,4 @@
+import { formatDuelMatchCreatedAtJa } from '../duel/duelMatchCreatedAt'
 import type { AppStrings } from './types'
 
 export const ja: AppStrings = {
@@ -78,6 +79,11 @@ export const ja: AppStrings = {
   duelInviteQr: 'QRコード',
   duelInviteQrClose: '閉じる',
   duelInviteOpponentJoined: '相手が参加しました',
+  duelMatchCreatedAt: formatDuelMatchCreatedAtJa,
+  duelStartConfirmReady: 'お互いの配置が完了しました',
+  duelStartConfirmRoundsLabel: 'ROUND数',
+  duelStartConfirmRoundsValue: (totalRounds) => `${totalRounds} ROUND`,
+  duelStartConfirmStart: '対戦をはじめる',
   duelPlayLoading: '対戦を読み込んでいます…',
   duelPlayError: '対戦を読み込めませんでした。もう一度お試しください。',
   duelOpenRetry: '袋を開けませんでした。同じ袋をもう一度タップしてください。',

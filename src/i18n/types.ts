@@ -86,6 +86,13 @@ export type AppStrings = {
   duelInviteQr: string
   duelInviteQrClose: string
   duelInviteOpponentJoined: string
+  /** Start-confirm: formatted match created_at (locale-specific). */
+  duelMatchCreatedAt: (isoCreatedAt: string) => string
+  /** Start-confirm: both placements locked. */
+  duelStartConfirmReady: string
+  duelStartConfirmRoundsLabel: string
+  duelStartConfirmRoundsValue: (totalRounds: number) => string
+  duelStartConfirmStart: string
   duelPlayLoading: string
   duelPlayError: string
   duelOpenRetry: string

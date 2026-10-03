@@ -135,10 +135,13 @@ assert.equal([...panelSource.matchAll(/setInterval\s*\(/g)].length, 1)
 assert(panelSource.includes('playReady'))
 assert(panelSource.includes('DuelPlayScreen'))
 assert(panelSource.includes('inInviteWizard'))
+assert(panelSource.includes('hasWizardUrls'))
+assert(panelSource.includes('inviteWizardFinished'))
+assert(panelSource.includes('onFinishInviteWizard'))
 assert(panelSource.includes('setJoined(true)'))
 assert(panelSource.includes('setPlayReady(true)'))
-/* Wizard URLs present → never auto-Play / never joined wait UI. */
-assert(panelSource.includes('playReady && !inInviteWizard'))
+/* Wizard URLs present + unfinished → never auto-Play / never start-confirm. */
+assert(panelSource.includes('hasWizardUrls && !inviteWizardFinished'))
 assert(!panelSource.includes('if (joined)'))
 assert(!panelSource.includes('if (playReady) {\n    return <DuelPlayScreen'))
 /* Polling contract unchanged. */
@@ -149,6 +152,10 @@ assert(panelSource.includes("addEventListener('focus'"))
 assert(!panelSource.includes('inviteFlowComplete'))
 assert(!panelSource.includes('localStorage.setItem'))
 assert(!panelSource.includes('console.'))
+/* Self page keeps TOP + adds NEXT to leave wizard (TOP ≠ START). */
+assert(panelSource.includes('t.duelReturnToTop'))
+assert(panelSource.includes('onFinishInviteWizard'))
+assert(panelSource.includes("page === 'opponent' ? onNext : onFinishInviteWizard"))
 
 const actionsSource = await readFile('src/duel/duelInviteActions.ts', 'utf8')
 assert(actionsSource.includes('readDuelParticipantCapabilityUrl'))
@@ -169,8 +176,9 @@ const bootstrapSource = await readFile(
 )
 assert(bootstrapSource.includes('onGoTop={onGoTop}'))
 
-/* B flow / resume routing untouched in this phase. */
+/* B normal LOCK → start-confirm; resume classifier still routes play. */
 assert(flowSource.includes('participantB && lockedMatchId'))
+assert(flowSource.includes('DuelStartConfirm'))
 assert(flowSource.includes('DuelPlayScreen'))
 assert(bootstrapSource.includes("kind === 'play'"))
 

@@ -29,11 +29,14 @@ import { BagBoard } from './BagBoard'
 import { DuelInvitePanel } from './DuelInvitePanel'
 import { DuelPlayScreen } from './DuelPlayScreen'
 import { DuelPlacementOverlay } from './DuelPlacementOverlay'
+import { DuelStartConfirm } from './DuelStartConfirm'
 import { NumberStepper } from './NumberStepper'
 
 export type DuelExistingParticipantConfig = {
   readonly matchId: string
   readonly totalRounds: number
+  /** Match created_at ISO from GET/claim; required for B start-confirm. */
+  readonly createdAt?: string
 }
 
 /** @deprecated Prefer DuelExistingParticipantConfig; kept for call-site clarity. */
@@ -142,11 +145,14 @@ export function DuelFlow({
   const existingRole = participantA ? ('A' as const) : participantB ? ('B' as const) : null
   const existingMatchId = participantA?.matchId ?? participantB?.matchId ?? null
   const existingTotalRounds = participantA?.totalRounds ?? participantB?.totalRounds ?? null
+  const existingCreatedAt = participantA?.createdAt ?? participantB?.createdAt ?? null
   const [roundsDraft, setRoundsDraft] = useState(DUEL_ROUNDS_DEFAULT)
   const [serverLocked, setServerLocked] = useState(initiallyLocked)
   const [lockedMatchId, setLockedMatchId] = useState<string | null>(
     existingMatchId,
   )
+  /** Session-only: B pressed START DUEL on start-confirm. */
+  const [bStartedPlay, setBStartedPlay] = useState(false)
   const [session, setSession] = useState<DuelPlacementSession | null>(() => {
     if (initiallyLocked) return null
     if (existingTotalRounds != null) return createDuelSession(existingTotalRounds)
@@ -308,12 +314,33 @@ export function DuelFlow({
   }, [draft, t])
 
   if (serverLocked || session?.locked) {
-    // TOP create A and #p resume A → invite / opponent wait. B → play.
+    // TOP create A and #p resume A → invite wizard / wait / start-confirm.
     if (lockedMatchId && existingRole !== 'B') {
       return <DuelInvitePanel matchId={lockedMatchId} t={t} onGoTop={onGoTop} />
     }
+    // B normal flow: LOCK → start-confirm → explicit START → PLAY.
     if (participantB && lockedMatchId) {
-      return <DuelPlayScreen matchId={lockedMatchId} t={t} />
+      if (bStartedPlay) {
+        return <DuelPlayScreen matchId={lockedMatchId} t={t} />
+      }
+      if (existingCreatedAt && existingTotalRounds != null) {
+        return (
+          <DuelStartConfirm
+            createdAt={existingCreatedAt}
+            totalRounds={existingTotalRounds}
+            t={t}
+            onStart={() => setBStartedPlay(true)}
+            onGoTop={onGoTop}
+          />
+        )
+      }
+      // Missing createdAt (should not happen for claim path) — stay locked, no auto-PLAY.
+      return (
+        <div className="duel-flow duel-flow--locked">
+          <div className="duel-status-slot" aria-hidden="true" />
+          <p className="duel-locked-label">{t.duelPlacementsLocked}</p>
+        </div>
+      )
     }
     return (
       <div className="duel-flow duel-flow--locked">

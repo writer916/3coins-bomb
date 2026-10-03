@@ -12,6 +12,7 @@ import {
 import { readParticipant, type StorageAdapter } from '../duel/duelPersistence'
 import { isDuelPlayReady } from '../duel/duelPlayCoordinator'
 import { DuelPlayScreen } from './DuelPlayScreen'
+import { DuelStartConfirm } from './DuelStartConfirm'
 
 type DuelInvitePanelProps = {
   readonly matchId: string
@@ -24,6 +25,11 @@ type DuelInvitePanelProps = {
 type Feedback = 'idle' | 'copied' | 'copy-failed' | 'share-failed'
 type InvitePage = 'opponent' | 'self'
 
+type MatchMeta = {
+  readonly createdAt: string
+  readonly totalRounds: number
+}
+
 const DUEL_READY_POLL_INTERVAL_MS = 5_000
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -35,6 +41,19 @@ function opponentClaimed(value: unknown, matchId: string): boolean {
   if (value.matchId !== matchId || value.role !== 'A') return false
   if (!isRecord(value.opponent)) return false
   return value.opponent.claimed === true
+}
+
+function parseMatchMeta(value: unknown, matchId: string): MatchMeta | null {
+  if (!isRecord(value)) return null
+  if (value.matchId !== matchId) return null
+  if (typeof value.createdAt !== 'string' || value.createdAt.length === 0) {
+    return null
+  }
+  if (typeof value.totalRounds !== 'number' || !Number.isInteger(value.totalRounds)) {
+    return null
+  }
+  if (value.totalRounds < 1) return null
+  return { createdAt: value.createdAt, totalRounds: value.totalRounds }
 }
 
 function InviteCopyIcon({ done }: { done: boolean }) {
@@ -79,6 +98,11 @@ export function DuelInvitePanel({
   const [qrSvg, setQrSvg] = useState<string | null>(null)
   const [joined, setJoined] = useState(false)
   const [playReady, setPlayReady] = useState(false)
+  const [matchMeta, setMatchMeta] = useState<MatchMeta | null>(null)
+  /** Session-only: explicit exit from opponent→self URL wizard. */
+  const [inviteWizardFinished, setInviteWizardFinished] = useState(false)
+  /** Session-only: this participant pressed START DUEL. */
+  const [startedPlay, setStartedPlay] = useState(false)
 
   const inviteUrl = useMemo(() => {
     if (!storage || !origin) return null
@@ -98,8 +122,10 @@ export function DuelInvitePanel({
     }
   }, [storage, matchId, origin])
 
+  const pollSettled = playReady && matchMeta != null
+
   useEffect(() => {
-    if (!storage || playReady) return
+    if (!storage || pollSettled) return
     let active = true
     let refreshPending = false
     const participant = readParticipant(storage, matchId)
@@ -118,6 +144,8 @@ export function DuelInvitePanel({
         if (!response.ok) return
         const body: unknown = await response.json()
         if (!active) return
+        const meta = parseMatchMeta(body, matchId)
+        if (meta) setMatchMeta(meta)
         if (opponentClaimed(body, matchId)) setJoined(true)
         if (isDuelPlayReady(body, matchId)) setPlayReady(true)
       } catch {
@@ -144,7 +172,7 @@ export function DuelInvitePanel({
       window.removeEventListener('focus', onFocus)
       document.removeEventListener('visibilitychange', onVisibility)
     }
-  }, [storage, matchId, playReady])
+  }, [storage, matchId, pollSettled])
 
   const activeUrl = page === 'opponent' ? inviteUrl : selfUrl
 
@@ -197,12 +225,59 @@ export function DuelInvitePanel({
     setFeedback('idle')
   }, [])
 
+  const onFinishInviteWizard = useCallback(() => {
+    setInviteWizardFinished(true)
+    setQrOpen(false)
+    setQrSvg(null)
+    setFeedback('idle')
+  }, [])
+
+  const onStartDuel = useCallback(() => {
+    setStartedPlay(true)
+  }, [])
+
+  if (startedPlay) {
+    return <DuelPlayScreen matchId={matchId} t={t} />
+  }
+
   // Full invite wizard (opponent → self URLs). While this UI is up, keep polling
   // joined/playReady but never displace the wizard for B claim/LOCK.
-  const inInviteWizard = Boolean(inviteUrl && selfUrl)
+  const hasWizardUrls = Boolean(inviteUrl && selfUrl)
+  const inInviteWizard = hasWizardUrls && !inviteWizardFinished
 
-  // Auto-PLAY only outside the URL-sharing wizard (e.g. degraded resume).
-  if (playReady && !inInviteWizard) {
+  // Normal A flow: after explicit wizard exit, wait or start-confirm (never auto-PLAY).
+  if (inviteWizardFinished) {
+    if (playReady && matchMeta) {
+      return (
+        <DuelStartConfirm
+          createdAt={matchMeta.createdAt}
+          totalRounds={matchMeta.totalRounds}
+          t={t}
+          onStart={onStartDuel}
+          onGoTop={onGoTop}
+        />
+      )
+    }
+    return (
+      <div className="duel-flow duel-flow--locked">
+        <div className="duel-status-slot" aria-hidden="true" />
+        <p className="duel-locked-label">{t.duelPlacementsLocked}</p>
+        {joined ? (
+          <p className="duel-invite-note">{t.duelInviteOpponentJoined}</p>
+        ) : null}
+        {onGoTop ? (
+          <div className="duel-field duel-field--actions">
+            <button type="button" className="duel-btn" onClick={onGoTop}>
+              {t.duelReturnToTop}
+            </button>
+          </div>
+        ) : null}
+      </div>
+    )
+  }
+
+  // Resume / degraded path (no invite plaintext): keep Eng1-era auto-PLAY until Eng3.
+  if (playReady && !inInviteWizard && !hasWizardUrls) {
     return <DuelPlayScreen matchId={matchId} t={t} />
   }
 
@@ -290,10 +365,12 @@ export function DuelInvitePanel({
             <button type="button" className="duel-btn" onClick={onOpenQr}>
               {t.duelInviteQr}
             </button>
-          ) : (
+          ) : onGoTop ? (
             <button type="button" className="duel-btn" onClick={onGoTop}>
               {t.duelReturnToTop}
             </button>
+          ) : (
+            <span aria-hidden="true" />
           )}
         </div>
         <p
@@ -308,16 +385,14 @@ export function DuelInvitePanel({
         >
           {feedbackText ?? '\u00a0'}
         </p>
-        {page === 'opponent' ? (
-          <button
-            type="button"
-            className="duel-btn duel-btn--invite-next"
-            data-duel-metric="primary"
-            onClick={onNext}
-          >
-            {t.duelInviteNext}
-          </button>
-        ) : null}
+        <button
+          type="button"
+          className="duel-btn duel-btn--invite-next"
+          data-duel-metric="primary"
+          onClick={page === 'opponent' ? onNext : onFinishInviteWizard}
+        >
+          {t.duelInviteNext}
+        </button>
       </div>
       {qrOpen && qrSvg && page === 'opponent' ? (
         <div className="duel-invite-qr-overlay" role="dialog" aria-modal="true">

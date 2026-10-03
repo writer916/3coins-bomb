@@ -1488,6 +1488,94 @@
   letter-spacing: 0.08em;
 }
 
+/*
+  Start-confirm: dokodesho ready-panel information hierarchy;
+  3CB gold/cream/serif visual language.
+*/
+.duel-flow--start-confirm {
+  gap: 0;
+  align-items: stretch;
+  justify-content: flex-start;
+  max-width: min(100%, 24rem);
+  padding: 0.85rem 0.95rem max(0.9rem, env(safe-area-inset-bottom, 0px));
+}
+
+.duel-start-confirm {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.95rem;
+  width: 100%;
+  min-width: 0;
+  margin-top: 0.35rem;
+}
+
+.duel-start-confirm__created {
+  margin: 0;
+  color: rgba(196, 180, 154, 0.78);
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 0.78rem;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  line-height: 1.4;
+  text-align: left;
+}
+
+.duel-start-confirm__ready {
+  margin: 0;
+  color: #f2e6d0;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 1.02rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1.45;
+  text-align: left;
+}
+
+.duel-start-confirm__list {
+  margin: 0.15rem 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.duel-start-confirm__list li {
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.duel-start-confirm__label {
+  color: #c4b49a;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 0.88rem;
+  letter-spacing: 0.04em;
+}
+
+.duel-start-confirm__value {
+  color: #f2e6d0;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 0.92rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-align: right;
+}
+
+.duel-start-confirm__start {
+  width: 100%;
+  margin-top: 0.85rem;
+}
+
+.duel-start-confirm__top {
+  width: 100%;
+  margin-top: 0.15rem;
+}
+
 .duel-invite-qr-overlay {
   position: fixed;
   inset: 0;

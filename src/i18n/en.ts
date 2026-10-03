@@ -1,3 +1,4 @@
+import { formatDuelMatchCreatedAtEn } from '../duel/duelMatchCreatedAt'
 import type { AppStrings } from './types'
 
 export const en: AppStrings = {
@@ -77,6 +78,11 @@ export const en: AppStrings = {
   duelInviteQr: 'QR',
   duelInviteQrClose: 'CLOSE',
   duelInviteOpponentJoined: 'Opponent has joined.',
+  duelMatchCreatedAt: formatDuelMatchCreatedAtEn,
+  duelStartConfirmReady: 'BOTH PLACEMENTS ARE COMPLETE',
+  duelStartConfirmRoundsLabel: 'ROUNDS',
+  duelStartConfirmRoundsValue: (totalRounds) => String(totalRounds),
+  duelStartConfirmStart: 'START DUEL',
   duelPlayLoading: 'LOADING MATCH…',
   duelPlayError: 'Could not load the match. Please try again.',
   duelOpenRetry: 'Could not open the bag. Tap the same bag to try again.',
