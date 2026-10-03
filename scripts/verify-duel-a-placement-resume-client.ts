@@ -183,9 +183,10 @@ assert.match(flow, /createDuelParticipantLockCoordinator/)
 assert.match(flow, /createDuelALockCoordinator/)
 assert.match(flow, /existingRole/)
 // Existing-match path uses participant lock; TOP create stays on create coordinator.
+assert.match(flow, /useParticipantLock/)
 assert.match(
   flow,
-  /if \(existingRole && existingMatchId != null && existingTotalRounds != null\) \{[\s\S]*createDuelParticipantLockCoordinator\([\s\S]*\} else \{[\s\S]*createDuelALockCoordinator\(/,
+  /if \(useParticipantLock\) \{[\s\S]*createDuelParticipantLockCoordinator\([\s\S]*\} else \{[\s\S]*createDuelALockCoordinator\(/,
 )
 
 assert.match(lockSource, /createDuelParticipantLockCoordinator/)
@@ -193,5 +194,18 @@ assert.match(lockSource, /createDuelBLockCoordinator/)
 assert.doesNotMatch(lockSource, /fetch\('\/api\/duel\/matches'/)
 assert.doesNotMatch(lockSource, /fetch\("\/api\/duel\/matches"/)
 assert.match(createLock, /export function createDuelALockCoordinator/)
+
+/* LOCK failure copy: existing-match path ≠ create-only message. */
+const [jaSource, enSource] = await Promise.all([
+  readFile('src/i18n/ja.ts', 'utf8'),
+  readFile('src/i18n/en.ts', 'utf8'),
+])
+assert.match(flow, /duelPlacementLockError/)
+assert.match(flow, /lockErrorKind/)
+assert.match(flow, /useParticipantLock \? 'placement' : 'create'/)
+assert.match(jaSource, /配置のロックに失敗しました/)
+assert.match(enSource, /Could not lock the placements/)
+assert.match(jaSource, /対戦の作成に失敗しました/)
+assert.match(enSource, /Could not create the match/)
 
 console.log('verify-duel-a-placement-resume-client: all checks passed')

@@ -53,6 +53,8 @@ export const en: AppStrings = {
   duelLock: 'LOCK',
   duelLocking: 'LOCKING…',
   duelLockError: 'Could not create the match. Please try again.',
+  duelPlacementLockError:
+    'Could not lock the placements. Please try again.',
   duelJoining: 'JOINING MATCH…',
   duelJoined: 'JOINED THE MATCH',
   duelJoinError: 'Could not join the match. Please try again.',

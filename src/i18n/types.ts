@@ -61,7 +61,10 @@ export type AppStrings = {
   duelStartOver: string
   duelLock: string
   duelLocking: string
+  /** TOP create+LOCK failure (match creation path). */
   duelLockError: string
+  /** Existing-match placement LOCK failure (A resume / B). */
+  duelPlacementLockError: string
   duelJoining: string
   duelJoined: string
   duelJoinError: string

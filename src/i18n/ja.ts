@@ -54,6 +54,8 @@ export const ja: AppStrings = {
   duelLock: 'OK！',
   duelLocking: 'LOCK中…',
   duelLockError: '対戦の作成に失敗しました。もう一度お試しください。',
+  duelPlacementLockError:
+    '配置のロックに失敗しました。もう一度お試しください。',
   duelJoining: '対戦に参加しています…',
   duelJoined: '対戦に参加しました',
   duelJoinError: '対戦への参加に失敗しました。もう一度お試しください。',

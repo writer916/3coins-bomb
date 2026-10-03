@@ -153,7 +153,10 @@ export function DuelFlow({
     return null
   })
   const [lockPending, setLockPending] = useState(false)
-  const [lockError, setLockError] = useState(false)
+  /** Create-path vs existing-match placement LOCK failure (display only). */
+  const [lockErrorKind, setLockErrorKind] = useState<
+    'create' | 'placement' | null
+  >(null)
   const lockPendingRef = useRef(false)
   const lockCoordinatorRef = useRef<ReturnType<
     typeof createDuelALockCoordinator
@@ -232,7 +235,7 @@ export function DuelFlow({
     if (!window.confirm(t.duelStartOverConfirm)) return
     if (existingTotalRounds != null) {
       setSession(createDuelSession(existingTotalRounds))
-      setLockError(false)
+      setLockErrorKind(null)
       return
     }
     // Discard all local DUEL setup and return to mode select.
@@ -245,9 +248,13 @@ export function DuelFlow({
     if (lockPendingRef.current || !session?.awaitingLock) return
     lockPendingRef.current = true
     setLockPending(true)
-    setLockError(false)
+    setLockErrorKind(null)
+    const useParticipantLock =
+      existingRole != null &&
+      existingMatchId != null &&
+      existingTotalRounds != null
     try {
-      if (existingRole && existingMatchId != null && existingTotalRounds != null) {
+      if (useParticipantLock) {
         participantLockCoordinatorRef.current ??= createDuelParticipantLockCoordinator({
           storage: window.localStorage,
           fetch: window.fetch.bind(window),
@@ -274,7 +281,8 @@ export function DuelFlow({
       setSession((prev) => (prev ? lockSession(prev) : prev))
       setServerLocked(true)
     } catch {
-      setLockError(true)
+      // Existing-match LOCK must not show create-only copy.
+      setLockErrorKind(useParticipantLock ? 'placement' : 'create')
     } finally {
       lockPendingRef.current = false
       setLockPending(false)
@@ -369,9 +377,11 @@ export function DuelFlow({
         <p className="duel-complete-summary">
           {t.duelRoundsReady}
         </p>
-        {lockError ? (
+        {lockErrorKind ? (
           <p className="duel-lock-error" role="alert">
-            {t.duelLockError}
+            {lockErrorKind === 'placement'
+              ? t.duelPlacementLockError
+              : t.duelLockError}
           </p>
         ) : null}
         <div className="duel-field duel-field--actions duel-field--stack-actions">
