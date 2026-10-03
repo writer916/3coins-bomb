@@ -1,8 +1,12 @@
 /**
  * Post-auth resume routing for placement-locked participants only.
  * Unlocked placement resume is intentionally out of scope.
+ *
+ * both-locked + self incomplete is refined with GET /play:
+ * 0 OPEN → start-confirm, 1+ OPEN → play.
  */
-import type { DuelFinalResult } from './duelPlayClient'
+import type { DuelFinalResult, DuelPlayState } from './duelPlayClient'
+import { duelPlayHasSelfOpenedBags } from './duelPlayStarted'
 import {
   classifyDuelResumeState,
   duelResumeCompletionFromResult,
@@ -20,6 +24,7 @@ export class DuelLockedResumeError extends Error {
 
 export type DuelLockedResumeRoute =
   | { readonly kind: 'waiting-for-opponent-lock'; readonly matchId: string }
+  | { readonly kind: 'start-confirm'; readonly matchId: string }
   | { readonly kind: 'play'; readonly matchId: string }
   | {
       readonly kind: 'waiting-for-opponent-complete'
@@ -38,11 +43,13 @@ function fail(): never {
 
 /**
  * Classify a locked participant into a post-LOCK resume route.
- * Fetches GET /result only when both participants are placement-locked.
+ * Fetches GET /result when both are placement-locked; fetches GET /play only
+ * when completion says self incomplete (to split start-confirm vs play).
  */
 export async function resolveDuelLockedResume(input: {
   readonly match: DuelResumeMatchSnapshot
   readonly fetchResult: () => Promise<DuelFinalResult>
+  readonly fetchPlayState: () => Promise<DuelPlayState>
 }): Promise<DuelLockedResumeRoute> {
   if (!input.match.self.placementLocked) return fail()
 
@@ -92,6 +99,17 @@ export async function resolveDuelLockedResume(input: {
   }
 
   if (resume.kind === 'play') {
+    let playState: DuelPlayState
+    try {
+      playState = await input.fetchPlayState()
+    } catch {
+      return fail()
+    }
+    if (playState.matchId !== resume.matchId) return fail()
+    if (playState.participantCompleted) return fail()
+    if (!duelPlayHasSelfOpenedBags(playState)) {
+      return { kind: 'start-confirm', matchId: resume.matchId }
+    }
     return { kind: 'play', matchId: resume.matchId }
   }
   if (resume.kind === 'waiting-for-opponent-complete') {

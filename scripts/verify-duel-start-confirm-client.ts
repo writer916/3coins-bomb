@@ -82,18 +82,23 @@ const bootstrapSource = await readFile(
   'utf8',
 )
 assert(bootstrapSource.includes('createdAt: result.state.createdAt'))
-/* Resume classifier unchanged for Eng2. */
 assert(bootstrapSource.includes("kind === 'play'"))
+assert(bootstrapSource.includes("kind === 'start-confirm'"))
 assert(bootstrapSource.includes('DuelPlayScreen'))
+assert(bootstrapSource.includes('DuelStartConfirm'))
+assert(bootstrapSource.includes('fetchPlayState'))
 
 const resumeSource = await readFile('src/duel/duelResumeState.ts', 'utf8')
 const lockedResumeSource = await readFile(
   'src/duel/duelLockedResume.ts',
   'utf8',
 )
-/* Touch-read only — Eng2 must not rewrite classifiers. */
-assert(resumeSource.includes('placementLocked'))
-assert(lockedResumeSource.includes('resolveDuelLockedResume'))
+/* Match/completion classifier stays completion-only; OPEN split is locked-resume. */
+assert(resumeSource.includes("kind: 'play'"))
+assert(!resumeSource.includes('start-confirm'))
+assert(lockedResumeSource.includes('start-confirm'))
+assert(lockedResumeSource.includes('duelPlayHasSelfOpenedBags'))
+assert(lockedResumeSource.includes('fetchPlayState'))
 
 const appSource = await readFile('src/App.tsx', 'utf8')
 assert(appSource.includes('onGoTop={goTop}'))

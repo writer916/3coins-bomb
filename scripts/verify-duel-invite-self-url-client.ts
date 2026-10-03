@@ -176,11 +176,12 @@ const bootstrapSource = await readFile(
 )
 assert(bootstrapSource.includes('onGoTop={onGoTop}'))
 
-/* B normal LOCK → start-confirm; resume classifier still routes play. */
+/* B normal LOCK → start-confirm; resume may route start-confirm or play. */
 assert(flowSource.includes('participantB && lockedMatchId'))
 assert(flowSource.includes('DuelStartConfirm'))
 assert(flowSource.includes('DuelPlayScreen'))
 assert(bootstrapSource.includes("kind === 'play'"))
+assert(bootstrapSource.includes("kind === 'start-confirm'"))
 
 /* TOP return must not clear participant LS helpers */
 assert(!appSource.includes('removeItem(participantStorageKey'))

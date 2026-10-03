@@ -14,6 +14,7 @@ import { DuelFlow } from './DuelFlow'
 import { DuelInvitePanel } from './DuelInvitePanel'
 import { DuelPlayScreen } from './DuelPlayScreen'
 import { DuelResultScreen } from './DuelResultScreen'
+import { DuelStartConfirm } from './DuelStartConfirm'
 
 type DuelClaimBootstrapProps = {
   readonly initialUrl: string
@@ -59,6 +60,35 @@ function matchSnapshot(state: DuelParticipantState) {
   }
 }
 
+/** Resume start-confirm → session-only START → PLAY (Eng2 component reused). */
+function DuelResumeStartConfirm({
+  matchId,
+  createdAt,
+  totalRounds,
+  t,
+  onGoTop,
+}: {
+  readonly matchId: string
+  readonly createdAt: string
+  readonly totalRounds: number
+  readonly t: AppStrings
+  readonly onGoTop?: () => void
+}) {
+  const [startedPlay, setStartedPlay] = useState(false)
+  if (startedPlay) {
+    return <DuelPlayScreen matchId={matchId} t={t} />
+  }
+  return (
+    <DuelStartConfirm
+      createdAt={createdAt}
+      totalRounds={totalRounds}
+      t={t}
+      onStart={() => setStartedPlay(true)}
+      onGoTop={onGoTop}
+    />
+  )
+}
+
 export function DuelClaimBootstrap({
   initialUrl,
   t,
@@ -102,6 +132,7 @@ export function DuelClaimBootstrap({
           const lockedResume = await resolveDuelLockedResume({
             match: matchSnapshot(result.state),
             fetchResult: () => client.getFinalResult(result.matchId),
+            fetchPlayState: () => client.getPlayState(result.matchId),
           })
           if (active) setState({ phase: 'success', result, lockedResume })
         } catch {
@@ -147,6 +178,19 @@ export function DuelClaimBootstrap({
       return (
         <DuelBootstrapShell t={t}>
           <DuelInvitePanel matchId={lockedResume.matchId} t={t} onGoTop={onGoTop} />
+        </DuelBootstrapShell>
+      )
+    }
+    if (lockedResume.kind === 'start-confirm') {
+      return (
+        <DuelBootstrapShell t={t}>
+          <DuelResumeStartConfirm
+            matchId={lockedResume.matchId}
+            createdAt={result.state.createdAt}
+            totalRounds={result.state.totalRounds}
+            t={t}
+            onGoTop={onGoTop}
+          />
         </DuelBootstrapShell>
       )
     }

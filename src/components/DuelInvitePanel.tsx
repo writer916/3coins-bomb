@@ -276,9 +276,19 @@ export function DuelInvitePanel({
     )
   }
 
-  // Resume / degraded path (no invite plaintext): keep Eng1-era auto-PLAY until Eng3.
-  if (playReady && !inInviteWizard && !hasWizardUrls) {
-    return <DuelPlayScreen matchId={matchId} t={t} />
+  // Degraded wait (no invite plaintext): both LOCK → start-confirm (0 OPEN resume
+  // for #p revisit is handled by locked-resume bootstrap; this covers in-session
+  // B LOCK while A is on the degraded waiting UI).
+  if (playReady && !inInviteWizard && !hasWizardUrls && matchMeta) {
+    return (
+      <DuelStartConfirm
+        createdAt={matchMeta.createdAt}
+        totalRounds={matchMeta.totalRounds}
+        t={t}
+        onStart={onStartDuel}
+        onGoTop={onGoTop}
+      />
+    )
   }
 
   // Resume / degraded wait: participant auth exists but invitation plaintext does not
