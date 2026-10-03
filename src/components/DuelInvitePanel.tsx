@@ -166,6 +166,27 @@ export function DuelInvitePanel({
     return <DuelPlayScreen matchId={matchId} t={t} />
   }
 
+  // Resume / degraded wait: participant auth exists but invitation plaintext does not
+  // (e.g. A #p= on a new device). Keep polling; do not mint a new invite token.
+  if (!inviteUrl && selfUrl) {
+    return (
+      <div className="duel-flow duel-flow--locked">
+        <div className="duel-status-slot" aria-hidden="true" />
+        <p className="duel-locked-label">{t.duelPlacementsLocked}</p>
+        {joined ? (
+          <p className="duel-invite-note">{t.duelInviteOpponentJoined}</p>
+        ) : null}
+        {onGoTop ? (
+          <div className="duel-field duel-field--actions">
+            <button type="button" className="duel-btn" onClick={onGoTop}>
+              {t.duelReturnToTop}
+            </button>
+          </div>
+        ) : null}
+      </div>
+    )
+  }
+
   if (!inviteUrl || !selfUrl) {
     return (
       <div className="duel-flow duel-flow--locked">

@@ -2,10 +2,18 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import {
   createDuelClaimBootstrapCoordinator,
   type DuelClaimBootstrapResult,
+  type DuelParticipantState,
 } from '../duel/duelClaim'
+import { createDuelPlayClient } from '../duel/duelPlayClient'
+import {
+  resolveDuelLockedResume,
+  type DuelLockedResumeRoute,
+} from '../duel/duelLockedResume'
 import type { AppStrings } from '../i18n'
 import { DuelFlow } from './DuelFlow'
 import { DuelInvitePanel } from './DuelInvitePanel'
+import { DuelPlayScreen } from './DuelPlayScreen'
+import { DuelResultScreen } from './DuelResultScreen'
 
 type DuelClaimBootstrapProps = {
   readonly initialUrl: string
@@ -15,7 +23,11 @@ type DuelClaimBootstrapProps = {
 
 type BootstrapViewState =
   | { readonly phase: 'loading' }
-  | { readonly phase: 'success'; readonly result: DuelClaimBootstrapResult }
+  | {
+      readonly phase: 'success'
+      readonly result: DuelClaimBootstrapResult
+      readonly lockedResume: DuelLockedResumeRoute | null
+    }
   | { readonly phase: 'error' }
 
 function DuelBootstrapShell({
@@ -39,6 +51,14 @@ function DuelBootstrapShell({
   )
 }
 
+function matchSnapshot(state: DuelParticipantState) {
+  return {
+    matchId: state.matchId,
+    self: state.self,
+    opponent: state.opponent,
+  }
+}
+
 export function DuelClaimBootstrap({
   initialUrl,
   t,
@@ -48,6 +68,14 @@ export function DuelClaimBootstrap({
   const coordinatorRef = useRef<ReturnType<
     typeof createDuelClaimBootstrapCoordinator
   > | null>(null)
+  const playClientRef = useRef<ReturnType<typeof createDuelPlayClient> | null>(
+    null,
+  )
+  playClientRef.current ??= createDuelPlayClient({
+    storage: window.localStorage,
+    fetch: window.fetch.bind(window),
+    crypto: window.crypto,
+  })
 
   useEffect(() => {
     let active = true
@@ -59,8 +87,26 @@ export function DuelClaimBootstrap({
     })
     void coordinatorRef.current
       .run(initialUrl)
-      .then((result) => {
-        if (active) setState({ phase: 'success', result })
+      .then(async (result) => {
+        if (!active) return
+        if (!result.state.self.placementLocked) {
+          setState({ phase: 'success', result, lockedResume: null })
+          return
+        }
+        try {
+          const client = playClientRef.current
+          if (!client) {
+            if (active) setState({ phase: 'error' })
+            return
+          }
+          const lockedResume = await resolveDuelLockedResume({
+            match: matchSnapshot(result.state),
+            fetchResult: () => client.getFinalResult(result.matchId),
+          })
+          if (active) setState({ phase: 'success', result, lockedResume })
+        } catch {
+          if (active) setState({ phase: 'error' })
+        }
       })
       .catch(() => {
         if (active) setState({ phase: 'error' })
@@ -94,10 +140,53 @@ export function DuelClaimBootstrap({
     )
   }
 
-  if (state.result.kind === 'participant-a') {
+  const { result, lockedResume } = state
+
+  if (lockedResume) {
+    if (lockedResume.kind === 'waiting-for-opponent-lock') {
+      return (
+        <DuelBootstrapShell t={t}>
+          <DuelInvitePanel matchId={lockedResume.matchId} t={t} onGoTop={onGoTop} />
+        </DuelBootstrapShell>
+      )
+    }
+    if (lockedResume.kind === 'play') {
+      return (
+        <DuelBootstrapShell t={t}>
+          <DuelPlayScreen matchId={lockedResume.matchId} t={t} />
+        </DuelBootstrapShell>
+      )
+    }
+    const client = playClientRef.current
+    if (!client) {
+      return (
+        <DuelBootstrapShell t={t}>
+          <div className="duel-flow duel-flow--locked">
+            <div className="duel-status-slot" aria-hidden="true" />
+            <p className="duel-locked-label" role="alert">
+              {t.duelJoinError}
+            </p>
+          </div>
+        </DuelBootstrapShell>
+      )
+    }
     return (
       <DuelBootstrapShell t={t}>
-        <DuelInvitePanel matchId={state.result.matchId} t={t} onGoTop={onGoTop} />
+        <DuelResultScreen
+          matchId={lockedResume.matchId}
+          initialResult={lockedResume.initialResult}
+          fetchResult={() => client.getFinalResult(lockedResume.matchId)}
+          t={t}
+        />
+      </DuelBootstrapShell>
+    )
+  }
+
+  // Unlocked: keep first-visit placement / legacy A invite behavior.
+  if (result.kind === 'participant-a') {
+    return (
+      <DuelBootstrapShell t={t}>
+        <DuelInvitePanel matchId={result.matchId} t={t} onGoTop={onGoTop} />
       </DuelBootstrapShell>
     )
   }
@@ -107,10 +196,10 @@ export function DuelClaimBootstrap({
       <DuelFlow
         t={t}
         participantB={{
-          matchId: state.result.matchId,
-          totalRounds: state.result.state.totalRounds,
+          matchId: result.matchId,
+          totalRounds: result.state.totalRounds,
         }}
-        initiallyLocked={state.result.state.self.placementLocked}
+        initiallyLocked={false}
       />
     </DuelBootstrapShell>
   )

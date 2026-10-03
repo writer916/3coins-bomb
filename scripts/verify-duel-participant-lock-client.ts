@@ -334,7 +334,9 @@ async function main() {
   assert(flowSource.includes('createDuelSession(participantB.totalRounds)'))
   assert(!flowSource.includes('duelLockConfirm'))
   assert(flowSource.includes('window.confirm(t.duelStartOverConfirm)'))
-  assert(bootstrapSource.includes('initiallyLocked={state.result.state.self.placementLocked}'))
+  // Unlocked B keeps placement flow; locked B resumes via resolveDuelLockedResume → PlayScreen.
+  assert(bootstrapSource.includes('initiallyLocked={false}'))
+  assert(bootstrapSource.includes('resolveDuelLockedResume'))
   assert(!lockSource.includes("fetch('/api/duel/matches'"))
   assert(!lockSource.includes('fetch("/api/duel/matches"'))
   assert(!lockSource.includes('../server/'))

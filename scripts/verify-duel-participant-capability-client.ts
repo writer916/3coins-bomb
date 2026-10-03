@@ -187,7 +187,7 @@ assert.equal(
   assert.deepEqual(history.urls, [`/duel/${MATCH_ID}`])
 }
 
-/* 5: #p= none → LS fallback via claim bootstrap */
+/* 5: #p= none → LS fallback via claim bootstrap (GET match for resume snapshot) */
 {
   const storage = new MemoryStorage()
   setParticipant(storage, 'A', PARTICIPANT_A_TOKEN)
@@ -195,14 +195,20 @@ assert.equal(
   const coordinator = createDuelClaimBootstrapCoordinator({
     storage,
     history,
-    fetch: async () => {
-      assert.fail('fallback path must not fetch for participant A')
-      return json({})
+    fetch: async (input, init) => {
+      assert.equal(String(input), `/api/duel/matches/${MATCH_ID}`)
+      assert.equal(
+        new Headers(init?.headers).get('Authorization'),
+        `Bearer ${PARTICIPANT_A_TOKEN}`,
+      )
+      return json(getResponse('A'))
     },
     crypto: cryptoFixture,
   })
   const result = await coordinator.run(CLEAN_URL)
-  assert.deepEqual(result, { kind: 'participant-a', matchId: MATCH_ID })
+  assert.equal(result.kind, 'participant-a')
+  assert.equal(result.matchId, MATCH_ID)
+  assert.equal(result.state.self.placementLocked, true)
   assert.equal(history.urls.length, 0)
   assert.equal(readParticipant(storage, MATCH_ID)?.token, PARTICIPANT_A_TOKEN)
 }
@@ -327,7 +333,10 @@ assert.equal(
     crypto: cryptoFixture,
   })
   const result = await coordinator.run(A_URL)
-  assert.deepEqual(result, { kind: 'participant-a', matchId: MATCH_ID })
+  assert.equal(result.kind, 'participant-a')
+  assert.equal(result.matchId, MATCH_ID)
+  assert.equal(result.state.role, 'A')
+  assert.equal(result.state.self.placementLocked, true)
   assert.deepEqual(readParticipant(storage, MATCH_ID), {
     version: 1,
     matchId: MATCH_ID,

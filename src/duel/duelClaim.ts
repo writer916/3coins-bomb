@@ -33,7 +33,7 @@ export class DuelClaimBootstrapError extends Error {
 export interface DuelParticipantState {
   readonly matchId: string
   readonly totalRounds: number
-  readonly role: 'B'
+  readonly role: 'A' | 'B'
   readonly createdAt: string
   readonly expiresAt: string | null
   readonly formationVersion: number
@@ -52,6 +52,7 @@ export type DuelClaimBootstrapResult =
   | {
       readonly kind: 'participant-a'
       readonly matchId: string
+      readonly state: DuelParticipantState
     }
   | {
       readonly kind: 'participant-b'
@@ -152,7 +153,11 @@ function parseClaimResponse(value: unknown, expectedMatchId: string): {
   }
 }
 
-function participantState(value: unknown, expectedMatchId: string): DuelParticipantState {
+function participantState(
+  value: unknown,
+  expectedMatchId: string,
+  expectedRole: 'A' | 'B',
+): DuelParticipantState {
   const record = objectRecord(value)
   exactKeys(record, [
     'matchId',
@@ -165,7 +170,9 @@ function participantState(value: unknown, expectedMatchId: string): DuelParticip
     'self',
     'opponent',
   ])
-  if (record.matchId !== expectedMatchId || record.role !== 'B') return invalid()
+  if (record.matchId !== expectedMatchId || record.role !== expectedRole) {
+    return invalid()
+  }
   const self = objectRecord(record.self)
   const opponent = objectRecord(record.opponent)
   exactKeys(self, ['claimed', 'placementLocked'])
@@ -181,7 +188,7 @@ function participantState(value: unknown, expectedMatchId: string): DuelParticip
   return {
     matchId: expectedMatchId,
     totalRounds: totalRounds(record.totalRounds),
-    role: 'B',
+    role: expectedRole,
     createdAt: timestamp(record.createdAt) as string,
     expiresAt: timestamp(record.expiresAt, true),
     formationVersion: positiveVersion(record.formationVersion),
@@ -198,6 +205,7 @@ async function tryGetParticipantState(
   matchId: string,
   participantToken: string,
   fetcher: typeof fetch,
+  expectedRole: 'A' | 'B',
 ): Promise<DuelParticipantState | null> {
   try {
     const response = await fetcher(
@@ -209,7 +217,7 @@ async function tryGetParticipantState(
     )
     if (!response.ok) return null
     const body: unknown = await response.json()
-    return participantState(body, matchId)
+    return participantState(body, matchId, expectedRole)
   } catch {
     return null
   }
@@ -219,8 +227,14 @@ async function getParticipantState(
   matchId: string,
   participantToken: string,
   fetcher: typeof fetch,
+  expectedRole: 'A' | 'B' = 'B',
 ): Promise<DuelParticipantState> {
-  const state = await tryGetParticipantState(matchId, participantToken, fetcher)
+  const state = await tryGetParticipantState(
+    matchId,
+    participantToken,
+    fetcher,
+    expectedRole,
+  )
   if (!state) return invalid()
   return state
 }
@@ -239,6 +253,7 @@ async function importPromotedBFromInvite(
     matchId,
     invitationToken,
     dependencies.fetch,
+    'B',
   )
   if (!state) return null
   const pending = readPendingClaim(dependencies.storage)
@@ -316,6 +331,7 @@ async function claimPending(
     claimed.matchId,
     claimed.participantToken,
     dependencies.fetch,
+    'B',
   )
   if (state.totalRounds !== claimed.totalRounds) return invalid()
   return { kind: 'participant-b', matchId: claimed.matchId, state }
@@ -361,6 +377,7 @@ async function bootstrapInvitationUrl(
         parsed.matchId,
         existing.token,
         dependencies.fetch,
+        'B',
       )
       if (state) {
         try {
@@ -391,16 +408,13 @@ async function executeBootstrap(
           history: dependencies.history,
           fetch: dependencies.fetch,
         })
-        if (imported.kind === 'participant-a') {
-          return { kind: 'participant-a', matchId: imported.matchId }
-        }
         return {
-          kind: 'participant-b',
+          kind: imported.kind,
           matchId: imported.matchId,
           state: {
             matchId: imported.matchId,
             totalRounds: imported.totalRounds,
-            role: 'B',
+            role: imported.kind === 'participant-a' ? 'A' : 'B',
             createdAt: imported.createdAt,
             expiresAt: imported.expiresAt,
             formationVersion: imported.formationVersion,
@@ -416,13 +430,20 @@ async function executeBootstrap(
 
     const participant = readParticipant(dependencies.storage, route.matchId)
     if (participant?.role === 'A') {
-      return { kind: 'participant-a', matchId: route.matchId }
+      const state = await getParticipantState(
+        route.matchId,
+        participant.token,
+        dependencies.fetch,
+        'A',
+      )
+      return { kind: 'participant-a', matchId: route.matchId, state }
     }
     if (participant?.role === 'B') {
       const state = await getParticipantState(
         route.matchId,
         participant.token,
         dependencies.fetch,
+        'B',
       )
       return { kind: 'participant-b', matchId: route.matchId, state }
     }

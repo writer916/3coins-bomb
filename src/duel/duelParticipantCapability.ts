@@ -29,6 +29,19 @@ export type DuelParticipantCapabilityImportResult =
       readonly kind: 'participant-a'
       readonly matchId: string
       readonly participant: DuelParticipantRecord
+      readonly totalRounds: number
+      readonly createdAt: string
+      readonly expiresAt: string | null
+      readonly formationVersion: number
+      readonly ruleVersion: number
+      readonly self: {
+        readonly claimed: true
+        readonly placementLocked: boolean
+      }
+      readonly opponent: {
+        readonly claimed: boolean
+        readonly placementLocked: boolean
+      }
     }
   | {
       readonly kind: 'participant-b'
@@ -230,15 +243,8 @@ export async function importDuelParticipantCapability(
 
   cleanPathAfterPersist(dependencies.history, parsed.cleanPath)
 
-  if (authenticated.role === 'A') {
-    return {
-      kind: 'participant-a',
-      matchId: authenticated.matchId,
-      participant: stored,
-    }
-  }
   return {
-    kind: 'participant-b',
+    kind: authenticated.role === 'A' ? 'participant-a' : 'participant-b',
     matchId: authenticated.matchId,
     participant: stored,
     totalRounds: authenticated.totalRounds,
