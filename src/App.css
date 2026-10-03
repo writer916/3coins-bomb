@@ -1234,6 +1234,32 @@
   max-width: 26rem;
 }
 
+/*
+  Completion waiting: fixed locale slots so JA/EN copy height
+  (incl. EN wrap at 320px) cannot shift the centered cluster.
+  Keep justify-content:center; do not restyle UX.
+*/
+.duel-final--waiting .duel-final-kicker {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 1.35em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.duel-final--waiting .duel-final-copy {
+  box-sizing: border-box;
+  width: min(100%, 26rem);
+  max-width: 26rem;
+  /* 2 lines covers EN “Waiting for your opponent…” wrap @ 320px. */
+  min-height: calc(1em * 1.5 * 2);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  text-align: center;
+}
+
 .duel-final-verdict {
   font-family: Georgia, 'Times New Roman', serif;
   font-size: clamp(2.3rem, 11vw, 4.6rem);
@@ -1261,10 +1287,19 @@
 }
 
 .duel-final-player h3 {
+  box-sizing: border-box;
   margin-bottom: 0.75rem;
   font-family: Georgia, 'Times New Roman', serif;
   font-size: clamp(0.95rem, 3.2vw, 1.1rem);
   letter-spacing: 0.06em;
+  /*
+    Absorb Georgia CJK vs Latin line-box (JA あなた/相手 ~25px,
+    EN YOU/OPPONENT ~17px). Font face/size/weight unchanged.
+  */
+  min-height: 1.6rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Compact stat block so label↔value stay a readable pair inside each card. */
