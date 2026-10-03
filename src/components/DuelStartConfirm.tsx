@@ -25,11 +25,9 @@ export function DuelStartConfirm({
   return (
     <div className="duel-flow duel-flow--start-confirm">
       <div className="duel-start-confirm" role="status">
-        {createdLabel ? (
-          <p className="duel-start-confirm__created">
-            {withDuelNums(createdLabel)}
-          </p>
-        ) : null}
+        <p className="duel-start-confirm__created">
+          {createdLabel ? withDuelNums(createdLabel) : '\u00a0'}
+        </p>
         <p className="duel-start-confirm__ready">{t.duelStartConfirmReady}</p>
         <ul className="duel-start-confirm__list">
           <li>
@@ -41,24 +39,28 @@ export function DuelStartConfirm({
             </span>
           </li>
         </ul>
-        <button
-          type="button"
-          className="duel-btn duel-btn--primary duel-start-confirm__start"
-          data-duel-metric="primary"
-          onClick={onStart}
-        >
-          {t.duelStartConfirmStart}
-        </button>
-        {onGoTop ? (
+        <div className="duel-start-confirm__actions">
           <button
             type="button"
-            className="duel-btn duel-start-confirm__top"
-            data-duel-metric="secondary"
-            onClick={onGoTop}
+            className="duel-btn duel-btn--primary duel-start-confirm__start"
+            data-duel-metric="primary"
+            onClick={onStart}
           >
-            {t.duelReturnToTop}
+            {t.duelStartConfirmStart}
           </button>
-        ) : null}
+          {onGoTop ? (
+            <button
+              type="button"
+              className="duel-btn duel-start-confirm__top"
+              data-duel-metric="secondary"
+              onClick={onGoTop}
+            >
+              {t.duelReturnToTop}
+            </button>
+          ) : (
+            <span className="duel-start-confirm__top-slot" aria-hidden="true" />
+          )}
+        </div>
       </div>
     </div>
   )

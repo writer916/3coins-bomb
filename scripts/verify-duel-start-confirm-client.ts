@@ -22,10 +22,13 @@ assert.equal(en.duelMatchCreatedAt(SAMPLE_ISO), 'Created Oct 3, 2026, 11:00 PM')
 
 assert.equal(ja.duelStartConfirmReady, 'お互いの配置が完了しました')
 assert.equal(en.duelStartConfirmReady, 'BOTH PLACEMENTS ARE COMPLETE')
-assert.equal(ja.duelStartConfirmRoundsLabel, 'ROUND数')
+/* Locale-invariant ROUNDS / N (JA and EN identical). */
+assert.equal(ja.duelStartConfirmRoundsLabel, 'ROUNDS')
 assert.equal(en.duelStartConfirmRoundsLabel, 'ROUNDS')
-assert.equal(ja.duelStartConfirmRoundsValue(5), '5 ROUND')
+assert.equal(ja.duelStartConfirmRoundsValue(5), '5')
 assert.equal(en.duelStartConfirmRoundsValue(5), '5')
+assert.equal(ja.duelStartConfirmRoundsValue(2), '2')
+assert.equal(en.duelStartConfirmRoundsValue(2), '2')
 assert.equal(ja.duelStartConfirmStart, '対戦をはじめる')
 assert.equal(en.duelStartConfirmStart, 'START DUEL')
 
