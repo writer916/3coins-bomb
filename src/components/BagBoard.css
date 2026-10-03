@@ -29,6 +29,14 @@
 }
 
 /*
+  Soft sync gate: keep bag pixels invisible until preload/decode settles
+  (or a short timeout). Snap — no opacity transition (would re-stagger).
+*/
+.bag-board--preparing .bag-image {
+  opacity: 0;
+}
+
+/*
   Interactive region ≈ opaque bag body (assets have ~6–9% transparent margin).
   Slightly larger inset than alpha bounds so corners/drawstring padding don't steal taps.
   Still ≥ ~50px on SE for 8-bag size — usable touch target.

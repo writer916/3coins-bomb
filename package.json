@@ -16,6 +16,7 @@
     "verify:bomb": "tsx scripts/verify-bomb-fx.ts",
     "verify:bomb-audio": "tsx scripts/verify-bomb-audio.ts",
     "verify:bag-audio": "tsx scripts/verify-bag-audio.ts",
+    "verify:bag-image-prep": "tsx scripts/verify-bag-image-prep.ts",
     "verify:three-coins": "tsx scripts/verify-three-coins.ts",
     "verify:coin-fx-visual": "tsx scripts/verify-coin-fx-visual.ts",
     "verify:coin-sprites": "tsx scripts/verify-coin-sprites.ts",

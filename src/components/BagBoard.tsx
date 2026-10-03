@@ -1,5 +1,9 @@
-import type { ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { bagSrc, type BagId } from '../game/assets'
+import {
+  BAG_IMAGE_PREP_TIMEOUT_MS,
+  prepareBagImages,
+} from '../game/bagImagePrep'
 import {
   bagSlotDepthZIndex,
   getFormation,
@@ -24,12 +28,34 @@ export function BagBoard({
   children,
 }: BagBoardProps) {
   const slots = getFormation(bagCount)
+  // Soft gate: hide bag pixels until decode prep settles or a short timeout.
+  // Does not block layout; OPEN/FX overlays still mount in the same board.
+  const [imagesReady, setImagesReady] = useState(false)
+
+  useEffect(() => {
+    let active = true
+    const show = () => {
+      if (active) setImagesReady(true)
+    }
+    const timer = window.setTimeout(show, BAG_IMAGE_PREP_TIMEOUT_MS)
+    void prepareBagImages().finally(() => {
+      window.clearTimeout(timer)
+      show()
+    })
+    return () => {
+      active = false
+      window.clearTimeout(timer)
+    }
+  }, [])
 
   return (
     <div
-      className="bag-board"
+      className={
+        imagesReady ? 'bag-board' : 'bag-board bag-board--preparing'
+      }
       data-bag-count={bagCount}
       aria-label={`${bagCount} bags`}
+      aria-busy={imagesReady ? undefined : true}
     >
       {slots.map((slot) => {
         if (hiddenBagIds?.has(slot.bagId)) {

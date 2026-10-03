@@ -12,6 +12,7 @@ import { SoundToggle } from './components/SoundToggle'
 import type { BagId } from './game/assets'
 import { unlockCoinAudio } from './game/coinAudio'
 import { playBagOpen, warmBagOpenAudio } from './game/bagAudio'
+import { prepareBagImages } from './game/bagImagePrep'
 import { resolveBagOpenSeRequest } from './game/bagSfx'
 import {
   visualHiddenBagIds,
@@ -154,6 +155,11 @@ function App() {
   useEffect(() => {
     soundOnRef.current = soundOn
   }, [soundOn])
+
+  // Warm bag-1…8 decode early (TOP / duel bootstrap) so boards paint together.
+  useEffect(() => {
+    void prepareBagImages()
+  }, [])
 
   const clearOpenFx = useCallback(() => {
     fxLockRef.current = false
