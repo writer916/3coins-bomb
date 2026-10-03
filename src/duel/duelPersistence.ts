@@ -700,14 +700,14 @@ export function readARecoveryState(storage: StorageAdapter): DuelARecoveryState 
   const pendingCreate = readPendingCreate(storage)
   if (pendingCreate) return { phase: 'create-retry', pending: pendingCreate }
   if (pendingLock) {
-    const participant = readParticipant(storage, pendingLock.matchId)
-    if (participant?.role === 'B') return { phase: 'idle' }
-    throw new DuelStorageError('INVALID_DATA')
+    // B pending-lock, or A existing-match resume pending-lock (no invitation):
+    // ignore for TOP create recovery so create+LOCK is not blocked / forced.
+    return { phase: 'idle' }
   }
   return { phase: 'idle' }
 }
 
-export type DuelBRecoveryState =
+export type DuelParticipantLockRecoveryState =
   | { readonly phase: 'idle' }
   | {
       readonly phase: 'lock-retry'
@@ -715,11 +715,18 @@ export type DuelBRecoveryState =
       readonly participant: DuelParticipantRecord
     }
 
-/** Determines the next safe B LOCK action after reload without making a request. */
-export function readBRecoveryState(
+/** @deprecated Alias of DuelParticipantLockRecoveryState (B-oriented name). */
+export type DuelBRecoveryState = DuelParticipantLockRecoveryState
+
+/**
+ * Determines the next safe existing-participant LOCK action after reload
+ * without making a request. Invitation plaintext is not required.
+ */
+export function readParticipantLockRecovery(
   storage: StorageAdapter,
   matchIdValue: string,
-): DuelBRecoveryState {
+  role: DuelParticipantRole,
+): DuelParticipantLockRecoveryState {
   const matchId = validateUuid(matchIdValue)
   const pendingLock = readPendingLock(storage)
   if (!pendingLock || pendingLock.matchId !== matchId) {
@@ -727,12 +734,20 @@ export function readBRecoveryState(
   }
   const participant = readParticipant(storage, matchId)
   if (
-    participant?.role === 'B' &&
+    participant?.role === role &&
     participant.matchId === pendingLock.matchId
   ) {
     return { phase: 'lock-retry', pending: pendingLock, participant }
   }
   return { phase: 'idle' }
+}
+
+/** Determines the next safe B LOCK action after reload without making a request. */
+export function readBRecoveryState(
+  storage: StorageAdapter,
+  matchIdValue: string,
+): DuelParticipantLockRecoveryState {
+  return readParticipantLockRecovery(storage, matchIdValue, 'B')
 }
 
 export function savePendingLock(
@@ -742,10 +757,14 @@ export function savePendingLock(
   writeVerified(storage, DUEL_PENDING_LOCK_KEY, validatePendingLock(record))
 }
 
-/** Clears retryable B LOCK state after server confirmation. */
-export function completeParticipantBLock(
+/**
+ * Clears retryable existing-participant LOCK state after server confirmation.
+ * Invitation plaintext is not required (unlike completePendingLock for TOP create).
+ */
+export function completeParticipantLock(
   storage: StorageAdapter,
   matchIdValue: string,
+  expectedRole: DuelParticipantRole,
 ): DuelMatchIndexRecord {
   const matchId = validateUuid(matchIdValue)
   const pendingLock = readPendingLock(storage)
@@ -753,7 +772,7 @@ export function completeParticipantBLock(
   if (
     !pendingLock ||
     pendingLock.matchId !== matchId ||
-    participant?.role !== 'B' ||
+    participant?.role !== expectedRole ||
     participant.matchId !== matchId
   ) {
     throw new DuelStorageError('INVALID_DATA')
@@ -768,4 +787,12 @@ export function completeParticipantBLock(
   writeVerified(storage, DUEL_MATCH_INDEX_KEY, next)
   removeVerified(storage, DUEL_PENDING_LOCK_KEY)
   return next
+}
+
+/** Clears retryable B LOCK state after server confirmation. */
+export function completeParticipantBLock(
+  storage: StorageAdapter,
+  matchIdValue: string,
+): DuelMatchIndexRecord {
+  return completeParticipantLock(storage, matchIdValue, 'B')
 }

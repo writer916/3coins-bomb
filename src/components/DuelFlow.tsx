@@ -23,7 +23,7 @@ import {
 } from '../game/duelPlacement'
 import type { AppStrings } from '../i18n'
 import { createDuelALockCoordinator } from '../duel/duelCreateLock'
-import { createDuelBLockCoordinator } from '../duel/duelParticipantLock'
+import { createDuelParticipantLockCoordinator } from '../duel/duelParticipantLock'
 import { withDuelNumsAndBreaks } from '../ui/withDuelNums'
 import { BagBoard } from './BagBoard'
 import { DuelInvitePanel } from './DuelInvitePanel'
@@ -31,18 +31,26 @@ import { DuelPlayScreen } from './DuelPlayScreen'
 import { DuelPlacementOverlay } from './DuelPlacementOverlay'
 import { NumberStepper } from './NumberStepper'
 
-export type DuelParticipantBConfig = {
+export type DuelExistingParticipantConfig = {
   readonly matchId: string
   readonly totalRounds: number
 }
+
+/** @deprecated Prefer DuelExistingParticipantConfig; kept for call-site clarity. */
+export type DuelParticipantBConfig = DuelExistingParticipantConfig
 
 type DuelFlowProps = {
   t: AppStrings
   /** Setup-only: return to mode select (no confirm). */
   onGoTop?: () => void
+  /**
+   * Claimed A on an existing match (e.g. #p resume): fixed ROUND count and
+   * server LOCK without match create. Mutually exclusive with participantB.
+   */
+  participantA?: DuelExistingParticipantConfig
   /** Claimed B participant: fixed ROUND count and server LOCK without match create. */
-  participantB?: DuelParticipantBConfig
-  /** B already placement-locked on server (revisit). */
+  participantB?: DuelExistingParticipantConfig
+  /** Existing participant already placement-locked on server (revisit). */
   initiallyLocked?: boolean
 }
 
@@ -127,17 +135,21 @@ function DuelConfigShell({
 export function DuelFlow({
   t,
   onGoTop,
+  participantA,
   participantB,
   initiallyLocked = false,
 }: DuelFlowProps) {
+  const existingRole = participantA ? ('A' as const) : participantB ? ('B' as const) : null
+  const existingMatchId = participantA?.matchId ?? participantB?.matchId ?? null
+  const existingTotalRounds = participantA?.totalRounds ?? participantB?.totalRounds ?? null
   const [roundsDraft, setRoundsDraft] = useState(DUEL_ROUNDS_DEFAULT)
   const [serverLocked, setServerLocked] = useState(initiallyLocked)
   const [lockedMatchId, setLockedMatchId] = useState<string | null>(
-    participantB?.matchId ?? null,
+    existingMatchId,
   )
   const [session, setSession] = useState<DuelPlacementSession | null>(() => {
     if (initiallyLocked) return null
-    if (participantB) return createDuelSession(participantB.totalRounds)
+    if (existingTotalRounds != null) return createDuelSession(existingTotalRounds)
     return null
   })
   const [lockPending, setLockPending] = useState(false)
@@ -146,8 +158,8 @@ export function DuelFlow({
   const lockCoordinatorRef = useRef<ReturnType<
     typeof createDuelALockCoordinator
   > | null>(null)
-  const bLockCoordinatorRef = useRef<ReturnType<
-    typeof createDuelBLockCoordinator
+  const participantLockCoordinatorRef = useRef<ReturnType<
+    typeof createDuelParticipantLockCoordinator
   > | null>(null)
 
   const startSession = useCallback(() => {
@@ -155,9 +167,14 @@ export function DuelFlow({
   }, [roundsDraft])
 
   const onBackFromBags = useCallback(() => {
+    // Existing-match placement: never return to ROUND count picker.
+    if (existingTotalRounds != null) {
+      setSession(createDuelSession(existingTotalRounds))
+      return
+    }
     // BAG setup BACK → ROUND setup (keep roundsDraft). No confirm.
     setSession(null)
-  }, [])
+  }, [existingTotalRounds])
 
   const onBackFromPlace = useCallback(() => {
     // Place BACK → this ROUND's BAGS setup; discard placement. No confirm.
@@ -213,8 +230,8 @@ export function DuelFlow({
   const onStartOver = useCallback(() => {
     if (lockPendingRef.current) return
     if (!window.confirm(t.duelStartOverConfirm)) return
-    if (participantB) {
-      setSession(createDuelSession(participantB.totalRounds))
+    if (existingTotalRounds != null) {
+      setSession(createDuelSession(existingTotalRounds))
       setLockError(false)
       return
     }
@@ -222,7 +239,7 @@ export function DuelFlow({
     setSession(null)
     setRoundsDraft(DUEL_ROUNDS_DEFAULT)
     onGoTop?.()
-  }, [participantB, t.duelStartOverConfirm, onGoTop])
+  }, [existingTotalRounds, t.duelStartOverConfirm, onGoTop])
 
   const onLock = useCallback(async () => {
     if (lockPendingRef.current || !session?.awaitingLock) return
@@ -230,17 +247,18 @@ export function DuelFlow({
     setLockPending(true)
     setLockError(false)
     try {
-      if (participantB) {
-        bLockCoordinatorRef.current ??= createDuelBLockCoordinator({
+      if (existingRole && existingMatchId != null && existingTotalRounds != null) {
+        participantLockCoordinatorRef.current ??= createDuelParticipantLockCoordinator({
           storage: window.localStorage,
           fetch: window.fetch.bind(window),
         })
-        await bLockCoordinatorRef.current.run({
-          matchId: participantB.matchId,
+        await participantLockCoordinatorRef.current.run({
+          matchId: existingMatchId,
           totalRounds: session.totalRounds,
           placements: session.completed,
+          role: existingRole,
         })
-        setLockedMatchId(participantB.matchId)
+        setLockedMatchId(existingMatchId)
       } else {
         lockCoordinatorRef.current ??= createDuelALockCoordinator({
           storage: window.localStorage,
@@ -261,7 +279,7 @@ export function DuelFlow({
       lockPendingRef.current = false
       setLockPending(false)
     }
-  }, [participantB, session])
+  }, [existingRole, existingMatchId, existingTotalRounds, session])
 
   const draft = session?.current ?? null
 
@@ -282,7 +300,8 @@ export function DuelFlow({
   }, [draft, t])
 
   if (serverLocked || session?.locked) {
-    if (!participantB && lockedMatchId) {
+    // TOP create A and #p resume A → invite / opponent wait. B → play.
+    if (lockedMatchId && existingRole !== 'B') {
       return <DuelInvitePanel matchId={lockedMatchId} t={t} onGoTop={onGoTop} />
     }
     if (participantB && lockedMatchId) {
@@ -296,8 +315,12 @@ export function DuelFlow({
     )
   }
 
-  /* ——— ROUND count setup (layout reference) ——— */
+  /* ——— ROUND count setup (TOP create A only) ——— */
   if (!session) {
+    if (existingRole != null) {
+      // Existing-match resume must never offer ROUND count selection.
+      return null
+    }
     return (
       <DuelConfigShell
         hint={t.duelRoundsHint}

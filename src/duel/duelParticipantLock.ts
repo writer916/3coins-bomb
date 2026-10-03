@@ -1,11 +1,12 @@
 import type { DuelRoundPlacement } from '../game/duelPlacement'
 import {
-  completeParticipantBLock,
-  readBRecoveryState,
+  completeParticipantLock,
+  readParticipantLockRecovery,
   readParticipant,
   savePendingLock,
   toCanonicalDuelPlacements,
   type CanonicalDuelPlacement,
+  type DuelParticipantRole,
   type StorageAdapter,
 } from './duelPersistence'
 
@@ -28,6 +29,7 @@ export interface DuelParticipantLockInput {
   readonly matchId: string
   readonly totalRounds: number
   readonly placements: readonly DuelRoundPlacement[]
+  readonly role: DuelParticipantRole
 }
 
 export interface DuelParticipantLockDependencies {
@@ -46,16 +48,17 @@ function samePlacements(
   return JSON.stringify(left) === JSON.stringify(right)
 }
 
-function confirmsBLock(
+function confirmsParticipantLock(
   value: unknown,
   matchId: string,
   totalRounds: number,
+  role: DuelParticipantRole,
 ): boolean {
   return (
     isRecord(value) &&
     value.matchId === matchId &&
     value.totalRounds === totalRounds &&
-    value.role === 'B' &&
+    value.role === role &&
     isRecord(value.self) &&
     value.self.claimed === true &&
     value.self.placementLocked === true
@@ -81,14 +84,18 @@ async function executeParticipantLock(
       throw new DuelParticipantLockError('REQUEST_FAILED')
     }
     const canonical = toCanonicalDuelPlacements(input.placements, input.totalRounds)
-    const recovery = readBRecoveryState(dependencies.storage, matchId)
+    const recovery = readParticipantLockRecovery(
+      dependencies.storage,
+      matchId,
+      input.role,
+    )
     let participantToken: string
     let lockPlacements: readonly CanonicalDuelPlacement[]
 
     if (recovery.phase === 'lock-retry') {
       if (
         recovery.pending.matchId !== matchId ||
-        recovery.participant.role !== 'B' ||
+        recovery.participant.role !== input.role ||
         recovery.participant.matchId !== matchId ||
         !samePlacements(recovery.pending.placements, canonical)
       ) {
@@ -98,7 +105,7 @@ async function executeParticipantLock(
       lockPlacements = recovery.pending.placements
     } else {
       const participant = readParticipant(dependencies.storage, matchId)
-      if (participant?.role !== 'B' || participant.matchId !== matchId) {
+      if (participant?.role !== input.role || participant.matchId !== matchId) {
         throw new DuelParticipantLockError('REQUEST_FAILED')
       }
       if (input.totalRounds !== input.placements.length) {
@@ -133,18 +140,18 @@ async function executeParticipantLock(
         headers: { Authorization: `Bearer ${participantToken}` },
       }),
     )
-    if (!confirmsBLock(state, matchId, input.totalRounds)) {
+    if (!confirmsParticipantLock(state, matchId, input.totalRounds, input.role)) {
       throw new DuelParticipantLockError('REQUEST_FAILED')
     }
-    completeParticipantBLock(dependencies.storage, matchId)
+    completeParticipantLock(dependencies.storage, matchId, input.role)
   } catch (error: unknown) {
     if (error instanceof DuelParticipantLockError) throw error
     throw new DuelParticipantLockError('REQUEST_FAILED')
   }
 }
 
-/** Coalesces concurrent clicks while allowing another attempt after failure. */
-export function createDuelBLockCoordinator(
+/** Existing-match LOCK for claimed A or B. Never creates a match. */
+export function createDuelParticipantLockCoordinator(
   dependencies: DuelParticipantLockDependencies,
 ): {
   run(input: DuelParticipantLockInput): Promise<void>
@@ -157,6 +164,22 @@ export function createDuelBLockCoordinator(
         inFlight = null
       })
       return inFlight
+    },
+  }
+}
+
+type DuelBLockInput = Omit<DuelParticipantLockInput, 'role'>
+
+/** Coalesces concurrent clicks while allowing another attempt after failure. */
+export function createDuelBLockCoordinator(
+  dependencies: DuelParticipantLockDependencies,
+): {
+  run(input: DuelBLockInput): Promise<void>
+} {
+  const coordinator = createDuelParticipantLockCoordinator(dependencies)
+  return {
+    run(input) {
+      return coordinator.run({ ...input, role: 'B' })
     },
   }
 }

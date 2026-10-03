@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises'
 import { createDuelALockCoordinator } from '../src/duel/duelCreateLock'
 import {
   createDuelBLockCoordinator,
+  createDuelParticipantLockCoordinator,
   DuelParticipantLockError,
 } from '../src/duel/duelParticipantLock'
 import {
@@ -324,23 +325,57 @@ async function main() {
   await aCoordinator.run({ totalRounds: 2, placements })
   assert(aCalls.includes('/api/duel/matches'))
 
+  /* A existing-match LOCK via generalized coordinator (no create) */
+  const aResumeStorage = new MemoryStorage()
+  setParticipant(aResumeStorage, 'A', A_TOKEN)
+  const aResumeUrls: string[] = []
+  await createDuelParticipantLockCoordinator({
+    storage: aResumeStorage,
+    fetch: async (input) => {
+      const url = String(input)
+      aResumeUrls.push(url)
+      if (url === '/api/duel/matches') assert.fail('A resume must not create')
+      if (url.endsWith('/placements/lock')) return json({ placementLocked: true })
+      return json({
+        matchId: MATCH_ID,
+        totalRounds: 2,
+        role: 'A',
+        createdAt: '2026-01-01T00:00:00.000Z',
+        expiresAt: null,
+        formationVersion: 1,
+        ruleVersion: 1,
+        self: { claimed: true, placementLocked: true },
+        opponent: { claimed: false, placementLocked: false },
+      })
+    },
+  }).run({ matchId: MATCH_ID, totalRounds: 2, placements, role: 'A' })
+  assert.deepEqual(aResumeUrls, [
+    `/api/duel/matches/${MATCH_ID}/placements/lock`,
+    `/api/duel/matches/${MATCH_ID}`,
+  ])
+  assert.equal(aResumeStorage.getItem(DUEL_PENDING_LOCK_KEY), null)
+
   const flowSource = await readFile('src/components/DuelFlow.tsx', 'utf8')
   const bootstrapSource = await readFile('src/components/DuelClaimBootstrap.tsx', 'utf8')
   const lockSource = await readFile('src/duel/duelParticipantLock.ts', 'utf8')
   const claimSource = await readFile('src/duel/duelClaim.ts', 'utf8')
 
-  assert(flowSource.includes('createDuelBLockCoordinator'))
+  assert(flowSource.includes('createDuelParticipantLockCoordinator'))
   assert(flowSource.includes('participantB'))
-  assert(flowSource.includes('createDuelSession(participantB.totalRounds)'))
+  assert(flowSource.includes('participantA'))
+  assert(flowSource.includes('existingTotalRounds'))
   assert(!flowSource.includes('duelLockConfirm'))
   assert(flowSource.includes('window.confirm(t.duelStartOverConfirm)'))
   // Unlocked B keeps placement flow; locked B resumes via resolveDuelLockedResume → PlayScreen.
   assert(bootstrapSource.includes('initiallyLocked={false}'))
   assert(bootstrapSource.includes('resolveDuelLockedResume'))
+  assert(bootstrapSource.includes('participantA'))
   assert(!lockSource.includes("fetch('/api/duel/matches'"))
   assert(!lockSource.includes('fetch("/api/duel/matches"'))
   assert(!lockSource.includes('../server/'))
   assert(!lockSource.includes('console.'))
+  assert(lockSource.includes('createDuelBLockCoordinator'))
+  assert(lockSource.includes('createDuelParticipantLockCoordinator'))
   assert(!claimSource.includes('bombBag'))
   assert(!claimSource.includes('coinBag'))
 

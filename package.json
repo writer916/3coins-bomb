@@ -58,6 +58,8 @@
     "verify:duel-result-ready-client": "tsx scripts/verify-duel-result-ready-client.ts",
     "verify:duel-locked-resume": "tsx scripts/verify-duel-locked-resume.ts",
     "verify:duel-locked-resume-client": "tsx scripts/verify-duel-locked-resume-client.ts",
+    "verify:duel-a-placement-resume": "tsx scripts/verify-duel-a-placement-resume.ts",
+    "verify:duel-a-placement-resume-client": "tsx scripts/verify-duel-a-placement-resume-client.ts",
     "verify:open-fx-fallback": "tsx scripts/verify-open-fx-fallback.ts",
     "db:generate": "drizzle-kit generate",
     "preview": "vite preview"

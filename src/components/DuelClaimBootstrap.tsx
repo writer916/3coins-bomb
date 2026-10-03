@@ -182,11 +182,19 @@ export function DuelClaimBootstrap({
     )
   }
 
-  // Unlocked: keep first-visit placement / legacy A invite behavior.
+  // Unlocked A #p: existing-match placement from ROUND 1 (no create).
   if (result.kind === 'participant-a') {
     return (
       <DuelBootstrapShell t={t}>
-        <DuelInvitePanel matchId={result.matchId} t={t} onGoTop={onGoTop} />
+        <DuelFlow
+          t={t}
+          onGoTop={onGoTop}
+          participantA={{
+            matchId: result.matchId,
+            totalRounds: result.state.totalRounds,
+          }}
+          initiallyLocked={false}
+        />
       </DuelBootstrapShell>
     )
   }
@@ -195,6 +203,7 @@ export function DuelClaimBootstrap({
     <DuelBootstrapShell t={t}>
       <DuelFlow
         t={t}
+        onGoTop={onGoTop}
         participantB={{
           matchId: result.matchId,
           totalRounds: result.state.totalRounds,
