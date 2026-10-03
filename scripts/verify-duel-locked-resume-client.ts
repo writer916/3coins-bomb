@@ -134,6 +134,7 @@ assert.match(bootstrap, /start-confirm/)
 assert.match(bootstrap, /fetchPlayState/)
 assert.match(bootstrap, /placementLocked/)
 assert.match(bootstrap, /initiallyLocked=\{false\}/)
+assert.match(bootstrap, /topControls/)
 assert.doesNotMatch(bootstrap, /#p=.*#invite=|pb1_/)
 
 assert.match(lockedResume, /duelResumeNeedsCompletionSnapshot/)

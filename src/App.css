@@ -532,6 +532,28 @@
     min-width: 3.2ch;
   }
 
+  /* DUEL PLAY: keep widened spacing; do not pack via tighter gaps / smaller type. */
+  .duel-play .score-row {
+    gap: 0.95rem 1.25rem;
+  }
+
+  .duel-play .score-item {
+    gap: 0.5rem;
+  }
+
+  .duel-play .score-label {
+    font-size: clamp(0.95rem, 3.6vw, 1.15rem);
+    letter-spacing: 0.04em;
+  }
+
+  .duel-play .score-num {
+    font-size: clamp(1.05rem, 4.2vw, 1.25rem);
+  }
+
+  .duel-play .score-row > .score-item:first-child .score-num {
+    min-width: 7.25ch;
+  }
+
   .reset-btn {
     margin-left: 0.08rem;
     min-width: 2.05rem;
@@ -1137,6 +1159,38 @@
   flex-direction: column;
   align-items: center;
   gap: clamp(0.65rem, 2vh, 1rem);
+}
+
+/*
+  DUEL PLAY footer: widen score block for ROUNDS 20 / 20 breathing room.
+  SOLO .group-session / .score-stack stay max-content; only .duel-play is widened.
+  Do not shrink fonts to pack — use width + gap.
+*/
+.duel-play .group-session {
+  width: 100%;
+  align-self: stretch;
+  padding-left: 0.1rem;
+  padding-right: 0.1rem;
+}
+
+.duel-play .score-stack {
+  width: min(100%, 22.75rem);
+  max-width: 100%;
+}
+
+.duel-play .score-row {
+  width: 100%;
+  justify-content: space-between;
+  gap: 1.15rem 1.75rem;
+}
+
+.duel-play .score-item {
+  gap: 0.55rem;
+}
+
+/* Reserve room for tabular “20 / 20”. */
+.duel-play .score-row > .score-item:first-child .score-num {
+  min-width: 7.5ch;
 }
 
 .duel-play-board {

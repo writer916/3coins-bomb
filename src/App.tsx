@@ -491,7 +491,12 @@ function App() {
 
   if (duelBootstrapUrl) {
     return (
-      <DuelClaimBootstrap initialUrl={duelBootstrapUrl} t={t} onGoTop={goTop} />
+      <DuelClaimBootstrap
+        initialUrl={duelBootstrapUrl}
+        t={t}
+        onGoTop={goTop}
+        topControls={topControls}
+      />
     )
   }
 

@@ -20,6 +20,8 @@ type DuelClaimBootstrapProps = {
   readonly initialUrl: string
   readonly t: AppStrings
   readonly onGoTop?: () => void
+  /** App-owned language/sound controls (same node as TOP / DUEL). */
+  readonly topControls: ReactNode
 }
 
 type BootstrapViewState =
@@ -33,14 +35,17 @@ type BootstrapViewState =
 
 function DuelBootstrapShell({
   t,
+  topControls,
   children,
 }: {
   readonly t: AppStrings
+  readonly topControls: ReactNode
   readonly children: ReactNode
 }) {
   return (
     <main className="app app--duel">
       <div className="field-header">
+        {topControls}
         <header className="app-header">
           <h1 className="brand-title duel-setup-heading" aria-label={t.modeDuelName}>
             {t.modeDuelName}
@@ -93,6 +98,7 @@ export function DuelClaimBootstrap({
   initialUrl,
   t,
   onGoTop,
+  topControls,
 }: DuelClaimBootstrapProps) {
   const [state, setState] = useState<BootstrapViewState>({ phase: 'loading' })
   const coordinatorRef = useRef<ReturnType<
@@ -149,7 +155,7 @@ export function DuelClaimBootstrap({
 
   if (state.phase === 'loading') {
     return (
-      <DuelBootstrapShell t={t}>
+      <DuelBootstrapShell t={t} topControls={topControls}>
         <div className="duel-flow duel-flow--locked">
           <div className="duel-status-slot" aria-hidden="true" />
           <p className="duel-locked-label">{t.duelJoining}</p>
@@ -160,7 +166,7 @@ export function DuelClaimBootstrap({
 
   if (state.phase === 'error') {
     return (
-      <DuelBootstrapShell t={t}>
+      <DuelBootstrapShell t={t} topControls={topControls}>
         <div className="duel-flow duel-flow--locked">
           <div className="duel-status-slot" aria-hidden="true" />
           <p className="duel-locked-label" role="alert">
@@ -176,14 +182,14 @@ export function DuelClaimBootstrap({
   if (lockedResume) {
     if (lockedResume.kind === 'waiting-for-opponent-lock') {
       return (
-        <DuelBootstrapShell t={t}>
+        <DuelBootstrapShell t={t} topControls={topControls}>
           <DuelInvitePanel matchId={lockedResume.matchId} t={t} onGoTop={onGoTop} />
         </DuelBootstrapShell>
       )
     }
     if (lockedResume.kind === 'start-confirm') {
       return (
-        <DuelBootstrapShell t={t}>
+        <DuelBootstrapShell t={t} topControls={topControls}>
           <DuelResumeStartConfirm
             matchId={lockedResume.matchId}
             createdAt={result.state.createdAt}
@@ -196,7 +202,7 @@ export function DuelClaimBootstrap({
     }
     if (lockedResume.kind === 'play') {
       return (
-        <DuelBootstrapShell t={t}>
+        <DuelBootstrapShell t={t} topControls={topControls}>
           <DuelPlayScreen matchId={lockedResume.matchId} t={t} />
         </DuelBootstrapShell>
       )
@@ -204,7 +210,7 @@ export function DuelClaimBootstrap({
     const client = playClientRef.current
     if (!client) {
       return (
-        <DuelBootstrapShell t={t}>
+        <DuelBootstrapShell t={t} topControls={topControls}>
           <div className="duel-flow duel-flow--locked">
             <div className="duel-status-slot" aria-hidden="true" />
             <p className="duel-locked-label" role="alert">
@@ -215,7 +221,7 @@ export function DuelClaimBootstrap({
       )
     }
     return (
-      <DuelBootstrapShell t={t}>
+      <DuelBootstrapShell t={t} topControls={topControls}>
         <DuelResultScreen
           matchId={lockedResume.matchId}
           initialResult={lockedResume.initialResult}
@@ -229,7 +235,7 @@ export function DuelClaimBootstrap({
   // Unlocked A #p: existing-match placement from ROUND 1 (no create).
   if (result.kind === 'participant-a') {
     return (
-      <DuelBootstrapShell t={t}>
+      <DuelBootstrapShell t={t} topControls={topControls}>
         <DuelFlow
           t={t}
           onGoTop={onGoTop}
@@ -245,7 +251,7 @@ export function DuelClaimBootstrap({
   }
 
   return (
-    <DuelBootstrapShell t={t}>
+    <DuelBootstrapShell t={t} topControls={topControls}>
       <DuelFlow
         t={t}
         onGoTop={onGoTop}

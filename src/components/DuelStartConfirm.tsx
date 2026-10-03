@@ -1,4 +1,5 @@
 import type { AppStrings } from '../i18n'
+import { withDuelNums } from '../ui/withDuelNums'
 
 export type DuelStartConfirmProps = {
   readonly createdAt: string
@@ -25,7 +26,9 @@ export function DuelStartConfirm({
     <div className="duel-flow duel-flow--start-confirm">
       <div className="duel-start-confirm" role="status">
         {createdLabel ? (
-          <p className="duel-start-confirm__created">{createdLabel}</p>
+          <p className="duel-start-confirm__created">
+            {withDuelNums(createdLabel)}
+          </p>
         ) : null}
         <p className="duel-start-confirm__ready">{t.duelStartConfirmReady}</p>
         <ul className="duel-start-confirm__list">
@@ -34,7 +37,7 @@ export function DuelStartConfirm({
               {t.duelStartConfirmRoundsLabel}
             </span>
             <span className="duel-start-confirm__value">
-              {t.duelStartConfirmRoundsValue(totalRounds)}
+              {withDuelNums(t.duelStartConfirmRoundsValue(totalRounds))}
             </span>
           </li>
         </ul>
