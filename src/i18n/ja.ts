@@ -81,6 +81,7 @@ export const ja: AppStrings = {
   duelWaitingTitle: 'WAITING FOR OPPONENT',
   duelWaitingBody: '相手のプレイ終了を待っています。',
   duelCheckResult: 'CHECK RESULT',
+  duelViewResult: '結果を見る',
   duelWin: 'WIN',
   duelLose: 'LOSE',
   duelDraw: 'DRAW',

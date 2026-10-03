@@ -88,6 +88,8 @@ export type AppStrings = {
   duelWaitingTitle: string
   duelWaitingBody: string
   duelCheckResult: string
+  /** Post-completion: reveal RESULT only after explicit press. */
+  duelViewResult: string
   duelWin: string
   duelLose: string
   duelDraw: string

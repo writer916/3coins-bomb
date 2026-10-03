@@ -575,13 +575,12 @@ export function DuelPlayScreen({ matchId, t }: DuelPlayScreenProps) {
     return <div className="duel-play-status" role="alert">{t.duelPlayError}</div>
   }
 
-  if (finalResult) {
+  if (finalResult && coordinator) {
     return (
       <DuelResultScreen
-        result={finalResult}
-        pending={resultPending}
-        error={resultError}
-        onCheck={() => { void handleResult() }}
+        matchId={matchId}
+        initialResult={finalResult}
+        fetchResult={() => coordinator.getFinalResult(matchId)}
         t={t}
       />
     )

@@ -80,6 +80,7 @@ export const en: AppStrings = {
   duelWaitingTitle: 'WAITING FOR OPPONENT',
   duelWaitingBody: 'Waiting for your opponent to finish playing.',
   duelCheckResult: 'CHECK RESULT',
+  duelViewResult: 'View result',
   duelWin: 'WIN',
   duelLose: 'LOSE',
   duelDraw: 'DRAW',

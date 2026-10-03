@@ -143,11 +143,12 @@ assert.match(screen, /resultPendingRef\.current/)
 assert.match(screen, /3COINS COMPLETE/)
 assert.match(screen, /threeCoinsComplete/)
 for (const required of [
-  "result.status === 'waiting'", 't.duelWaitingTitle', 't.duelCheckResult',
+  't.duelWaitingTitle', 't.duelWaitingBody', 't.duelViewResult',
   "result.winner === 'draw'", 'result.winner === result.viewerRole',
   'summary.totalCapturedCoins', 'summary.threeCoinsComplete', 'summary.bombsHit',
   't.duelThreeCoinsComplete', 't.duelBombsHit', 't.duelTotalCoins',
   'PlayerCard title={t.duelYou}', 'PlayerCard title={t.duelOpponent}',
+  'resolveDuelResultPresentation', 'DUEL_RESULT_POLL_INTERVAL_MS',
 ]) assert.match(resultScreen, new RegExp(required.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')))
 assert.doesNotMatch(resultScreen, /duelCoinBagHitRate|hitRate|COIN-BAG HIT RATE/)
 assert.doesNotMatch(resultScreen, /coinBagHits\s*[<>]=?|totalCapturedCoins\s*[<>]=?|roundWins/)
@@ -166,6 +167,7 @@ assert.match(coordinatorSource, /getFinalResult/)
 assert.match(strings, /duelThreeCoinsComplete/)
 assert.match(strings, /duelBombsHit/)
 assert.match(strings, /duelCoinBagHitRate/)
+assert.match(strings, /duelViewResult/)
 assert.match(en, /duelThreeCoinsComplete: '3COINS COMPLETE'/)
 assert.match(ja, /duelThreeCoinsComplete: '3COINS COMPLETE'/)
 assert.match(en, /duelBombsHit: 'BOMBS HIT'/)
@@ -180,8 +182,12 @@ assert.match(css, /\.score-label\s*{[^}]*font-variant-numeric:\s*lining-nums/s)
 assert.match(css, /--duel-button-field-h:\s*9\.35rem/)
 assert.match(resultScreen, /duel-final-stats/)
 assert.doesNotMatch(resultScreen, /duelCoinBagHitRate|hitRate|COIN-BAG HIT RATE/)
-for (const source of [screen, resultScreen, client, coordinatorSource]) {
+assert.match(resultScreen, /setInterval/)
+for (const source of [screen, client, coordinatorSource]) {
   assert.doesNotMatch(source, /setInterval|console\.|\.\.\/server\/|server\/db/)
 }
+assert.doesNotMatch(resultScreen, /console\.|\.\.\/server\/|server\/db/)
+assert.match(screen, /initialResult=\{finalResult\}/)
+assert.doesNotMatch(screen, /onCheck/)
 
 console.log('verify:duel-result-client OK')
