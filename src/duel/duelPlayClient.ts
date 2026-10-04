@@ -854,6 +854,10 @@ export function createDuelPlayClient(dependencies: DuelPlayClientDependencies) {
         requestId: requestId(commandValue.requestId),
       }
       const token = participantToken(dependencies.storage, command.matchId)
+      /*
+       * Bodyless POST by contract: Authorization + Idempotency-Key only.
+       * Do not send Content-Type or a JSON body (including {}).
+       */
       const json = await fetchJson(
         dependencies.fetch,
         `/api/duel/matches/${encodeURIComponent(command.matchId)}/rounds/${command.roundNumber}/cash-out`,

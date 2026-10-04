@@ -14,6 +14,9 @@ const JSON_HEADERS = {
   'Content-Type': 'application/json; charset=utf-8',
 }
 
+/** CASH OUT is a bodyless command — only enough bytes to reject unexpected payloads. */
+const CASH_OUT_BODY_MAX_BYTES = 256
+
 function errorResponse(
   status: 400 | 404 | 405 | 409 | 500,
   code:
@@ -44,13 +47,47 @@ function routeValues(request: Request): { matchId: string; roundNumber: number }
   }
 }
 
+/**
+ * Accept no body / null body / empty body (including non-null empty streams that
+ * real browser→edge POSTs may present). Reject any non-empty payload bytes.
+ */
+async function assertCashOutHasNoPayload(request: Request): Promise<void> {
+  const contentLength = request.headers.get('content-length')
+  if (contentLength !== null) {
+    const parsedLength = Number(contentLength)
+    if (
+      !Number.isSafeInteger(parsedLength) ||
+      parsedLength < 0 ||
+      parsedLength > CASH_OUT_BODY_MAX_BYTES
+    ) {
+      throw new CashOutRoundError('INVALID_REQUEST')
+    }
+    if (parsedLength > 0) {
+      throw new CashOutRoundError('INVALID_REQUEST')
+    }
+  }
+  if (!request.body) return
+
+  const reader = request.body.getReader()
+  let byteLength = 0
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    byteLength += value.byteLength
+    if (byteLength > 0) {
+      await reader.cancel()
+      throw new CashOutRoundError('INVALID_REQUEST')
+    }
+  }
+}
+
 export function createCashOutRoundHandler(
   cashOut: CashOut = cashOutRound,
 ): (request: Request) => Promise<Response> {
   return async (request) => {
     if (request.method !== 'POST') return errorResponse(405, 'invalid_request')
-    if (request.body !== null) return errorResponse(400, 'invalid_request')
     try {
+      await assertCashOutHasNoPayload(request)
       const route = routeValues(request)
       const input = validateCashOutRoundRequest(
         route?.matchId,

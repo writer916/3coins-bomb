@@ -205,8 +205,14 @@ for (const call of cashCalls) {
   assert.equal(call.url, `/api/duel/matches/${MATCH_ID}/rounds/2/cash-out`)
   assert.equal(call.init?.method, 'POST')
   assert.equal(call.init?.body, undefined)
-  assert.equal(new Headers(call.init?.headers).get('Idempotency-Key'), REQUEST_ID)
-  assert.equal(new Headers(call.init?.headers).get('Authorization'), `Bearer ${TOKEN}`)
+  assert.equal(Object.hasOwn(call.init ?? {}, 'body'), false)
+  const cashHeaders = new Headers(call.init?.headers)
+  assert.equal(cashHeaders.get('Idempotency-Key'), REQUEST_ID)
+  assert.equal(cashHeaders.get('Authorization'), `Bearer ${TOKEN}`)
+  assert.equal(cashHeaders.get('Content-Type'), null)
+  /* Bodyless contract: runtime Request rebuilt from client init must stay empty. */
+  const rebuilt = new Request(`https://example.test${call.url}`, call.init)
+  assert.equal(rebuilt.body, null)
 }
 for (const malformed of [
   { ...cashResponse, endReason: 'cleared' },

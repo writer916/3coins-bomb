@@ -210,13 +210,14 @@ function memoryMatch(options: { locked?: boolean; expired?: boolean; totalRounds
     })
   const open = async (
     role: Role,
-    outcome: 'empty' | 'coin' | 'bomb' | 'clear',
+    outcome: 'empty' | 'coin' | 'two-coins' | 'bomb' | 'clear',
   ): Promise<'opened' | 'conflict'> =>
     withLock(() => {
       const participant = participants[role]
       if (participant.endReason !== null) return 'conflict'
       participant.openedBagCount += 1
       if (outcome === 'coin') participant.provisionalCoins += 1
+      if (outcome === 'two-coins') participant.provisionalCoins += 2
       if (outcome === 'bomb') {
         participant.provisionalCoins = 0
         participant.endReason = 'bombed'
@@ -265,6 +266,15 @@ await two.open('A', 'coin')
 const twoResult = await cashOutRound(cashRequest(participantAToken), { persist: two.persist })
 assert.equal(twoResult.capturedCoins, 2)
 assert.equal(twoResult.openedBagCount, 2)
+
+const twoInOneBag = memoryMatch()
+await twoInOneBag.open('A', 'two-coins')
+const twoInOneResult = await cashOutRound(
+  cashRequest(participantAToken),
+  { persist: twoInOneBag.persist },
+)
+assert.equal(twoInOneResult.capturedCoins, 2)
+assert.equal(twoInOneResult.openedBagCount, 1)
 
 for (const outcome of ['bomb', 'clear'] as const) {
   const ended = memoryMatch()
@@ -345,20 +355,53 @@ function apiRequest(options: {
   idempotencyKey?: string
   id?: string
   round?: string
-  body?: string
+  body?: BodyInit | null
+  contentLength?: string
 } = {}): Request {
+  const headers = new Headers({
+    Authorization: options.authorization ?? `Bearer ${participantAToken}`,
+    'Idempotency-Key': options.idempotencyKey ?? requestId,
+  })
+  if (options.contentLength !== undefined) {
+    headers.set('Content-Length', options.contentLength)
+  }
+  const init: RequestInit = {
+    method: options.method ?? 'POST',
+    headers,
+  }
+  if (Object.hasOwn(options, 'body')) {
+    init.body = options.body
+  }
   return new Request(
     `https://example.test/api/duel/matches/${options.id ?? matchId}/rounds/${options.round ?? '1'}/cash-out`,
-    {
-      method: options.method ?? 'POST',
-      headers: {
-        Authorization: options.authorization ?? `Bearer ${participantAToken}`,
-        'Idempotency-Key': options.idempotencyKey ?? requestId,
-      },
-      body: options.body,
-    },
+    init,
   )
 }
+
+/* Bodyless / empty-body contracts — including non-null empty representations. */
+const omittedBody = apiRequest()
+assert.equal(omittedBody.body, null)
+assert.equal((await handler(omittedBody)).status, 200)
+
+const explicitNullBody = apiRequest({ body: null })
+assert.equal(explicitNullBody.body, null)
+assert.equal((await handler(explicitNullBody)).status, 200)
+
+const emptyStringBody = apiRequest({ body: '' })
+assert.notEqual(emptyStringBody.body, null)
+assert.equal((await handler(emptyStringBody)).status, 200)
+
+const emptyUint8Body = apiRequest({ body: new Uint8Array(0) })
+assert.notEqual(emptyUint8Body.body, null)
+assert.equal((await handler(emptyUint8Body)).status, 200)
+
+const emptyBlobBody = apiRequest({ body: new Blob([]) })
+assert.notEqual(emptyBlobBody.body, null)
+assert.equal((await handler(emptyBlobBody)).status, 200)
+
+const contentLengthZero = apiRequest({ body: '', contentLength: '0' })
+assert.equal((await handler(contentLengthZero)).status, 200)
+
 const successResponse = await handler(apiRequest())
 assert.equal(successResponse.status, 200)
 assert.equal(successResponse.headers.get('cache-control'), 'no-store')
@@ -377,7 +420,12 @@ for (const forbidden of [
 ]) {
   assert(!serialized.includes(forbidden))
 }
+
+/* Unexpected non-empty payloads stay rejected (including {}). */
 assert.equal((await handler(apiRequest({ body: '{}' }))).status, 400)
+assert.equal((await handler(apiRequest({ body: '{"foo":"bar"}' }))).status, 400)
+assert.equal((await handler(apiRequest({ body: 'x' }))).status, 400)
+assert.equal((await handler(apiRequest({ contentLength: '2' }))).status, 400)
 assert.equal((await handler(apiRequest({ idempotencyKey: 'invalid' }))).status, 400)
 const methodResponse = await handler(apiRequest({ method: 'GET' }))
 assert.equal(methodResponse.status, 405)
@@ -398,6 +446,75 @@ assert.equal(internal.status, 500)
 const internalJson = await internal.json()
 assert.deepEqual(internalJson, { error: { code: 'internal_error' } })
 assert(!JSON.stringify(internalJson).includes('database detail'))
+
+/* Client bodyless POST → real handler must not 400 on empty runtime bodies. */
+const { createDuelPlayClient } = await import('../src/duel/duelPlayClient.ts')
+const { participantStorageKey } = await import('../src/duel/duelPersistence.ts')
+class MemoryStorage {
+  readonly values = new Map<string, string>()
+  getItem(key: string) { return this.values.get(key) ?? null }
+  setItem(key: string, value: string) { this.values.set(key, value) }
+  removeItem(key: string) { this.values.delete(key) }
+}
+function storageFor(role: 'A' | 'B', token: string) {
+  const storage = new MemoryStorage()
+  storage.setItem(
+    participantStorageKey(matchId),
+    JSON.stringify({ version: 1, matchId, role, token }),
+  )
+  return storage
+}
+let bridgeCalls = 0
+const bridgeHandler = createCashOutRoundHandler(async (input) => {
+  bridgeCalls += 1
+  assert.equal(input.roundNumber, 1)
+  return {
+    ...oneCoinView,
+    capturedCoins: 1,
+    participantCompleted: false,
+  }
+})
+const bridgedClient = createDuelPlayClient({
+  storage: storageFor('A', participantAToken),
+  crypto: { randomUUID: () => requestId },
+  fetch: async (input, init) => {
+    const url = typeof input === 'string' ? input : input.url
+    const absolute = new URL(url, 'https://example.test').href
+    /* Rebuild like a runtime adapter: preserve method/headers/body from client init. */
+    const request = new Request(absolute, init)
+    return bridgeHandler(request)
+  },
+})
+const bridgedCommand = bridgedClient.createCashOutCommand({ matchId, roundNumber: 1 })
+assert.equal(bridgedCommand.requestId, requestId)
+const bridgedResult = await bridgedClient.cashOut(bridgedCommand)
+assert.equal(bridgedResult.endReason, 'cashed_out')
+assert.equal(bridgedResult.capturedCoins, 1)
+assert.equal(bridgeCalls, 1)
+
+/* Same bridge with empty-string body representation must still succeed if replayed. */
+assert.equal(
+  (await bridgeHandler(apiRequest({ body: '', idempotencyKey: secondRequestId }))).status,
+  200,
+)
+
+/* Handler source must not use the old strict body!==null reject. */
+const handlerSource = readFileSync(
+  resolve(root, 'api/duel/matches/[matchId]/rounds/[roundNumber]/cash-out.ts'),
+  'utf8',
+)
+assert.match(handlerSource, /assertCashOutHasNoPayload/)
+assert.doesNotMatch(
+  handlerSource,
+  /if \(request\.body !== null\) return errorResponse\(400/,
+)
+assert.match(handlerSource, /CASH_OUT_BODY_MAX_BYTES/)
+
+/* SQL coin recount contract remains (1-bag multi-coin via unnest count). */
+assert(dbSource.includes('left join lateral unnest(target.coin_bag_numbers) coin_bag'))
+assert(dbSource.includes('count(coin_bag)::smallint as provisional_coins'))
+assert(dbSource.includes('participant_role = candidate.placement_role'))
+assert(dbSource.includes('explorer_role'))
 
 const packageJson = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8')) as {
   scripts: Record<string, string>
