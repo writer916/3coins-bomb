@@ -2,7 +2,7 @@
  * Web App Manifest + HTML PWA basics (install UI / SW out of scope).
  */
 import assert from 'node:assert/strict'
-import { readFile, access } from 'node:fs/promises'
+import { readFile, access, readdir } from 'node:fs/promises'
 import { constants as fsConstants } from 'node:fs'
 
 function pngSize(buffer: Buffer): { width: number; height: number } {
@@ -27,23 +27,27 @@ assert.equal(manifest.theme_color, '#1a1510')
 
 assert.doesNotMatch(manifestRaw, /#p=|#invite=|matchId|3cb_pa1_|3cb_pi1_|3cb_pb1_|\/duel\//)
 assert.ok(!('shortcuts' in manifest), 'manifest must not declare shortcuts')
+assert.doesNotMatch(manifestRaw, /any maskable/)
 
 const icons = manifest.icons
 assert.ok(Array.isArray(icons), 'icons must be an array')
-assert.equal(icons.length, 2)
+assert.equal(icons.length, 4)
 
 const bySrc = new Map(
   (icons as Array<Record<string, unknown>>).map((icon) => [icon.src, icon]),
 )
-for (const [src, sizes] of [
-  ['/icons/icon-192.png', '192x192'],
-  ['/icons/icon-512.png', '512x512'],
+
+for (const [src, sizes, purpose] of [
+  ['/icons/icon-192.png', '192x192', 'any'],
+  ['/icons/icon-512.png', '512x512', 'any'],
+  ['/icons/icon-maskable-192.png', '192x192', 'maskable'],
+  ['/icons/icon-maskable-512.png', '512x512', 'maskable'],
 ] as const) {
   const icon = bySrc.get(src)
   assert.ok(icon, `missing icon ${src}`)
   assert.equal(icon.sizes, sizes)
   assert.equal(icon.type, 'image/png')
-  assert.equal(icon.purpose, 'any')
+  assert.equal(icon.purpose, purpose)
 }
 
 assert.match(html, /<link\s+rel="manifest"\s+href="\/manifest\.webmanifest"\s*\/?>/)
@@ -60,6 +64,8 @@ const iconFiles = [
   ['public/icons/apple-touch-icon.png', 180],
   ['public/icons/icon-192.png', 192],
   ['public/icons/icon-512.png', 512],
+  ['public/icons/icon-maskable-192.png', 192],
+  ['public/icons/icon-maskable-512.png', 512],
 ] as const
 
 for (const [path, expected] of iconFiles) {
@@ -68,6 +74,15 @@ for (const [path, expected] of iconFiles) {
   assert.equal(size.width, expected, `${path} width`)
   assert.equal(size.height, expected, `${path} height`)
 }
+
+const iconDirNames = (await readdir('public/icons')).sort()
+assert.deepEqual(iconDirNames, [
+  'apple-touch-icon.png',
+  'icon-192.png',
+  'icon-512.png',
+  'icon-maskable-192.png',
+  'icon-maskable-512.png',
+])
 
 assert.doesNotMatch(
   manifestRaw + html,
