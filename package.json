@@ -69,6 +69,7 @@
     "verify:duel-a-placement-resume": "tsx scripts/verify-duel-a-placement-resume.ts",
     "verify:duel-a-placement-resume-client": "tsx scripts/verify-duel-a-placement-resume-client.ts",
     "verify:open-fx-fallback": "tsx scripts/verify-open-fx-fallback.ts",
+    "verify:web-manifest": "tsx scripts/verify-web-manifest.ts",
     "db:generate": "drizzle-kit generate",
     "preview": "vite preview"
   },
