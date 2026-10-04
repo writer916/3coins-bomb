@@ -1,9 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { DuelFinalResult, DuelResultParticipantSummary } from '../duel/duelPlayClient'
+import type {
+  DuelFinalResult,
+  DuelMatchDetail,
+  DuelResultParticipantSummary,
+} from '../duel/duelPlayClient'
 import { resolveDuelResultPresentation } from '../duel/duelResultPresentation'
 import type { AppStrings } from '../i18n'
 import { ensureHomeInstallListening } from '../pwa/homeInstall'
 import { useHomeInstallCta } from '../pwa/useHomeInstallCta'
+import { DuelMatchDetailScreen } from './DuelMatchDetailScreen'
 
 ensureHomeInstallListening()
 
@@ -13,6 +18,8 @@ type DuelResultScreenProps = {
   readonly matchId: string
   readonly initialResult: DuelFinalResult
   readonly fetchResult: () => Promise<DuelFinalResult>
+  /** Completed-only match detail. Called on “VIEW DETAILS”, not on RESULT mount. */
+  readonly fetchDetail: () => Promise<DuelMatchDetail>
   readonly t: AppStrings
   /**
    * Same-session PLAY RESULT click already expressed reveal intent.
@@ -23,6 +30,12 @@ type DuelResultScreenProps = {
   /** Final RESULT exit only. Waiting / result-ready never show TOP. */
   readonly onGoTop?: () => void
 }
+
+type DetailPane =
+  | { readonly kind: 'closed' }
+  | { readonly kind: 'loading' }
+  | { readonly kind: 'ready'; readonly detail: DuelMatchDetail }
+  | { readonly kind: 'error' }
 
 function StatRow({
   label,
@@ -64,10 +77,14 @@ function CompletedResult({
   result,
   t,
   onGoTop,
+  onViewDetails,
+  detailBusy,
 }: {
   readonly result: Extract<DuelFinalResult, { status: 'completed' }>
   readonly t: AppStrings
   readonly onGoTop?: () => void
+  readonly onViewDetails: () => void
+  readonly detailBusy: boolean
 }) {
   const self = result.participants[result.viewerRole]
   const opponentRole = result.viewerRole === 'A' ? 'B' : 'A'
@@ -93,30 +110,37 @@ function CompletedResult({
           <PlayerCard title={t.duelOpponent} summary={opponent} t={t} />
         </div>
       </div>
-      {onGoTop || showCta ? (
-        <div className="duel-final-actions">
-          {onGoTop ? (
-            <button
-              type="button"
-              className="duel-btn duel-btn--quiet-top duel-final-return"
-              data-duel-metric="secondary"
-              onClick={onGoTop}
-            >
-              {t.duelReturnToTop}
-            </button>
-          ) : null}
-          {showCta ? (
-            <button
-              type="button"
-              className="duel-btn duel-btn--quiet-top duel-final-home-install"
-              data-duel-metric="tertiary"
-              onClick={onAddClick}
-            >
-              {t.duelAddToHomeScreen}
-            </button>
-          ) : null}
-        </div>
-      ) : null}
+      <div className="duel-final-actions">
+        <button
+          type="button"
+          className="duel-btn duel-btn--quiet-top duel-final-view-details"
+          data-duel-metric="primary"
+          disabled={detailBusy}
+          onClick={onViewDetails}
+        >
+          {t.duelViewDetails}
+        </button>
+        {onGoTop ? (
+          <button
+            type="button"
+            className="duel-btn duel-btn--quiet-top duel-final-return"
+            data-duel-metric="secondary"
+            onClick={onGoTop}
+          >
+            {t.duelReturnToTop}
+          </button>
+        ) : null}
+        {showCta ? (
+          <button
+            type="button"
+            className="duel-btn duel-btn--quiet-top duel-final-home-install"
+            data-duel-metric="tertiary"
+            onClick={onAddClick}
+          >
+            {t.duelAddToHomeScreen}
+          </button>
+        ) : null}
+      </div>
       {guideOpen ? (
         <div
           className="duel-home-install-overlay"
@@ -181,10 +205,56 @@ function CompletionShell({
   )
 }
 
+function DetailLoading({ t }: { readonly t: AppStrings }) {
+  return (
+    <div className="duel-match-detail-status" role="status">
+      {t.duelMatchDetailLoading}
+    </div>
+  )
+}
+
+function DetailError({
+  t,
+  onRetry,
+  onBackToResult,
+  busy,
+}: {
+  readonly t: AppStrings
+  readonly onRetry: () => void
+  readonly onBackToResult: () => void
+  readonly busy: boolean
+}) {
+  return (
+    <section className="duel-match-detail-error" role="alert">
+      <p className="duel-match-detail-error__copy">{t.duelMatchDetailError}</p>
+      <div className="duel-match-detail-error__actions">
+        <button
+          type="button"
+          className="duel-btn"
+          data-duel-metric="primary"
+          disabled={busy}
+          onClick={onRetry}
+        >
+          {t.duelMatchDetailRetry}
+        </button>
+        <button
+          type="button"
+          className="duel-btn duel-btn--quiet-top duel-match-detail__back"
+          data-duel-metric="secondary"
+          onClick={onBackToResult}
+        >
+          {t.duelBackToResult}
+        </button>
+      </div>
+    </section>
+  )
+}
+
 export function DuelResultScreen({
   matchId,
   initialResult,
   fetchResult,
+  fetchDetail,
   t,
   initialRevealed = false,
   onGoTop,
@@ -193,8 +263,14 @@ export function DuelResultScreen({
   const [revealed, setRevealed] = useState(
     () => initialRevealed === true && initialResult.status === 'completed',
   )
+  const [detailPane, setDetailPane] = useState<DetailPane>({ kind: 'closed' })
+  const [detailBusy, setDetailBusy] = useState(false)
   const fetchResultRef = useRef(fetchResult)
   fetchResultRef.current = fetchResult
+  const fetchDetailRef = useRef(fetchDetail)
+  fetchDetailRef.current = fetchDetail
+  const detailInFlightRef = useRef(false)
+  const cachedDetailRef = useRef<DuelMatchDetail | null>(null)
 
   const phase = resolveDuelResultPresentation(matchId, result, revealed)
 
@@ -243,6 +319,37 @@ export function DuelResultScreen({
     setRevealed(true)
   }, [result])
 
+  const loadDetail = useCallback(async () => {
+    if (detailInFlightRef.current) return
+    detailInFlightRef.current = true
+    setDetailBusy(true)
+    setDetailPane({ kind: 'loading' })
+    try {
+      const detail = await fetchDetailRef.current()
+      cachedDetailRef.current = detail
+      setDetailPane({ kind: 'ready', detail })
+    } catch {
+      setDetailPane({ kind: 'error' })
+    } finally {
+      detailInFlightRef.current = false
+      setDetailBusy(false)
+    }
+  }, [])
+
+  const openDetails = useCallback(() => {
+    if (detailInFlightRef.current) return
+    const cached = cachedDetailRef.current
+    if (cached) {
+      setDetailPane({ kind: 'ready', detail: cached })
+      return
+    }
+    void loadDetail()
+  }, [loadDetail])
+
+  const closeDetails = useCallback(() => {
+    setDetailPane({ kind: 'closed' })
+  }, [])
+
   if (phase === 'waiting-for-opponent-complete') {
     return <CompletionShell t={t} mode="waiting" />
   }
@@ -255,5 +362,40 @@ export function DuelResultScreen({
     return <CompletionShell t={t} mode="waiting" />
   }
 
-  return <CompletedResult result={result} t={t} onGoTop={onGoTop} />
+  if (detailPane.kind === 'loading') {
+    return <DetailLoading t={t} />
+  }
+
+  if (detailPane.kind === 'error') {
+    return (
+      <DetailError
+        t={t}
+        busy={detailBusy}
+        onRetry={() => {
+          void loadDetail()
+        }}
+        onBackToResult={closeDetails}
+      />
+    )
+  }
+
+  if (detailPane.kind === 'ready') {
+    return (
+      <DuelMatchDetailScreen
+        detail={detailPane.detail}
+        t={t}
+        onBackToResult={closeDetails}
+      />
+    )
+  }
+
+  return (
+    <CompletedResult
+      result={result}
+      t={t}
+      onGoTop={onGoTop}
+      onViewDetails={openDetails}
+      detailBusy={detailBusy}
+    />
+  )
 }

@@ -39,18 +39,24 @@ const completionShell = resultScreen.slice(
   resultScreen.indexOf('export function DuelResultScreen'),
 )
 
-/* CTA only on completed RESULT; TOP above ADD. */
+/* CTA only on completed RESULT; VIEW DETAILS → TOP → ADD. */
 assert.match(completedBlock, /duel-final-actions/)
+assert.match(completedBlock, /t\.duelViewDetails/)
 assert.match(completedBlock, /t\.duelReturnToTop/)
 assert.match(completedBlock, /t\.duelAddToHomeScreen/)
 assert.match(completedBlock, /duel-final-home-install/)
 assert.match(completedBlock, /useHomeInstallCta/)
+const detailsIdx = completedBlock.indexOf('t.duelViewDetails')
 const topIdx = completedBlock.indexOf('t.duelReturnToTop')
 const addIdx = completedBlock.indexOf('t.duelAddToHomeScreen')
-assert.ok(topIdx >= 0 && addIdx > topIdx, 'TOP must render above ADD TO HOME SCREEN')
+assert.ok(
+  detailsIdx >= 0 && topIdx > detailsIdx && addIdx > topIdx,
+  'VIEW DETAILS above TOP above ADD TO HOME SCREEN',
+)
 
 assert.doesNotMatch(completionShell, /duelAddToHomeScreen|duel-final-home-install|useHomeInstallCta/)
 assert.doesNotMatch(completionShell, /duelReturnToTop|onGoTop|duel-final-return/)
+assert.doesNotMatch(completionShell, /duelViewDetails|duel-final-view-details/)
 
 /* Standalone / install hide path. */
 assert.match(homeInstall, /display-mode:\s*standalone/)

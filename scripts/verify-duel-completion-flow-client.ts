@@ -132,10 +132,11 @@ assert.match(
 )
 assert.match(playScreen, /onGoTop=\{onGoTop\}/)
 assert.match(bootstrap, /onGoTop=\{onGoTop\}/)
+assert.match(bootstrap, /fetchDetail=\{\(\) => client\.getMatchDetail\(lockedResume\.matchId\)\}/)
 assert.doesNotMatch(
   bootstrap.slice(
     bootstrap.indexOf('<DuelResultScreen'),
-    bootstrap.indexOf('<DuelResultScreen') + 280,
+    bootstrap.indexOf('<DuelResultScreen') + 420,
   ),
   /initialRevealed/,
 )

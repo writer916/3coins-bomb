@@ -582,6 +582,7 @@ export function DuelPlayScreen({ matchId, t, onGoTop }: DuelPlayScreenProps) {
         matchId={matchId}
         initialResult={finalResult}
         fetchResult={() => coordinator.getFinalResult(matchId)}
+        fetchDetail={() => coordinator.getMatchDetail(matchId)}
         t={t}
         initialRevealed={finalResult.status === 'completed'}
         onGoTop={onGoTop}

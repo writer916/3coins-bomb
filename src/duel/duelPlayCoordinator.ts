@@ -16,6 +16,7 @@ import {
   type DuelPlayState,
   type DuelRoundReveal,
   type DuelFinalResult,
+  type DuelMatchDetail,
   type DuelTerminalRound,
   type createDuelPlayClient,
 } from './duelPlayClient'
@@ -35,6 +36,7 @@ type DuelPlayClient = Pick<
   | 'cashOut'
   | 'getRoundReveal'
   | 'getFinalResult'
+  | 'getMatchDetail'
 >
 
 export class DuelPlayCoordinatorError extends Error {
@@ -249,6 +251,10 @@ export function createDuelPlayCoordinator(client: DuelPlayClient) {
 
     getFinalResult(matchId: string): Promise<DuelFinalResult> {
       return client.getFinalResult(matchId)
+    },
+
+    getMatchDetail(matchId: string): Promise<DuelMatchDetail> {
+      return client.getMatchDetail(matchId)
     },
 
     async open(input: {

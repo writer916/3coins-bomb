@@ -99,14 +99,17 @@ const completedBlock = resultScreen.slice(
   resultScreen.indexOf('function CompletedResult'),
   resultScreen.indexOf('function CompletionShell'),
 )
+assert.match(completedBlock, /duelViewDetails/)
 assert.match(completedBlock, /duelReturnToTop/)
 assert.match(completedBlock, /onGoTop/)
 assert.match(completedBlock, /duelAddToHomeScreen/)
 assert.match(completedBlock, /duel-final-actions/)
 assert.ok(
-  completedBlock.indexOf('duelReturnToTop') < completedBlock.indexOf('duelAddToHomeScreen'),
-  'TOP above ADD TO HOME SCREEN',
+  completedBlock.indexOf('duelViewDetails') < completedBlock.indexOf('duelReturnToTop') &&
+    completedBlock.indexOf('duelReturnToTop') < completedBlock.indexOf('duelAddToHomeScreen'),
+  'VIEW DETAILS above TOP above ADD TO HOME SCREEN',
 )
 assert.doesNotMatch(completionShell, /duelAddToHomeScreen|duel-final-home-install/)
+assert.doesNotMatch(completionShell, /duelViewDetails|duel-final-view-details/)
 
 console.log('verify-duel-result-locale-client: all checks passed')

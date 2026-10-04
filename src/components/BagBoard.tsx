@@ -17,6 +17,11 @@ type BagBoardProps = {
   hiddenBagIds?: ReadonlySet<BagId>
   /** Preview / gameplay: one click or tap selects a visible bag. */
   onBagTap?: (bagId: BagId) => void
+  /**
+   * When false, omit hit targets (read-only boards). Default true preserves
+   * placement / PLAY / SOLO tap geometry and interaction.
+   */
+  interactive?: boolean
   /** Overlay layer (e.g. COIN / BOMB FX) — same coordinate space as bags. */
   children?: ReactNode
 }
@@ -25,6 +30,7 @@ export function BagBoard({
   bagCount,
   hiddenBagIds,
   onBagTap,
+  interactive = true,
   children,
 }: BagBoardProps) {
   const slots = getFormation(bagCount)
@@ -84,12 +90,14 @@ export function BagBoard({
               Hit target is inset toward the opaque bag body so transparent WebP
               padding / corners do not steal taps from neighbors. Visual size unchanged.
             */}
-            <button
-              type="button"
-              className="bag-hit"
-              aria-label="Bag"
-              onClick={() => onBagTap?.(slot.bagId)}
-            />
+            {interactive ? (
+              <button
+                type="button"
+                className="bag-hit"
+                aria-label="Bag"
+                onClick={() => onBagTap?.(slot.bagId)}
+              />
+            ) : null}
           </div>
         )
       })}

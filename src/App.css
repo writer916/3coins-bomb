@@ -1311,12 +1311,126 @@
   margin-top: 0.15rem;
 }
 
+.duel-final-view-details,
 .duel-final-return,
 .duel-final-home-install {
   /* Override quiet-top's margin-top:auto — sit under RESULT body, not viewport foot. */
   margin-top: 0;
   width: 100%;
   max-width: 100%;
+}
+
+.duel-final-view-details {
+  letter-spacing: 0.05em;
+}
+
+/* ——— Completed match DETAIL (RESULT local view) ——— */
+.duel-match-detail {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.85rem;
+  width: min(100%, 20rem);
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 0.35rem 0.65rem max(0.85rem, env(safe-area-inset-bottom, 0px));
+  box-sizing: border-box;
+  overflow-x: hidden;
+}
+
+.duel-match-detail__title {
+  margin: 0;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(1.05rem, 4.2vw, 1.35rem);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #f2e6d0;
+  text-align: center;
+}
+
+.duel-match-detail__side {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  width: 100%;
+}
+
+.duel-match-detail__side--opponent {
+  margin-top: 0.55rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(196, 165, 116, 0.28);
+}
+
+.duel-match-detail__side-title {
+  margin: 0;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(0.95rem, 3.6vw, 1.15rem);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #c4a574;
+  text-align: center;
+}
+
+.duel-match-detail__round {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  width: 100%;
+}
+
+.duel-match-detail__round-label {
+  margin: 0;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  color: #9a8468;
+  text-align: center;
+}
+
+.duel-match-detail__actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.55rem;
+  width: min(100%, 16.5rem);
+  margin: 0.55rem auto 0;
+}
+
+.duel-match-detail__back {
+  margin-top: 0;
+  width: 100%;
+  max-width: 100%;
+}
+
+.duel-match-detail-status,
+.duel-match-detail-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.85rem;
+  width: min(100%, 20rem);
+  margin: 0 auto;
+  padding: 1.25rem 0.85rem;
+  box-sizing: border-box;
+  text-align: center;
+  color: #e8dcc8;
+}
+
+.duel-match-detail-error__copy {
+  margin: 0;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(0.95rem, 3.8vw, 1.1rem);
+  letter-spacing: 0.04em;
+  color: #f2e6d0;
+}
+
+.duel-match-detail-error__actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.55rem;
+  width: min(100%, 16.5rem);
 }
 
 .duel-final-home-install {

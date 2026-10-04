@@ -1,0 +1,84 @@
+/*
+  One ROUND read-only detail board.
+  Scoped overrides only — does not change global .bag-board placement/PLAY sizes.
+*/
+
+.duel-match-detail-board {
+  width: 100%;
+  max-width: 20rem; /* 320px */
+  margin: 0 auto;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.duel-match-detail-board .bag-board {
+  width: 100%;
+  max-height: none;
+  /* Room for OPEN markers outside bag centers without clipping. */
+  overflow: visible;
+}
+
+/* Readable 1-ROUND size on 320px; not minimized for 40-ROUND density. */
+.duel-match-detail-board .bag-board[data-bag-count='3'] {
+  --bag-size: clamp(4.35rem, 27vw, 5.6rem);
+}
+
+.duel-match-detail-board .bag-board[data-bag-count='4'] {
+  --bag-size: clamp(3.9rem, 23vw, 5.1rem);
+}
+
+.duel-match-detail-board .bag-board[data-bag-count='5'] {
+  --bag-size: clamp(4rem, 24.5vw, 5.25rem);
+}
+
+.duel-match-detail-board .bag-board[data-bag-count='6'] {
+  --bag-size: clamp(3.7rem, 21.5vw, 4.85rem);
+}
+
+.duel-match-detail-board .bag-board[data-bag-count='7'] {
+  --bag-size: clamp(3.55rem, 20.5vw, 4.7rem);
+}
+
+.duel-match-detail-board .bag-board[data-bag-count='8'] {
+  --bag-size: clamp(3.4rem, 19.5vw, 4.55rem);
+}
+
+.duel-detail-open-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 80;
+}
+
+.duel-detail-open-marker {
+  position: absolute;
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  width: calc(var(--bag-size) * 0.28);
+  height: calc(var(--bag-size) * 0.28);
+  min-width: 1rem;
+  min-height: 1rem;
+  border-radius: 50%;
+  border: 1px solid rgb(196 165 116 / 0.75);
+  background: rgb(28 22 16 / 0.82);
+  color: #e8dcc8;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(0.62rem, 2.4vw, 0.78rem);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0;
+  text-align: center;
+  pointer-events: none;
+  /* Sit clear of bag body / COIN / BOMB at slot center. */
+  --duel-detail-open-offset: calc(var(--bag-size) * 0.62);
+}
+
+.duel-detail-open-marker--above {
+  transform: translate(-50%, calc(-50% - var(--duel-detail-open-offset)));
+}
+
+.duel-detail-open-marker--below {
+  transform: translate(-50%, calc(-50% + var(--duel-detail-open-offset)));
+}

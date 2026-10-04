@@ -226,6 +226,7 @@ export function DuelClaimBootstrap({
           matchId={lockedResume.matchId}
           initialResult={lockedResume.initialResult}
           fetchResult={() => client.getFinalResult(lockedResume.matchId)}
+          fetchDetail={() => client.getMatchDetail(lockedResume.matchId)}
           t={t}
           onGoTop={onGoTop}
         />

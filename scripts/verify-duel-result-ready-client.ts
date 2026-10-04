@@ -134,6 +134,7 @@ assert.match(presentation, /waiting-for-opponent-complete/)
 
 assert.match(playScreen, /initialResult=\{finalResult\}/)
 assert.match(playScreen, /fetchResult=\{\(\) => coordinator\.getFinalResult\(matchId\)\}/)
+assert.match(playScreen, /fetchDetail=\{\(\) => coordinator\.getMatchDetail\(matchId\)\}/)
 assert.match(playScreen, /matchId=\{matchId\}/)
 assert.match(
   playScreen,

@@ -35,6 +35,24 @@ export type PersistedDuelResult =
       >
     }
 
+/** Shared completion snapshot for RESULT summary and match detail. */
+export type DuelResultCompletionSnapshot =
+  | {
+      readonly kind: 'waiting'
+      readonly matchId: string
+      readonly selfCompleted: boolean
+      readonly opponentCompleted: boolean
+    }
+  | {
+      readonly kind: 'completed'
+      readonly matchId: string
+      readonly viewerRole: DuelResultRole
+      readonly totalRounds: number
+      readonly participants: Readonly<
+        Record<DuelResultRole, DuelParticipantResultInput>
+      >
+    }
+
 interface DuelResultRow extends Record<string, unknown> {
   readonly match_id: string
   readonly viewer_role: DuelResultRole
@@ -113,10 +131,13 @@ function participantInput(
   }
 }
 
-/** Authenticates and reads completion/result data in one PostgreSQL statement snapshot. */
-export async function getDuelResultForParticipant(
+/**
+ * Authenticates and reads completion/result data in one PostgreSQL statement.
+ * Shared by GET /result and GET /detail (same both_completed gate).
+ */
+export async function loadDuelResultCompletionForParticipant(
   input: GetDuelResultInput,
-): Promise<PersistedDuelResult | null> {
+): Promise<DuelResultCompletionSnapshot | null> {
   const result = await getDatabase().execute<DuelResultRow>(sql`
     with candidate as materialized (
       select
@@ -244,27 +265,50 @@ export async function getDuelResultForParticipant(
   if (!row.progress_integrity_ok) throw new DuelResultDataError()
   if (!row.self_completed || !row.opponent_completed) {
     return {
+      kind: 'waiting',
       matchId: row.match_id,
-      status: 'waiting',
       selfCompleted: row.self_completed,
       opponentCompleted: row.opponent_completed,
     }
   }
 
   const data = record(row.result_data)
-  const participants = pairDuelParticipantResults(
-    aggregateDuelParticipantResult(
-      participantInput(data.A, 'A', row.total_rounds),
-    ),
-    aggregateDuelParticipantResult(
-      participantInput(data.B, 'B', row.total_rounds),
-    ),
-  )
   return {
+    kind: 'completed',
     matchId: row.match_id,
-    status: 'completed',
     viewerRole: row.viewer_role,
     totalRounds: row.total_rounds,
+    participants: {
+      A: participantInput(data.A, 'A', row.total_rounds),
+      B: participantInput(data.B, 'B', row.total_rounds),
+    },
+  }
+}
+
+/** Authenticates and reads completion/result data in one PostgreSQL statement snapshot. */
+export async function getDuelResultForParticipant(
+  input: GetDuelResultInput,
+): Promise<PersistedDuelResult | null> {
+  const snapshot = await loadDuelResultCompletionForParticipant(input)
+  if (!snapshot) return null
+  if (snapshot.kind === 'waiting') {
+    return {
+      matchId: snapshot.matchId,
+      status: 'waiting',
+      selfCompleted: snapshot.selfCompleted,
+      opponentCompleted: snapshot.opponentCompleted,
+    }
+  }
+
+  const participants = pairDuelParticipantResults(
+    aggregateDuelParticipantResult(snapshot.participants.A),
+    aggregateDuelParticipantResult(snapshot.participants.B),
+  )
+  return {
+    matchId: snapshot.matchId,
+    status: 'completed',
+    viewerRole: snapshot.viewerRole,
+    totalRounds: snapshot.totalRounds,
     winner: compareDuelParticipantResults(participants.A, participants.B),
     participants,
   }

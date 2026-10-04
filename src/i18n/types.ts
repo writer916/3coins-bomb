@@ -123,6 +123,14 @@ export type AppStrings = {
   duelYou: string
   duelOpponent: string
   duelResultError: string
+  /** Final RESULT → completed match detail. */
+  duelViewDetails: string
+  duelMatchDetails: string
+  duelBackToResult: string
+  duelMatchDetailLoading: string
+  duelMatchDetailError: string
+  duelMatchDetailRetry: string
+  duelMatchDetailRound: (roundNumber: number) => string
   duelBack: string
   duelRoundProgress: (current: number, total: number) => string
   /** Complete-screen summary — fixed copy, not ROUND-count dependent. */

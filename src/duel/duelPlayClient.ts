@@ -162,6 +162,35 @@ export type DuelFinalResult =
       readonly participants: Readonly<Record<DuelResultRole, DuelResultParticipantSummary>>
     }
 
+/** Completed-only match detail (viewer-perspective play boards + OPEN order). */
+export interface DuelMatchDetailOpen {
+  readonly openOrder: number
+  readonly bagNumber: number
+}
+
+export interface DuelMatchDetailRound {
+  readonly roundNumber: number
+  readonly bagCount: number
+  readonly bombBagNumber: number
+  readonly coinBagNumbers: readonly number[]
+  readonly opens: readonly DuelMatchDetailOpen[]
+}
+
+export interface DuelMatchDetailPlay {
+  readonly rounds: readonly DuelMatchDetailRound[]
+}
+
+export interface DuelMatchDetail {
+  readonly matchId: string
+  readonly status: 'completed'
+  readonly viewerRole: DuelResultRole
+  readonly totalRounds: number
+  /** Opponent LOCK placements + viewer opens (boards YOU explored). */
+  readonly yourPlay: DuelMatchDetailPlay
+  /** Viewer LOCK placements + opponent opens (boards THEY explored). */
+  readonly opponentPlay: DuelMatchDetailPlay
+}
+
 export interface DuelPlayClientDependencies {
   readonly storage: StorageAdapter
   readonly fetch: typeof fetch
@@ -570,6 +599,99 @@ function parseFinalResult(value: unknown, expected: string): DuelFinalResult {
   }
 }
 
+function matchDetailOpens(
+  value: unknown,
+  bagCount: number,
+): readonly DuelMatchDetailOpen[] {
+  if (!Array.isArray(value) || value.length > bagCount) return fail('malformed-response')
+  const seen = new Set<number>()
+  return value.map((entry, index) => {
+    const item = record(entry)
+    exactKeys(item, ['openOrder', 'bagNumber'])
+    const openOrder = integer(item.openOrder, 1, bagCount)
+    const bagNumber = integer(item.bagNumber, 1, bagCount)
+    if (openOrder !== index + 1 || seen.has(bagNumber)) {
+      return fail('malformed-response')
+    }
+    seen.add(bagNumber)
+    return { openOrder, bagNumber }
+  })
+}
+
+function matchDetailRound(
+  value: unknown,
+  expectedRound: number,
+): DuelMatchDetailRound {
+  const item = record(value)
+  exactKeys(item, [
+    'roundNumber', 'bagCount', 'bombBagNumber', 'coinBagNumbers', 'opens',
+  ])
+  if (integer(item.roundNumber, 1, 20) !== expectedRound) {
+    return fail('malformed-response')
+  }
+  const bagCount = integer(item.bagCount, 3, 8)
+  const bombBagNumber = integer(item.bombBagNumber, 1, bagCount)
+  if (!Array.isArray(item.coinBagNumbers) || item.coinBagNumbers.length !== 3) {
+    return fail('malformed-response')
+  }
+  let previous = 0
+  const coinBagNumbers = item.coinBagNumbers.map((bag) => {
+    const bagNumber = integer(bag, 1, bagCount)
+    if (bagNumber === bombBagNumber || bagNumber < previous) {
+      return fail('malformed-response')
+    }
+    previous = bagNumber
+    return bagNumber
+  })
+  return {
+    roundNumber: expectedRound,
+    bagCount,
+    bombBagNumber,
+    coinBagNumbers,
+    opens: matchDetailOpens(item.opens, bagCount),
+  }
+}
+
+function matchDetailPlay(
+  value: unknown,
+  totalRounds: number,
+): DuelMatchDetailPlay {
+  const item = record(value)
+  exactKeys(item, ['rounds'])
+  if (!Array.isArray(item.rounds) || item.rounds.length !== totalRounds) {
+    return fail('malformed-response')
+  }
+  return {
+    rounds: item.rounds.map((round, index) =>
+      matchDetailRound(round, index + 1),
+    ),
+  }
+}
+
+function parseMatchDetail(value: unknown, expected: string): DuelMatchDetail {
+  const item = record(value)
+  expectedMatch(item.matchId, expected)
+  if (item.status !== 'completed') return fail('malformed-response')
+  exactKeys(item, [
+    'matchId',
+    'status',
+    'viewerRole',
+    'totalRounds',
+    'yourPlay',
+    'opponentPlay',
+  ])
+  const viewerRole = resultRole(item.viewerRole)
+  const totalRounds = integer(item.totalRounds, 1, 20)
+  return {
+    matchId: expected,
+    status: 'completed',
+    viewerRole,
+    totalRounds,
+    yourPlay: matchDetailPlay(item.yourPlay, totalRounds),
+    opponentPlay: matchDetailPlay(item.opponentPlay, totalRounds),
+  }
+}
+
 function participantToken(storage: StorageAdapter, id: string): string {
   try {
     const participant = readParticipant(storage, id)
@@ -764,6 +886,17 @@ export function createDuelPlayClient(dependencies: DuelPlayClientDependencies) {
         { method: 'GET', headers: headers(token) },
       )
       return parseFinalResult(json, id)
+    },
+
+    async getMatchDetail(matchIdValue: string): Promise<DuelMatchDetail> {
+      const id = normalizedMatchId(matchIdValue)
+      const token = participantToken(dependencies.storage, id)
+      const json = await fetchJson(
+        dependencies.fetch,
+        `/api/duel/matches/${encodeURIComponent(id)}/detail`,
+        { method: 'GET', headers: headers(token) },
+      )
+      return parseMatchDetail(json, id)
     },
   }
 }
