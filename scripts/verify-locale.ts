@@ -116,6 +116,11 @@ assert.equal(en.modeDuelDesc, 'Hide & steal — 1 vs 1')
 assert.equal(en.modeGroupName, 'GROUP')
 assert.equal(en.modeGroupDesc, 'Same hands — highest score wins')
 assert.equal(en.cashOut, 'CASH OUT')
+assert.equal(en.duelCashOutRetry, 'Could not cash out. Tap CASH OUT again.')
+assert.equal(
+  ja.duelCashOutRetry,
+  'CASH OUTできませんでした。もう一度CASH OUTをタップしてください。',
+)
 assert.equal(en.duelContinue, 'CONTINUE')
 assert.equal(en.duelTop, 'TOP')
 assert.equal(en.duelSet, 'SET')

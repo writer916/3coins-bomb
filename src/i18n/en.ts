@@ -94,6 +94,7 @@ export const en: AppStrings = {
   duelPlayLoading: 'LOADING MATCH…',
   duelPlayError: 'Could not load the match. Please try again.',
   duelOpenRetry: 'Could not open the bag. Tap the same bag to try again.',
+  duelCashOutRetry: 'Could not cash out. Tap CASH OUT again.',
   duelResult: 'RESULT',
   duelWaitingTitle: 'PLAY COMPLETE',
   duelWaitingBody: 'WAITING FOR OPPONENT TO FINISH',

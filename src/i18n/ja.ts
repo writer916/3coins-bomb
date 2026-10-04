@@ -96,6 +96,7 @@ export const ja: AppStrings = {
   duelPlayLoading: '対戦を読み込んでいます…',
   duelPlayError: '対戦を読み込めませんでした。もう一度お試しください。',
   duelOpenRetry: '袋を開けませんでした。同じ袋をもう一度タップしてください。',
+  duelCashOutRetry: 'CASH OUTできませんでした。もう一度CASH OUTをタップしてください。',
   duelResult: 'RESULT',
   duelWaitingTitle: 'プレイが完了しました',
   duelWaitingBody: '相手のプレイ終了を待っています。',

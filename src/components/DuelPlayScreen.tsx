@@ -155,6 +155,7 @@ export function DuelPlayScreen({ matchId, t, onGoTop }: DuelPlayScreenProps) {
   const [view, setView] = useState<ViewState>({ phase: 'loading' })
   const [requestPending, setRequestPending] = useState(false)
   const [retryBag, setRetryBag] = useState<BagId | null>(null)
+  const [cashOutError, setCashOutError] = useState(false)
   const [fx, setFx] = useState<ActiveFx | null>(null)
   const [coinFxSample, setCoinFxSample] = useState<CoinFxSample | null>(null)
   const [revealed, setRevealed] = useState(false)
@@ -293,12 +294,6 @@ export function DuelPlayScreen({ matchId, t, onGoTop }: DuelPlayScreenProps) {
     if (opened.has(bagId) || (retryBag && retryBag !== bagId)) return
     if (!coordinator) return
 
-    unlockCoinAudio()
-    warmBagOpenAudio()
-    interactionLockedRef.current = true
-    setRequestPending(true)
-
-    const epoch = ++openEpochRef.current
     const round = view.round
     const bagNumber = bagIdToBagNumber(bagId)
     const openInput = {
@@ -307,6 +302,35 @@ export function DuelPlayScreen({ matchId, t, onGoTop }: DuelPlayScreenProps) {
       bagNumber,
       expectedOpenOrder: round.nextOpenOrder,
     }
+
+    /*
+     * Unresolved OPEN/CASH OUT must not start a new optimistic OPEN.
+     * Gate before predicted FX so a different bag never flashes COIN/BOMB.
+     */
+    const unresolvedOpen = coordinator.getPendingOpen()
+    if (unresolvedOpen) {
+      const unresolvedBag = bagNumberToBagId(unresolvedOpen.bagNumber)
+      if (
+        unresolvedOpen.matchId !== openInput.matchId ||
+        unresolvedOpen.roundNumber !== openInput.roundNumber ||
+        unresolvedOpen.bagNumber !== openInput.bagNumber ||
+        unresolvedOpen.expectedOpenOrder !== openInput.expectedOpenOrder
+      ) {
+        setRetryBag(unresolvedBag)
+        setCashOutError(false)
+        return
+      }
+    } else if (coordinator.getPendingCashOut()) {
+      setCashOutError(true)
+      return
+    }
+
+    unlockCoinAudio()
+    warmBagOpenAudio()
+    interactionLockedRef.current = true
+    setRequestPending(true)
+
+    const epoch = ++openEpochRef.current
 
     let local: DuelLocalOpenResult | null = null
     try {
@@ -446,18 +470,21 @@ export function DuelPlayScreen({ matchId, t, onGoTop }: DuelPlayScreenProps) {
 
     interactionLockedRef.current = true
     setRequestPending(true)
+    setCashOutError(false)
     try {
       const outcome = await coordinator.cashOut({
         matchId,
         roundNumber: view.round.roundNumber,
       })
       setRetryBag(null)
+      setCashOutError(false)
       if (outcome.kind === 'resynced') {
         interactionLockedRef.current = false
         setRevealed(false)
         setRevealPlan(null)
         const ready = readyView(outcome.state)
         setView(ready ?? { phase: 'error', matchId })
+        if (ready?.round.terminal) refreshSelfProgress()
         return
       }
 
@@ -474,7 +501,14 @@ export function DuelPlayScreen({ matchId, t, onGoTop }: DuelPlayScreenProps) {
       interactionLockedRef.current = false
     } catch {
       interactionLockedRef.current = false
-      setRetryBag(null)
+      const pendingOpen = coordinator.getPendingOpen()
+      if (pendingOpen) {
+        setRetryBag(bagNumberToBagId(pendingOpen.bagNumber))
+        setCashOutError(false)
+      } else {
+        setRetryBag(null)
+        setCashOutError(true)
+      }
     } finally {
       setRequestPending(false)
     }
@@ -697,6 +731,7 @@ export function DuelPlayScreen({ matchId, t, onGoTop }: DuelPlayScreenProps) {
         ) : null}
       </div>
       {retryBag ? <p className="duel-play-error" role="alert">{t.duelOpenRetry}</p> : null}
+      {cashOutError ? <p className="duel-play-error" role="alert">{t.duelCashOutRetry}</p> : null}
       {resultError ? <p className="duel-play-error" role="alert">{t.duelResultError}</p> : null}
       <div className="group-session" aria-live="polite">
         <div className="score-stack">

@@ -81,6 +81,9 @@ const unusedResult = {
   async getFinalResult() {
     throw new Error('getFinalResult should not run in this test')
   },
+  async getMatchDetail() {
+    throw new Error('getMatchDetail should not run in this test')
+  },
 }
 
 assert.equal(isDuelPlayReady({
@@ -479,6 +482,500 @@ assert.equal(cashOutResynced.kind, 'resynced')
 assert.equal(cashOutConflictGet, 1)
 assert.equal(cashOutResynced.state.latestTerminalRound?.endReason, 'cashed_out')
 
+/* --- CASH OUT + pendingOpen recovery regressions --- */
+
+function oneCoinActiveState(openedBagCount: 1 | 2) {
+  const openedBags = Array.from({ length: openedBagCount }, (_, index) => ({
+    bagNumber: index + 1,
+    openOrder: index + 1,
+    outcome: 'coins' as const,
+    coinsFound: 1 as const,
+  }))
+  return {
+    ...activeState,
+    activeRound: {
+      roundNumber: 1,
+      bagCount: 4,
+      openedBags,
+      provisionalCoins: openedBagCount as 1 | 2,
+      nextOpenOrder: openedBagCount + 1,
+    },
+    latestTerminalRound: null,
+  }
+}
+
+{
+  let openCalls = 0
+  let cashCalls = 0
+  let getCalls = 0
+  let openRejectOnce = true
+  const recoveryCoordinator = createDuelPlayCoordinator({
+    createOpenCommand: command,
+    ...unusedPlacements,
+    ...unusedResult,
+    createCashOutCommand: cashOutCommand,
+    async openBag(value) {
+      openCalls += 1
+      assert.equal(value.requestId, REQUEST_ID)
+      assert.equal(value.bagNumber, 1)
+      if (openRejectOnce) {
+        openRejectOnce = false
+        throw new DuelPlayClientError('network')
+      }
+      return {
+        matchId: MATCH_ID,
+        roundNumber: 1,
+        bagNumber: 1,
+        openOrder: 1,
+        outcome: 'coins' as const,
+        coinsFound: 1 as const,
+        provisionalCoins: 1 as const,
+        openedBagCount: 1,
+        roundEnded: false as const,
+        endReason: null,
+        capturedCoins: null,
+        participantCompleted: false,
+      }
+    },
+    async cashOut(value) {
+      cashCalls += 1
+      assert.equal(value.roundNumber, 1)
+      assert.equal(value.requestId, CASH_OUT_REQUEST_ID)
+      return {
+        matchId: MATCH_ID,
+        roundNumber: 1,
+        endReason: 'cashed_out' as const,
+        capturedCoins: 1 as const,
+        openedBagCount: 1,
+        participantCompleted: false,
+      }
+    },
+    async getPlayState() {
+      getCalls += 1
+      if (cashCalls === 0) return oneCoinActiveState(1)
+      return {
+        ...activeState,
+        activeRound: {
+          roundNumber: 2,
+          bagCount: 4,
+          openedBags: [],
+          provisionalCoins: 0 as const,
+          nextOpenOrder: 1,
+        },
+        latestTerminalRound: {
+          roundNumber: 1,
+          bagCount: 4,
+          openedBags: [{ bagNumber: 1, openOrder: 1, outcome: 'coins', coinsFound: 1 }],
+          endReason: 'cashed_out' as const,
+          capturedCoins: 1,
+          openedBagCount: 1,
+        },
+        nextPlayableRoundNumber: 2,
+        selfProgress: { completedRounds: 1, totalCapturedCoins: 1, threeCoinsComplete: 0 },
+      }
+    },
+    async getRoundReveal() { throw new Error('unused') },
+  })
+
+  await assert.rejects(
+    () => recoveryCoordinator.open({
+      matchId: MATCH_ID, roundNumber: 1, bagNumber: 1, expectedOpenOrder: 1,
+    }),
+    (error: unknown) => error instanceof DuelPlayClientError && error.kind === 'network',
+  )
+  assert.ok(recoveryCoordinator.getPendingOpen())
+  assert.equal(recoveryCoordinator.hasUnresolvedPlayCommand(), true)
+
+  await assert.rejects(
+    () => recoveryCoordinator.open({
+      matchId: MATCH_ID, roundNumber: 1, bagNumber: 2, expectedOpenOrder: 1,
+    }),
+    (error: unknown) => error instanceof DuelPlayCoordinatorError && error.kind === 'retry-required',
+  )
+  assert.ok(recoveryCoordinator.getPendingOpen())
+
+  const recovered = await recoveryCoordinator.cashOut({ matchId: MATCH_ID, roundNumber: 1 })
+  assert.equal(recovered.kind, 'resynced')
+  assert.equal(recovered.state.latestTerminalRound?.endReason, 'cashed_out')
+  assert.equal(recovered.state.latestTerminalRound?.capturedCoins, 1)
+  assert.equal(openCalls, 2)
+  assert.equal(cashCalls, 1)
+  assert.ok(getCalls >= 2)
+  assert.equal(recoveryCoordinator.getPendingOpen(), null)
+  assert.equal(recoveryCoordinator.hasUnresolvedPlayCommand(), false)
+  assert.equal(canOfferDuelCashOut(selectDuelDisplayedRound(recovered.state)!), false)
+  assert.equal(selectDuelDisplayedRound(recovered.state)?.terminal, true)
+  assert.equal(canAdvanceDuelPlay(recovered.state), true)
+}
+
+{
+  let openCalls = 0
+  let cashCalls = 0
+  let openRejectOnce = true
+  const twoCoinRecovery = createDuelPlayCoordinator({
+    createOpenCommand: command,
+    ...unusedPlacements,
+    ...unusedResult,
+    createCashOutCommand: cashOutCommand,
+    async openBag(value) {
+      openCalls += 1
+      if (openRejectOnce) {
+        openRejectOnce = false
+        throw new DuelPlayClientError('network')
+      }
+      assert.equal(value.bagNumber, 2)
+      return {
+        matchId: MATCH_ID,
+        roundNumber: 1,
+        bagNumber: 2,
+        openOrder: 2,
+        outcome: 'coins' as const,
+        coinsFound: 1 as const,
+        provisionalCoins: 2 as const,
+        openedBagCount: 2,
+        roundEnded: false as const,
+        endReason: null,
+        capturedCoins: null,
+        participantCompleted: false,
+      }
+    },
+    async cashOut() {
+      cashCalls += 1
+      return {
+        matchId: MATCH_ID,
+        roundNumber: 1,
+        endReason: 'cashed_out' as const,
+        capturedCoins: 2 as const,
+        openedBagCount: 2,
+        participantCompleted: false,
+      }
+    },
+    async getPlayState() {
+      if (cashCalls === 0) return oneCoinActiveState(2)
+      return {
+        ...activeState,
+        activeRound: {
+          roundNumber: 2,
+          bagCount: 4,
+          openedBags: [],
+          provisionalCoins: 0 as const,
+          nextOpenOrder: 1,
+        },
+        latestTerminalRound: {
+          roundNumber: 1,
+          bagCount: 4,
+          openedBags: [
+            { bagNumber: 1, openOrder: 1, outcome: 'coins', coinsFound: 1 },
+            { bagNumber: 2, openOrder: 2, outcome: 'coins', coinsFound: 1 },
+          ],
+          endReason: 'cashed_out' as const,
+          capturedCoins: 2,
+          openedBagCount: 2,
+        },
+        nextPlayableRoundNumber: 2,
+      }
+    },
+    async getRoundReveal() { throw new Error('unused') },
+  })
+  await assert.rejects(
+    () => twoCoinRecovery.open({
+      matchId: MATCH_ID, roundNumber: 1, bagNumber: 2, expectedOpenOrder: 2,
+    }),
+    (error: unknown) => error instanceof DuelPlayClientError && error.kind === 'network',
+  )
+  const twoRecovered = await twoCoinRecovery.cashOut({ matchId: MATCH_ID, roundNumber: 1 })
+  assert.equal(twoRecovered.kind, 'resynced')
+  assert.equal(twoRecovered.state.latestTerminalRound?.capturedCoins, 2)
+  assert.equal(openCalls, 2)
+  assert.equal(cashCalls, 1)
+}
+
+{
+  let cashCalls = 0
+  let openRejectOnce = true
+  const bombRecovery = createDuelPlayCoordinator({
+    createOpenCommand: command,
+    ...unusedPlacements,
+    ...unusedResult,
+    createCashOutCommand: cashOutCommand,
+    async openBag() {
+      if (openRejectOnce) {
+        openRejectOnce = false
+        throw new DuelPlayClientError('network')
+      }
+      return {
+        matchId: MATCH_ID,
+        roundNumber: 1,
+        bagNumber: 4,
+        openOrder: 1,
+        outcome: 'bomb' as const,
+        coinsFound: 0 as const,
+        provisionalCoins: 0 as const,
+        openedBagCount: 1,
+        roundEnded: true as const,
+        endReason: 'bombed' as const,
+        capturedCoins: 0 as const,
+        participantCompleted: false,
+      }
+    },
+    async cashOut() {
+      cashCalls += 1
+      throw new Error('cashOut must not run after bomb terminal')
+    },
+    async getPlayState() {
+      return {
+        ...activeState,
+        activeRound: {
+          roundNumber: 2,
+          bagCount: 4,
+          openedBags: [],
+          provisionalCoins: 0 as const,
+          nextOpenOrder: 1,
+        },
+        latestTerminalRound: {
+          roundNumber: 1,
+          bagCount: 4,
+          openedBags: [{ bagNumber: 4, openOrder: 1, outcome: 'bomb', coinsFound: 0 }],
+          endReason: 'bombed' as const,
+          capturedCoins: 0,
+          openedBagCount: 1,
+        },
+        nextPlayableRoundNumber: 2,
+      }
+    },
+    async getRoundReveal() { throw new Error('unused') },
+  })
+  await assert.rejects(
+    () => bombRecovery.open({
+      matchId: MATCH_ID, roundNumber: 1, bagNumber: 4, expectedOpenOrder: 1,
+    }),
+    (error: unknown) => error instanceof DuelPlayClientError && error.kind === 'network',
+  )
+  const bombed = await bombRecovery.cashOut({ matchId: MATCH_ID, roundNumber: 1 })
+  assert.equal(bombed.kind, 'resynced')
+  assert.equal(bombed.state.latestTerminalRound?.endReason, 'bombed')
+  assert.equal(cashCalls, 0)
+  assert.equal(canOfferDuelCashOut(selectDuelDisplayedRound(bombed.state)!), false)
+}
+
+{
+  let cashCalls = 0
+  let openRejectOnce = true
+  const clearedRecovery = createDuelPlayCoordinator({
+    createOpenCommand: command,
+    ...unusedPlacements,
+    ...unusedResult,
+    createCashOutCommand: cashOutCommand,
+    async openBag() {
+      if (openRejectOnce) {
+        openRejectOnce = false
+        throw new DuelPlayClientError('network')
+      }
+      return {
+        matchId: MATCH_ID,
+        roundNumber: 1,
+        bagNumber: 3,
+        openOrder: 3,
+        outcome: 'coins' as const,
+        coinsFound: 1 as const,
+        provisionalCoins: 3 as const,
+        openedBagCount: 3,
+        roundEnded: true as const,
+        endReason: 'cleared' as const,
+        capturedCoins: 3 as const,
+        participantCompleted: false,
+      }
+    },
+    async cashOut() {
+      cashCalls += 1
+      throw new Error('cashOut must not run after cleared terminal')
+    },
+    async getPlayState() {
+      return {
+        ...activeState,
+        activeRound: {
+          roundNumber: 2,
+          bagCount: 4,
+          openedBags: [],
+          provisionalCoins: 0 as const,
+          nextOpenOrder: 1,
+        },
+        latestTerminalRound: {
+          roundNumber: 1,
+          bagCount: 4,
+          openedBags: [
+            { bagNumber: 1, openOrder: 1, outcome: 'coins', coinsFound: 1 },
+            { bagNumber: 2, openOrder: 2, outcome: 'coins', coinsFound: 1 },
+            { bagNumber: 3, openOrder: 3, outcome: 'coins', coinsFound: 1 },
+          ],
+          endReason: 'cleared' as const,
+          capturedCoins: 3,
+          openedBagCount: 3,
+        },
+        nextPlayableRoundNumber: 2,
+      }
+    },
+    async getRoundReveal() { throw new Error('unused') },
+  })
+  await assert.rejects(
+    () => clearedRecovery.open({
+      matchId: MATCH_ID, roundNumber: 1, bagNumber: 3, expectedOpenOrder: 3,
+    }),
+    (error: unknown) => error instanceof DuelPlayClientError && error.kind === 'network',
+  )
+  const cleared = await clearedRecovery.cashOut({ matchId: MATCH_ID, roundNumber: 1 })
+  assert.equal(cleared.kind, 'resynced')
+  assert.equal(cleared.state.latestTerminalRound?.endReason, 'cleared')
+  assert.equal(cashCalls, 0)
+}
+
+{
+  let cashCalls = 0
+  let openRejectOnce = true
+  const finalRoundCashOut = createDuelPlayCoordinator({
+    createOpenCommand: command,
+    ...unusedPlacements,
+    ...unusedResult,
+    createCashOutCommand: cashOutCommand,
+    async openBag() {
+      if (openRejectOnce) {
+        openRejectOnce = false
+        throw new DuelPlayClientError('network')
+      }
+      return {
+        matchId: MATCH_ID,
+        roundNumber: 3,
+        bagNumber: 1,
+        openOrder: 1,
+        outcome: 'coins' as const,
+        coinsFound: 1 as const,
+        provisionalCoins: 1 as const,
+        openedBagCount: 1,
+        roundEnded: false as const,
+        endReason: null,
+        capturedCoins: null,
+        participantCompleted: false,
+      }
+    },
+    async cashOut() {
+      cashCalls += 1
+      return {
+        matchId: MATCH_ID,
+        roundNumber: 3,
+        endReason: 'cashed_out' as const,
+        capturedCoins: 1 as const,
+        openedBagCount: 1,
+        participantCompleted: true,
+      }
+    },
+    async getPlayState() {
+      if (cashCalls === 0) {
+        return {
+          ...activeState,
+          totalRounds: 3,
+          nextPlayableRoundNumber: 3,
+          activeRound: {
+            roundNumber: 3,
+            bagCount: 4,
+            openedBags: [{ bagNumber: 1, openOrder: 1, outcome: 'coins', coinsFound: 1 }],
+            provisionalCoins: 1 as const,
+            nextOpenOrder: 2,
+          },
+          latestTerminalRound: null,
+          selfProgress: { completedRounds: 2, totalCapturedCoins: 2, threeCoinsComplete: 0 },
+        }
+      }
+      return {
+        ...activeState,
+        totalRounds: 3,
+        participantCompleted: true,
+        nextPlayableRoundNumber: null,
+        activeRound: null,
+        latestTerminalRound: {
+          roundNumber: 3,
+          bagCount: 4,
+          openedBags: [{ bagNumber: 1, openOrder: 1, outcome: 'coins', coinsFound: 1 }],
+          endReason: 'cashed_out' as const,
+          capturedCoins: 1,
+          openedBagCount: 1,
+        },
+        selfProgress: { completedRounds: 3, totalCapturedCoins: 3, threeCoinsComplete: 0 },
+      }
+    },
+    async getRoundReveal() { throw new Error('unused') },
+  })
+  await assert.rejects(
+    () => finalRoundCashOut.open({
+      matchId: MATCH_ID, roundNumber: 3, bagNumber: 1, expectedOpenOrder: 1,
+    }),
+    (error: unknown) => error instanceof DuelPlayClientError && error.kind === 'network',
+  )
+  const finalRecovered = await finalRoundCashOut.cashOut({ matchId: MATCH_ID, roundNumber: 3 })
+  assert.equal(finalRecovered.kind, 'resynced')
+  assert.equal(finalRecovered.state.latestTerminalRound?.endReason, 'cashed_out')
+  assert.equal(finalRecovered.state.participantCompleted, true)
+  assert.equal(canAdvanceDuelPlay(finalRecovered.state), false)
+  assert.equal(cashCalls, 1)
+}
+
+{
+  const failedRecovery = createDuelPlayCoordinator({
+    createOpenCommand: command,
+    ...unusedPlacements,
+    ...unusedResult,
+    createCashOutCommand: cashOutCommand,
+    async openBag() {
+      throw new DuelPlayClientError('network')
+    },
+    async cashOut() {
+      throw new Error('cashOut must not run while open retry fails')
+    },
+    async getPlayState() { return oneCoinActiveState(1) },
+    async getRoundReveal() { throw new Error('unused') },
+  })
+  await assert.rejects(
+    () => failedRecovery.open({
+      matchId: MATCH_ID, roundNumber: 1, bagNumber: 1, expectedOpenOrder: 1,
+    }),
+    (error: unknown) => error instanceof DuelPlayClientError && error.kind === 'network',
+  )
+  await assert.rejects(
+    () => failedRecovery.cashOut({ matchId: MATCH_ID, roundNumber: 1 }),
+    (error: unknown) => error instanceof DuelPlayClientError && error.kind === 'network',
+  )
+  assert.ok(failedRecovery.getPendingOpen())
+  assert.equal(failedRecovery.hasUnresolvedPlayCommand(), true)
+}
+
+assert.equal(canOfferDuelCashOut({
+  terminal: false,
+  roundNumber: 1,
+  bagCount: 4,
+  openedBags: [{ bagNumber: 1, openOrder: 1, outcome: 'coins', coinsFound: 1 }],
+  provisionalCoins: 1,
+  nextOpenOrder: 2,
+}), true)
+assert.equal(canOfferDuelCashOut({
+  terminal: false,
+  roundNumber: 1,
+  bagCount: 4,
+  openedBags: [
+    { bagNumber: 1, openOrder: 1, outcome: 'coins', coinsFound: 1 },
+    { bagNumber: 2, openOrder: 2, outcome: 'coins', coinsFound: 1 },
+  ],
+  provisionalCoins: 2,
+  nextOpenOrder: 3,
+}), true)
+assert.equal(canOfferDuelCashOut({
+  terminal: true,
+  roundNumber: 1,
+  bagCount: 4,
+  openedBags: [{ bagNumber: 1, openOrder: 1, outcome: 'coins', coinsFound: 1 }],
+  endReason: 'cashed_out',
+  capturedCoins: 1,
+  openedBagCount: 1,
+}), false)
+
 const [screen, flow, invite, coordinatorSource, bagBoard, bagCss] = await Promise.all([
   readFile(new URL('../src/components/DuelPlayScreen.tsx', import.meta.url), 'utf8'),
   readFile(new URL('../src/components/DuelFlow.tsx', import.meta.url), 'utf8'),
@@ -492,7 +989,7 @@ for (const required of [
   'BombOpenFx', 'EmptyOpenFx', 'RevealBoard', 'selectDuelDisplayedRound',
   'buildDuelRevealPlan', 'canAdvanceDuelPlay', 'canOfferDuelCashOut', 'getRoundReveal',
   'coordinator.cashOut', 'result.outcome', 'result.coinsFound', 'end-actions',
-  'cash-out-btn', 't.cashOut', 't.reveal', 't.nextRound',
+  'cash-out-btn', 't.cashOut', 't.reveal', 't.nextRound', 't.duelCashOutRetry',
 ]) assert.match(screen, new RegExp(required.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')))
 assert.doesNotMatch(screen, /duel-play-result/)
 assert.doesNotMatch(screen, /t\.roundBombed/)
@@ -504,10 +1001,26 @@ assert.match(screen, /startPredictedOpenFx/)
 assert.match(screen, /createOptimisticOpenGate|markOptimisticFxDone|markOptimisticServerDone/)
 assert.match(screen, /sameLocalAndServerOpen/)
 assert.match(screen, /coordinator\.loadSession\(matchId\)/)
+assert.match(screen, /coordinator\.getPendingOpen\(\)/)
+assert.match(screen, /getPendingCashOut\(\)/)
+assert.match(screen, /cashOutError/)
+assert.match(screen, /setCashOutError\(true\)/)
 assert.doesNotMatch(screen, /openingBagId|setOpeningBagId/)
 assert.doesNotMatch(screen, /pendingBagId|setPendingBagId/)
 assert.match(screen, /interactionLockedRef\.current = true[\s\S]*setRequestPending\(true\)[\s\S]*await coordinator\.open/)
 assert.match(screen, /catch \{[\s\S]*setRetryBag\(bagId\)/)
+assert.match(
+  screen,
+  /const unresolvedOpen = coordinator\.getPendingOpen\(\)[\s\S]*startPredictedOpenFx/,
+)
+assert.match(
+  screen,
+  /handleCashOut[\s\S]*catch \{[\s\S]*setCashOutError\(true\)/,
+)
+assert.doesNotMatch(
+  screen,
+  /handleCashOut[\s\S]*catch \{\s*interactionLockedRef\.current = false\s*setRetryBag\(null\)\s*\}/,
+)
 assert.match(screen, /view\.selfProgress\.completedRounds/)
 assert.match(screen, /view\.selfProgress\.totalCapturedCoins/)
 assert.match(screen, /view\.selfProgress\.threeCoinsComplete/)
@@ -573,6 +1086,13 @@ assert.ok(optimisticOpen.indexOf('startPredictedOpenFx') < optimisticOpen.indexO
 assert.doesNotMatch(optimisticOpen, /await coordinator\.open[\s\S]*startPredictedOpenFx/)
 assert.doesNotMatch(optimisticOpen, /await coordinator\.open[\s\S]*playBagOpen/)
 assert.doesNotMatch(optimisticOpen, /await coordinator\.open[\s\S]*setFx\(\{/)
+// Unresolved pendingOpen/pendingCashOut must be gated before predicted FX.
+const bagTap = screen.match(
+  /const handleBagTap = useCallback\(async \(bagId: BagId\) => \{[\s\S]*?\n  \}, \[/,
+)?.[0] ?? ''
+assert.ok(bagTap.includes('getPendingOpen()'))
+assert.ok(bagTap.indexOf('getPendingOpen()') < bagTap.indexOf('startPredictedOpenFx'))
+assert.ok(bagTap.indexOf('getPendingCashOut()') < bagTap.indexOf('startPredictedOpenFx'))
 // Server-first fallback still mounts FX from authoritative result only.
 const fallbackOpen = screen.match(
   /const result = outcome\.result\n      const nextRound = appendOpen\(round, result\)[\s\S]*?if \(result\.roundEnded\) refreshSelfProgress\(\)/,
@@ -589,6 +1109,11 @@ assert.match(coordinatorSource, /getRoundReveal/)
 assert.match(coordinatorSource, /createCashOutCommand/)
 assert.match(coordinatorSource, /async cashOut\(/)
 assert.match(coordinatorSource, /kind: 'cashed-out'/)
+assert.match(coordinatorSource, /hasUnresolvedPlayCommand/)
+assert.match(coordinatorSource, /settledPendingOpen/)
+assert.match(coordinatorSource, /canOfferDuelCashOut\(displayed\)/)
+assert.match(coordinatorSource, /await client\.openBag\(pendingOpen\)/)
+assert.doesNotMatch(coordinatorSource, /if \(pendingOpen\) throw new DuelPlayCoordinatorError\('retry-required'\)/)
 for (const forbidden of [
   'applyOpenBag', 'createActiveRound', 'HiddenHand', 'tryCashOut',
   'lastAcknowledgedTerminalRound', 'setInterval',

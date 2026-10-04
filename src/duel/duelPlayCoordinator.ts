@@ -201,6 +201,15 @@ export function createDuelPlayCoordinator(client: DuelPlayClient) {
       return pendingOpen
     },
 
+    getPendingCashOut(): DuelCashOutCommand | null {
+      return pendingCashOut
+    },
+
+    /** True while an OPEN or CASH OUT command may still be unresolved on the server. */
+    hasUnresolvedPlayCommand(): boolean {
+      return pendingOpen !== null || pendingCashOut !== null
+    },
+
     async load(matchId: string): Promise<DuelPlayState> {
       const state = await client.getPlayState(matchId)
       if (opponentPlacements?.matchId === matchId) {
@@ -290,26 +299,69 @@ export function createDuelPlayCoordinator(client: DuelPlayClient) {
       readonly roundNumber: number
     }): Promise<DuelCashOutCoordinatorResult> {
       if (inFlight) throw new DuelPlayCoordinatorError('busy')
-      if (pendingOpen) throw new DuelPlayCoordinatorError('retry-required')
-      if (
-        pendingCashOut &&
-        (pendingCashOut.matchId !== input.matchId ||
-          pendingCashOut.roundNumber !== input.roundNumber)
-      ) {
-        throw new DuelPlayCoordinatorError('retry-required')
-      }
-      pendingCashOut ??= client.createCashOutCommand(input)
       inFlight = true
       try {
-        const result = await client.cashOut(pendingCashOut)
-        pendingCashOut = null
-        return { kind: 'cashed-out', result }
-      } catch (error: unknown) {
-        if (error instanceof DuelPlayClientError && error.kind === 'conflict') {
-          pendingCashOut = null
-          return { kind: 'resynced', state: await client.getPlayState(input.matchId) }
+        let cashOutInput = input
+        let settledPendingOpen = false
+
+        /*
+         * Unresolved OPEN must be settled with the same Idempotency-Key before
+         * CASH OUT. Never clear pendingOpen without an authoritative outcome.
+         */
+        if (pendingOpen) {
+          if (pendingOpen.matchId !== input.matchId) {
+            throw new DuelPlayCoordinatorError('retry-required')
+          }
+          try {
+            await client.openBag(pendingOpen)
+            pendingOpen = null
+          } catch (error: unknown) {
+            if (error instanceof DuelPlayClientError && error.kind === 'conflict') {
+              pendingOpen = null
+            } else {
+              throw error
+            }
+          }
+          settledPendingOpen = true
+          const state = await client.getPlayState(input.matchId)
+          const displayed = selectDuelDisplayedRound(state)
+          if (!displayed || displayed.terminal || !canOfferDuelCashOut(displayed)) {
+            return { kind: 'resynced', state }
+          }
+          cashOutInput = {
+            matchId: input.matchId,
+            roundNumber: displayed.roundNumber,
+          }
         }
-        throw error
+
+        if (
+          pendingCashOut &&
+          (pendingCashOut.matchId !== cashOutInput.matchId ||
+            pendingCashOut.roundNumber !== cashOutInput.roundNumber)
+        ) {
+          throw new DuelPlayCoordinatorError('retry-required')
+        }
+        pendingCashOut ??= client.createCashOutCommand(cashOutInput)
+        try {
+          const result = await client.cashOut(pendingCashOut)
+          pendingCashOut = null
+          if (settledPendingOpen) {
+            return {
+              kind: 'resynced',
+              state: await client.getPlayState(cashOutInput.matchId),
+            }
+          }
+          return { kind: 'cashed-out', result }
+        } catch (error: unknown) {
+          if (error instanceof DuelPlayClientError && error.kind === 'conflict') {
+            pendingCashOut = null
+            return {
+              kind: 'resynced',
+              state: await client.getPlayState(cashOutInput.matchId),
+            }
+          }
+          throw error
+        }
       } finally {
         inFlight = false
       }

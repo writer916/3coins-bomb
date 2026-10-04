@@ -104,6 +104,7 @@ export type AppStrings = {
   duelPlayLoading: string
   duelPlayError: string
   duelOpenRetry: string
+  duelCashOutRetry: string
   duelResult: string
   /** Completion shell heading: self play finished (waiting + result-ready). */
   duelWaitingTitle: string

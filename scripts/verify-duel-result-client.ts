@@ -119,6 +119,7 @@ const coordinator = createDuelPlayCoordinator({
     assert.equal(matchId, MATCH_ID)
     return completed as Awaited<ReturnType<ReturnType<typeof createDuelPlayClient>['getFinalResult']>>
   },
+  async getMatchDetail() { throw new Error('unused') },
 })
 assert.equal((await coordinator.getFinalResult(MATCH_ID)).status, 'completed')
 assert.equal(coordinatorCalls, 1)
