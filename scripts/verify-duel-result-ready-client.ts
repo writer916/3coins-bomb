@@ -173,6 +173,7 @@ const shellBlock = resultScreen.slice(
   resultScreen.indexOf('export function DuelResultScreen'),
 )
 assert.doesNotMatch(shellBlock, /duelReturnToTop/)
+assert.doesNotMatch(shellBlock, /duelAddToHomeScreen|duel-final-home-install/)
 
 // InvitePanel polling must remain local (no shared helper refactor)
 assert.match(invitePanel, /DUEL_READY_POLL_INTERVAL_MS = 5_000/)

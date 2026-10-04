@@ -1302,9 +1302,29 @@
   width: 100%;
 }
 
-.duel-final-return {
-  /* Override quiet-top's margin-top:auto — sit under RESULT body, not viewport foot. */
+.duel-final-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.55rem;
+  width: min(100%, 16.5rem);
   margin-top: 0.15rem;
+}
+
+.duel-final-return,
+.duel-final-home-install {
+  /* Override quiet-top's margin-top:auto — sit under RESULT body, not viewport foot. */
+  margin-top: 0;
+  width: 100%;
+  max-width: 100%;
+}
+
+.duel-final-home-install {
+  /* Softer than TOP: same quiet family, slightly lower emphasis. */
+  border-color: rgba(196, 165, 116, 0.28);
+  color: #a89880;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
 }
 
 .duel-final-verdict {
@@ -1802,7 +1822,8 @@
   align-self: center;
 }
 
-.duel-invite-qr-overlay {
+.duel-invite-qr-overlay,
+.duel-home-install-overlay {
   position: fixed;
   inset: 0;
   z-index: 40;
@@ -1812,7 +1833,8 @@
   background: rgba(0, 0, 0, 0.72);
 }
 
-.duel-invite-qr-panel {
+.duel-invite-qr-panel,
+.duel-home-install-panel {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1822,6 +1844,17 @@
   border: 1px solid rgba(242, 230, 208, 0.35);
   border-radius: 0.45rem;
   background: #1a1510;
+}
+
+.duel-home-install-copy {
+  margin: 0;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(0.95rem, 3.6vw, 1.1rem);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1.45;
+  color: #f2e6d0;
+  text-align: center;
 }
 
 .duel-invite-qr-svg {

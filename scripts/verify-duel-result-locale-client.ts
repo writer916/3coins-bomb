@@ -21,6 +21,8 @@ assert.equal(ja.duelViewResult, '結果を見る')
 assert.equal(en.duelViewResult, 'VIEW RESULT')
 assert.equal(ja.duelReturnToTop, 'トップへ戻る')
 assert.equal(en.duelReturnToTop, 'BACK TO TOP')
+assert.equal(ja.duelAddToHomeScreen, 'ホーム画面に追加')
+assert.equal(en.duelAddToHomeScreen, 'ADD TO HOME SCREEN')
 assert.equal(ja.duelYou, 'あなた')
 assert.equal(en.duelYou, 'YOU')
 assert.equal(ja.duelOpponent, '相手')
@@ -99,5 +101,12 @@ const completedBlock = resultScreen.slice(
 )
 assert.match(completedBlock, /duelReturnToTop/)
 assert.match(completedBlock, /onGoTop/)
+assert.match(completedBlock, /duelAddToHomeScreen/)
+assert.match(completedBlock, /duel-final-actions/)
+assert.ok(
+  completedBlock.indexOf('duelReturnToTop') < completedBlock.indexOf('duelAddToHomeScreen'),
+  'TOP above ADD TO HOME SCREEN',
+)
+assert.doesNotMatch(completionShell, /duelAddToHomeScreen|duel-final-home-install/)
 
 console.log('verify-duel-result-locale-client: all checks passed')

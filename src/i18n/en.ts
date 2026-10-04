@@ -70,6 +70,12 @@ export const en: AppStrings = {
   duelSelfUrlIntro:
     'Once your opponent finishes placement, you can start the match from this URL. Keep it until the match ends.',
   duelReturnToTop: 'BACK TO TOP',
+  duelAddToHomeScreen: 'ADD TO HOME SCREEN',
+  duelAddToHomeGuideIos: 'Choose “Add to Home Screen” from your browser menu.',
+  duelAddToHomeGuideAndroid:
+    'Choose “Add to Home Screen” or “Install app” from your browser menu.',
+  duelAddToHomeGuideGeneric: 'Choose “Add to Home Screen” from your browser menu.',
+  duelAddToHomeGuideClose: 'CLOSE',
   duelInviteCopy: 'COPY',
   duelInviteCopyAria: 'Copy URL',
   duelInviteCopied: 'Copied',

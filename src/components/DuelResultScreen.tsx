@@ -2,6 +2,10 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { DuelFinalResult, DuelResultParticipantSummary } from '../duel/duelPlayClient'
 import { resolveDuelResultPresentation } from '../duel/duelResultPresentation'
 import type { AppStrings } from '../i18n'
+import { ensureHomeInstallListening } from '../pwa/homeInstall'
+import { useHomeInstallCta } from '../pwa/useHomeInstallCta'
+
+ensureHomeInstallListening()
 
 export const DUEL_RESULT_POLL_INTERVAL_MS = 5_000
 
@@ -71,6 +75,13 @@ function CompletedResult({
   const verdict = result.winner === 'draw'
     ? t.duelDraw
     : result.winner === result.viewerRole ? t.duelWin : t.duelLose
+  const { showCta, guideOpen, guideKind, onAddClick, closeGuide } = useHomeInstallCta()
+  const guideCopy =
+    guideKind === 'ios'
+      ? t.duelAddToHomeGuideIos
+      : guideKind === 'android'
+        ? t.duelAddToHomeGuideAndroid
+        : t.duelAddToHomeGuideGeneric
 
   return (
     <section className="duel-final duel-final--completed">
@@ -82,15 +93,48 @@ function CompletedResult({
           <PlayerCard title={t.duelOpponent} summary={opponent} t={t} />
         </div>
       </div>
-      {onGoTop ? (
-        <button
-          type="button"
-          className="duel-btn duel-btn--quiet-top duel-final-return"
-          data-duel-metric="secondary"
-          onClick={onGoTop}
+      {onGoTop || showCta ? (
+        <div className="duel-final-actions">
+          {onGoTop ? (
+            <button
+              type="button"
+              className="duel-btn duel-btn--quiet-top duel-final-return"
+              data-duel-metric="secondary"
+              onClick={onGoTop}
+            >
+              {t.duelReturnToTop}
+            </button>
+          ) : null}
+          {showCta ? (
+            <button
+              type="button"
+              className="duel-btn duel-btn--quiet-top duel-final-home-install"
+              data-duel-metric="tertiary"
+              onClick={onAddClick}
+            >
+              {t.duelAddToHomeScreen}
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+      {guideOpen ? (
+        <div
+          className="duel-home-install-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-label={t.duelAddToHomeScreen}
+          onClick={closeGuide}
         >
-          {t.duelReturnToTop}
-        </button>
+          <div
+            className="duel-home-install-panel"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <p className="duel-home-install-copy">{guideCopy}</p>
+            <button type="button" className="duel-btn" onClick={closeGuide}>
+              {t.duelAddToHomeGuideClose}
+            </button>
+          </div>
+        </div>
       ) : null}
     </section>
   )

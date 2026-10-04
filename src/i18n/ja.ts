@@ -71,6 +71,14 @@ export const ja: AppStrings = {
   duelSelfUrlIntro:
     '相手が配置を完了すると、このURLで対戦を始められます。勝負が終わるまで保管してください。',
   duelReturnToTop: 'トップへ戻る',
+  duelAddToHomeScreen: 'ホーム画面に追加',
+  duelAddToHomeGuideIos:
+    'ブラウザのメニューから「ホーム画面に追加」を選んでください。',
+  duelAddToHomeGuideAndroid:
+    'ブラウザのメニューから「ホーム画面に追加」または「アプリをインストール」を選んでください。',
+  duelAddToHomeGuideGeneric:
+    'ブラウザのメニューから「ホーム画面に追加」を選んでください。',
+  duelAddToHomeGuideClose: '閉じる',
   duelInviteCopy: 'コピー',
   duelInviteCopyAria: 'URLをコピー',
   duelInviteCopied: 'コピーしました',
