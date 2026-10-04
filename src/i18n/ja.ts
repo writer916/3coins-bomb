@@ -73,7 +73,7 @@ export const ja: AppStrings = {
   duelReturnToTop: 'トップへ戻る',
   duelAddToHomeScreen: 'ホーム画面に追加',
   duelAddToHomeGuideIos:
-    'ブラウザの「…」メニューから\n「ホーム画面に追加」を選んでください。',
+    'Safariブラウザの「…」メニューから「共有」を開き、\n「ホーム画面に追加」を選んでください。',
   duelAddToHomeGuideAndroid:
     'ブラウザのメニューから「ホーム画面に追加」または「アプリをインストール」を選んでください。',
   duelAddToHomeGuideGeneric:

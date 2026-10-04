@@ -72,7 +72,7 @@ export const en: AppStrings = {
   duelReturnToTop: 'BACK TO TOP',
   duelAddToHomeScreen: 'ADD TO HOME SCREEN',
   duelAddToHomeGuideIos:
-    'From the browser “…” menu, choose “Add to Home Screen”.',
+    'In the Safari browser, open “Share” from the “…” menu,\nthen choose “Add to Home Screen”.',
   duelAddToHomeGuideAndroid:
     'Choose “Add to Home Screen” or “Install app” from your browser menu.',
   duelAddToHomeGuideGeneric: 'Choose “Add to Home Screen” from your browser menu.',
