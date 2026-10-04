@@ -71,7 +71,14 @@ assert.match(playScreenSource, /completedRounds\} \/ \{view\.totalRounds/)
 assert.match(playScreenSource, /score-label">COINS/)
 assert.match(playScreenSource, /score-label">3COINS COMPLETE/)
 assert.match(appCss, /\.duel-play \.score-row > \.score-item:first-child \.score-num/)
-assert.match(appCss, /min-width: 7\.5ch/)
+assert.match(
+  appCss,
+  /\.duel-play \.score-row > \.score-item:first-child \.score-num\s*{[^}]*min-width:\s*7\.5ch/s,
+)
+assert.match(
+  appCss,
+  /\.duel-play \.score-row > \.score-item:first-child \.score-num\s*{[^}]*text-align:\s*left/s,
+)
 assert.doesNotMatch(appCss, /\.duel-play \.score-stack\s*{/)
 assert.doesNotMatch(appCss, /\.duel-play \.score-row\s*{[^}]*justify-content:\s*space-between/s)
 assert.doesNotMatch(appCss, /width: min\(100%, 22\.75rem\)/)

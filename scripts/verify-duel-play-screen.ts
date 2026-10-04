@@ -521,6 +521,14 @@ assert.match(appCss, /\.score-row\s*{[^}]*width:\s*max-content/s)
 assert.match(appCss, /\.score-row--secondary\s*{[^}]*width:\s*0/s)
 assert.match(appCss, /\.score-row--secondary\s*{[^}]*min-width:\s*100%/s)
 assert.match(appCss, /\.score-row--secondary\s*{[^}]*justify-content:\s*space-between/s)
+assert.match(
+  appCss,
+  /\.duel-play \.score-row > \.score-item:first-child \.score-num\s*{[^}]*min-width:\s*7\.5ch/s,
+)
+assert.match(
+  appCss,
+  /\.duel-play \.score-row > \.score-item:first-child \.score-num\s*{[^}]*text-align:\s*left/s,
+)
 assert.match(appCss, /\.score-label\s*{[^}]*font-family:\s*Georgia/s)
 assert.match(appCss, /\.score-label\s*{[^}]*font-variant-numeric:\s*lining-nums/s)
 assert.match(
@@ -590,7 +598,11 @@ assert.match(invite, /window\.setInterval/)
 assert.match(invite, /document\.visibilityState === 'visible'/)
 assert.match(invite, /window\.clearInterval\(pollTimer\)/)
 assert.match(invite, /if \(!active \|\| refreshPending\) return/)
-assert.match(invite, /if \(!storage \|\| playReady\) return/)
+// Start-confirm: keep polling until playReady AND matchMeta are both settled.
+assert.match(invite, /const pollSettled = playReady && matchMeta != null/)
+assert.match(invite, /if \(!storage \|\| pollSettled\) return/)
+assert.match(invite, /}, \[storage, matchId, pollSettled\]\)/)
+assert.doesNotMatch(invite, /if \(!storage \|\| playReady\) return/)
 assert.doesNotMatch(coordinatorSource, /localStorage|sessionStorage|Math\.random/)
 assert.match(coordinatorSource, /judgeDuelOpponentBag/)
 assert.match(coordinatorSource, /opponentPlacements/)

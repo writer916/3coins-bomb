@@ -535,6 +535,7 @@
   /* DUEL PLAY: keep centered compact row; only ROUNDS value reserves 20 / 20. */
   .duel-play .score-row > .score-item:first-child .score-num {
     min-width: 7.5ch;
+    text-align: left;
   }
 
   .reset-btn {
@@ -1171,9 +1172,13 @@
 /*
   DUEL PLAY footer: keep pre-5e27608 centered max-content cluster.
   Only the ROUNDS value reserves tabular room for “20 / 20”.
+  Left-align so short values (e.g. “2 / 2”) sit next to ROUNDS;
+  reserved width stays on the trailing side (does not open a gap
+  between label and value).
 */
 .duel-play .score-row > .score-item:first-child .score-num {
   min-width: 7.5ch;
+  text-align: left;
 }
 
 .duel-play-board {
