@@ -65,20 +65,23 @@ assert.doesNotMatch(
   /duel-start-confirm__actions[\s\S]*duel-start-confirm__top[\s\S]*<\/div>\s*<\/div>/s,
 )
 
-/* 3. PLAY footer: centered max-content (not space-between widen); ROUNDS min-width only. */
+/* 3. PLAY footer: centered max-content cluster; shared pair-gap + separate group-gap. */
 assert.match(playScreenSource, /score-label">ROUNDS/)
 assert.match(playScreenSource, /completedRounds\} \/ \{view\.totalRounds/)
 assert.match(playScreenSource, /score-label">COINS/)
 assert.match(playScreenSource, /score-label">3COINS COMPLETE/)
-assert.match(appCss, /\.duel-play \.score-row > \.score-item:first-child \.score-num/)
-assert.match(
+assert.match(appCss, /--duel-score-pair-gap:\s*0\.45rem/)
+assert.match(appCss, /--duel-score-group-gap:\s*1\.15rem/)
+assert.match(appCss, /\.duel-play \.score-item\s*{[^}]*gap:\s*var\(--duel-score-pair-gap\)/s)
+assert.match(appCss, /\.duel-play \.score-row\s*{[^}]*column-gap:\s*var\(--duel-score-group-gap\)/s)
+assert.match(appCss, /\.duel-play \.score-num\s*{[^}]*min-width:\s*0/s)
+assert.match(appCss, /\.duel-play \.score-num\s*{[^}]*text-align:\s*left/s)
+assert.doesNotMatch(appCss, /\.duel-play[^{]*\{[^}]*7\.5ch/)
+assert.doesNotMatch(
   appCss,
   /\.duel-play \.score-row > \.score-item:first-child \.score-num\s*{[^}]*min-width:\s*7\.5ch/s,
 )
-assert.match(
-  appCss,
-  /\.duel-play \.score-row > \.score-item:first-child \.score-num\s*{[^}]*text-align:\s*left/s,
-)
+assert.match(appCss, /\.score-row--secondary\s*{[^}]*justify-content:\s*flex-start/s)
 assert.doesNotMatch(appCss, /\.duel-play \.score-stack\s*{/)
 assert.doesNotMatch(appCss, /\.duel-play \.score-row\s*{[^}]*justify-content:\s*space-between/s)
 assert.doesNotMatch(appCss, /width: min\(100%, 22\.75rem\)/)

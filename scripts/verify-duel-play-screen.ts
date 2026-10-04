@@ -520,14 +520,19 @@ assert.match(appCss, /\.score-row\s*{[^}]*justify-content:\s*center/s)
 assert.match(appCss, /\.score-row\s*{[^}]*width:\s*max-content/s)
 assert.match(appCss, /\.score-row--secondary\s*{[^}]*width:\s*0/s)
 assert.match(appCss, /\.score-row--secondary\s*{[^}]*min-width:\s*100%/s)
-assert.match(appCss, /\.score-row--secondary\s*{[^}]*justify-content:\s*space-between/s)
-assert.match(
+assert.match(appCss, /\.score-row--secondary\s*{[^}]*justify-content:\s*flex-start/s)
+assert.match(appCss, /\.score-row--secondary \.score-item\s*{[^}]*justify-content:\s*flex-start/s)
+assert.match(appCss, /--duel-score-pair-gap:\s*0\.45rem/)
+assert.match(appCss, /--duel-score-group-gap:\s*1\.15rem/)
+assert.match(appCss, /\.duel-play \.score-item\s*{[^}]*gap:\s*var\(--duel-score-pair-gap\)/s)
+assert.match(appCss, /\.duel-play \.score-row\s*{[^}]*column-gap:\s*var\(--duel-score-group-gap\)/s)
+assert.match(appCss, /\.duel-play \.score-num\s*{[^}]*min-width:\s*0/s)
+assert.match(appCss, /\.duel-play \.score-num\s*{[^}]*text-align:\s*left/s)
+assert.match(appCss, /\.score-num\s*{[^}]*font-family:\s*[\s\S]*?system-ui/s)
+assert.match(appCss, /\.score-num\s*{[^}]*font-variant-numeric:\s*tabular-nums/s)
+assert.doesNotMatch(
   appCss,
   /\.duel-play \.score-row > \.score-item:first-child \.score-num\s*{[^}]*min-width:\s*7\.5ch/s,
-)
-assert.match(
-  appCss,
-  /\.duel-play \.score-row > \.score-item:first-child \.score-num\s*{[^}]*text-align:\s*left/s,
 )
 assert.match(appCss, /\.score-label\s*{[^}]*font-family:\s*Georgia/s)
 assert.match(appCss, /\.score-label\s*{[^}]*font-variant-numeric:\s*lining-nums/s)

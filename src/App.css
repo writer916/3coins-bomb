@@ -270,17 +270,12 @@
 }
 
 .score-row--secondary {
-  /* Match top-row width only; label left = ROUNDS left, value on the right edge. */
+  /* Match top-row width only; content stays left-aligned under ROUNDS. */
   width: 0;
   min-width: 100%;
   max-width: 100%;
-  justify-content: space-between;
-  gap: 0.55rem;
-}
-
-.score-row--secondary .score-label {
-  /* Optical: Georgia lining “3” sidebearing sits right of capital “R”. */
-  margin-left: -0.08em;
+  justify-content: flex-start;
+  gap: 0;
 }
 
 .score-item {
@@ -294,9 +289,9 @@
 }
 
 .score-row--secondary .score-item {
-  flex: 1 1 auto;
-  justify-content: space-between;
-  width: 100%;
+  flex: 0 0 auto;
+  justify-content: flex-start;
+  width: auto;
   min-width: 0;
 }
 
@@ -530,12 +525,6 @@
   .score-num {
     font-size: clamp(0.98rem, 4.2vw, 1.12rem);
     min-width: 3.2ch;
-  }
-
-  /* DUEL PLAY: keep centered compact row; only ROUNDS value reserves 20 / 20. */
-  .duel-play .score-row > .score-item:first-child .score-num {
-    min-width: 7.5ch;
-    text-align: left;
   }
 
   .reset-btn {
@@ -1167,17 +1156,28 @@
   flex-direction: column;
   align-items: center;
   gap: clamp(0.65rem, 2vh, 1rem);
+  /*
+    Session score:
+    ROUNDS [pair-gap] value [group-gap] COINS [pair-gap] value
+    3COINS COMPLETE [pair-gap] value  (left-aligned to ROUNDS)
+    Cluster width = visible content only (no max-digit reservation).
+  */
+  --duel-score-pair-gap: 0.45rem;
+  --duel-score-group-gap: 1.15rem;
 }
 
-/*
-  DUEL PLAY footer: keep pre-5e27608 centered max-content cluster.
-  Only the ROUNDS value reserves tabular room for “20 / 20”.
-  Left-align so short values (e.g. “2 / 2”) sit next to ROUNDS;
-  reserved width stays on the trailing side (does not open a gap
-  between label and value).
-*/
-.duel-play .score-row > .score-item:first-child .score-num {
-  min-width: 7.5ch;
+.duel-play .score-item {
+  gap: var(--duel-score-pair-gap);
+}
+
+.duel-play .score-row {
+  column-gap: var(--duel-score-group-gap);
+  row-gap: 0;
+}
+
+.duel-play .score-num {
+  /* Natural width of the displayed digits; pair-gap alone sets label↔value space. */
+  min-width: 0;
   text-align: left;
 }
 
