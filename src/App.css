@@ -1855,6 +1855,7 @@
   line-height: 1.45;
   color: #f2e6d0;
   text-align: center;
+  white-space: pre-line;
 }
 
 .duel-invite-qr-svg {

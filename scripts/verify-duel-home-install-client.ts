@@ -81,9 +81,12 @@ assert.equal(ja.duelAddToHomeScreen, 'ホーム画面に追加')
 assert.equal(en.duelAddToHomeScreen, 'ADD TO HOME SCREEN')
 assert.equal(
   ja.duelAddToHomeGuideIos,
-  'ブラウザのメニューから「ホーム画面に追加」を選んでください。',
+  'ブラウザの「…」メニューから\n「ホーム画面に追加」を選んでください。',
 )
-assert.equal(en.duelAddToHomeGuideIos, 'Choose “Add to Home Screen” from your browser menu.')
+assert.equal(
+  en.duelAddToHomeGuideIos,
+  'From the browser “…” menu, choose “Add to Home Screen”.',
+)
 assert.equal(
   ja.duelAddToHomeGuideAndroid,
   'ブラウザのメニューから「ホーム画面に追加」または「アプリをインストール」を選んでください。',
