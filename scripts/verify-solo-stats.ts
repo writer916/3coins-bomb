@@ -3,6 +3,7 @@
  * Run: npm run verify:solo-stats
  */
 import type { BagContents } from '../src/game/hand'
+import { readFile } from 'node:fs/promises'
 import {
   applyAcceptedOpenToDraft,
   calculateHitRate,
@@ -36,6 +37,7 @@ function eqStats(a: SoloStats, b: SoloStats): boolean {
   return (
     a.rounds === b.rounds &&
     a.capturedCoins === b.capturedCoins &&
+    a.threeCoinsComplete === b.threeCoinsComplete &&
     a.openedBags === b.openedBags &&
     a.coinBags === b.coinBags &&
     a.bombs === b.bombs
@@ -137,6 +139,7 @@ const ZERO_DRAFT = createInitialSoloRoundDraft()
     !c.ok ||
     c.stats.rounds !== 1 ||
     c.stats.capturedCoins !== 0 ||
+    c.stats.threeCoinsComplete !== 0 ||
     c.stats.openedBags !== 4 ||
     c.stats.coinBags !== 2 ||
     c.stats.bombs !== 1
@@ -158,12 +161,46 @@ const ZERO_DRAFT = createInitialSoloRoundDraft()
     !c.ok ||
     c.stats.rounds !== 1 ||
     c.stats.capturedCoins !== 3 ||
+    c.stats.threeCoinsComplete !== 1 ||
     c.stats.openedBags !== 1 ||
     c.stats.coinBags !== 1 ||
     c.stats.bombs !== 0
   ) {
     fail('clear settle')
   } else ok('3 COINS決着 → rounds+1 captured+3 + temp一括反映')
+}
+
+{
+  // A 1+2 split across two bags completes one ROUND, not two bags.
+  let draft = createInitialSoloRoundDraft()
+  draft = applyAcceptedOpenToDraft(draft, coin1)
+  draft = applyAcceptedOpenToDraft(draft, coin2)
+  const c = commitRoundResultToStats(
+    createInitialSoloStats(),
+    draft,
+    { kind: 'cleared' },
+    false,
+  )
+  if (!c.ok || c.stats.threeCoinsComplete !== 1 || c.stats.coinBags !== 2) {
+    fail('split 1+2 complete')
+  } else ok('COIN 1+2 clear = 3COINS COMPLETE +1')
+}
+
+{
+  // A 1+1+1 split across three bags still completes exactly one ROUND.
+  let draft = createInitialSoloRoundDraft()
+  draft = applyAcceptedOpenToDraft(draft, coin1)
+  draft = applyAcceptedOpenToDraft(draft, coin1)
+  draft = applyAcceptedOpenToDraft(draft, coin1)
+  const c = commitRoundResultToStats(
+    createInitialSoloStats(),
+    draft,
+    { kind: 'cleared' },
+    false,
+  )
+  if (!c.ok || c.stats.threeCoinsComplete !== 1 || c.stats.coinBags !== 3) {
+    fail('split 1+1+1 complete')
+  } else ok('COIN 1+1+1 clear = 3COINS COMPLETE +1')
 }
 
 {
@@ -180,6 +217,7 @@ const ZERO_DRAFT = createInitialSoloRoundDraft()
     !c.ok ||
     c.stats.rounds !== 1 ||
     c.stats.capturedCoins !== 1 ||
+    c.stats.threeCoinsComplete !== 0 ||
     c.stats.openedBags !== 2 ||
     c.stats.coinBags !== 1
   ) {
@@ -200,6 +238,7 @@ const ZERO_DRAFT = createInitialSoloRoundDraft()
     !c.ok ||
     c.stats.rounds !== 1 ||
     c.stats.capturedCoins !== 2 ||
+    c.stats.threeCoinsComplete !== 0 ||
     c.stats.openedBags !== 1 ||
     c.stats.coinBags !== 1
   ) {
@@ -212,6 +251,7 @@ const ZERO_DRAFT = createInitialSoloRoundDraft()
   const settled: SoloStats = {
     rounds: 10,
     capturedCoins: 18,
+    threeCoinsComplete: 4,
     openedBags: 25,
     coinBags: 12,
     bombs: 3,
@@ -237,6 +277,7 @@ const ZERO_DRAFT = createInitialSoloRoundDraft()
   const settled: SoloStats = {
     rounds: 10,
     capturedCoins: 18,
+    threeCoinsComplete: 4,
     openedBags: 25,
     coinBags: 12,
     bombs: 3,
@@ -313,6 +354,7 @@ const ZERO_DRAFT = createInitialSoloRoundDraft()
   const settled: SoloStats = {
     rounds: 2,
     capturedCoins: 4,
+    threeCoinsComplete: 1,
     openedBags: 10,
     coinBags: 4,
     bombs: 2,
@@ -336,11 +378,12 @@ const ZERO_DRAFT = createInitialSoloRoundDraft()
     const n = normalizeSoloStats({
       rounds: 1,
       capturedCoins: 2,
+      threeCoinsComplete: 3,
       openedBags: 3,
       coinBags: 9,
       bombs: 9,
     })
-    if (n.coinBags !== 3 || n.bombs !== 3) fail('clamp')
+    if (n.coinBags !== 3 || n.bombs !== 3 || n.threeCoinsComplete !== 1) fail('clamp')
     else if (normalizeSoloStats({ rounds: -1, openedBags: 2 }).rounds !== 0) {
       fail('neg')
     } else ok('壊れたlocalStorage安全復旧')
@@ -374,7 +417,14 @@ const ZERO_DRAFT = createInitialSoloRoundDraft()
     },
   }
   writeSoloStats(
-    { rounds: 1, capturedCoins: 1, openedBags: 1, coinBags: 1, bombs: 0 },
+    {
+      rounds: 1,
+      capturedCoins: 1,
+      threeCoinsComplete: 0,
+      openedBags: 1,
+      coinBags: 1,
+      bombs: 0,
+    },
     storage,
   )
   // Ensure serialized blob has no draft fields
@@ -390,12 +440,32 @@ const ZERO_DRAFT = createInitialSoloRoundDraft()
   const s0: SoloStats = {
     rounds: 3,
     capturedCoins: 5,
+    threeCoinsComplete: 1,
     openedBags: 8,
     coinBags: 3,
     bombs: 1,
   }
   if (!eqStats(deserializeSoloStats(serializeSoloStats(s0)), s0)) fail('serde')
   else ok('serialize/deserialize 確定stats')
+}
+
+{
+  const legacy = deserializeSoloStats(
+    '{"v":1,"rounds":2,"capturedCoins":4,"openedBags":3,"coinBags":2,"bombs":0}',
+  )
+  if (legacy.threeCoinsComplete !== 0) fail('legacy complete default')
+  else ok('legacy SOLO stats default 3COINS COMPLETE to 0')
+}
+
+{
+  const appSource = await readFile('src/App.tsx', 'utf8')
+  if (
+    !appSource.includes('3COINS COMPLETE') ||
+    !appSource.includes('{soloStats.threeCoinsComplete}') ||
+    !appSource.includes('score-row score-row--secondary')
+  ) {
+    fail('SOLO result display')
+  } else ok('SOLO RESULT displays 3COINS COMPLETE in the shared secondary row')
 }
 
 if (failures > 0) {

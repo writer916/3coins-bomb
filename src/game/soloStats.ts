@@ -4,6 +4,8 @@ import type { BagContents } from './hand'
 export type SoloStats = {
   readonly rounds: number
   readonly capturedCoins: number
+  /** Settled ROUNDs where all 3 coins were captured. */
+  readonly threeCoinsComplete: number
   readonly openedBags: number
   readonly coinBags: number
   readonly bombs: number
@@ -19,6 +21,7 @@ export type SoloRoundDraft = {
 export const INITIAL_SOLO_STATS: SoloStats = {
   rounds: 0,
   capturedCoins: 0,
+  threeCoinsComplete: 0,
   openedBags: 0,
   coinBags: 0,
   bombs: 0,
@@ -93,11 +96,14 @@ export function commitRoundResultToStats(
     return { ok: false, reason: 'already-committed', stats }
   }
 
+  const capturedCoins = capturedCoinsForResult(result)
+
   return {
     ok: true,
     stats: {
       rounds: stats.rounds + 1,
-      capturedCoins: stats.capturedCoins + capturedCoinsForResult(result),
+      capturedCoins: stats.capturedCoins + capturedCoins,
+      threeCoinsComplete: stats.threeCoinsComplete + (capturedCoins === 3 ? 1 : 0),
       openedBags: stats.openedBags + draft.openedBags,
       coinBags: stats.coinBags + draft.coinBags,
       bombs: stats.bombs + draft.bombs,
@@ -124,6 +130,9 @@ export function normalizeSoloStats(raw: unknown): SoloStats {
   const o = raw as Record<string, unknown>
   const rounds = isNonNegInt(o.rounds) ? o.rounds : 0
   const capturedCoins = isNonNegInt(o.capturedCoins) ? o.capturedCoins : 0
+  const threeCoinsComplete = isNonNegInt(o.threeCoinsComplete)
+    ? Math.min(o.threeCoinsComplete, rounds)
+    : 0
   const openedBags = isNonNegInt(o.openedBags) ? o.openedBags : 0
   const coinBags = isNonNegInt(o.coinBags) ? o.coinBags : 0
   const bombs = isNonNegInt(o.bombs) ? o.bombs : 0
@@ -132,6 +141,7 @@ export function normalizeSoloStats(raw: unknown): SoloStats {
   return {
     rounds,
     capturedCoins,
+    threeCoinsComplete,
     openedBags,
     coinBags: safeCoinBags,
     bombs: safeBombs,
@@ -145,6 +155,7 @@ export type SoloStatsStoredV1 = {
   readonly v: typeof SOLO_STATS_SCHEMA_VERSION
   readonly rounds: number
   readonly capturedCoins: number
+  readonly threeCoinsComplete: number
   readonly openedBags: number
   readonly coinBags: number
   readonly bombs: number
@@ -155,6 +166,7 @@ export function serializeSoloStats(stats: SoloStats): string {
     v: SOLO_STATS_SCHEMA_VERSION,
     rounds: stats.rounds,
     capturedCoins: stats.capturedCoins,
+    threeCoinsComplete: stats.threeCoinsComplete,
     openedBags: stats.openedBags,
     coinBags: stats.coinBags,
     bombs: stats.bombs,

@@ -659,18 +659,26 @@ function App() {
 
       {/* GROUP C: SESSION SCORE — one flex row (ROUNDS / COINS / RESET) fits viewport */}
       <div className="group-session" aria-live="polite">
-        <div className="score-row">
-          <p className="score-item">
-            <span className="score-label">{t.soloRoundsLabel}</span>
-            <span className="score-num">{soloStats.rounds}</span>
-          </p>
-          <p className="score-item">
-            <span className="score-label">{t.soloCoinsLabel}</span>
-            <span className="score-num">{soloStats.capturedCoins}</span>
-          </p>
-          <button type="button" className="reset-btn" onClick={handleReset}>
-            {t.reset}
-          </button>
+        <div className="score-stack">
+          <div className="score-row">
+            <p className="score-item">
+              <span className="score-label">{t.soloRoundsLabel}</span>
+              <span className="score-num">{soloStats.rounds}</span>
+            </p>
+            <p className="score-item">
+              <span className="score-label">{t.soloCoinsLabel}</span>
+              <span className="score-num">{soloStats.capturedCoins}</span>
+            </p>
+            <button type="button" className="reset-btn" onClick={handleReset}>
+              {t.reset}
+            </button>
+          </div>
+          <div className="score-row score-row--secondary">
+            <p className="score-item">
+              <span className="score-label">3COINS COMPLETE</span>
+              <span className="score-num">{soloStats.threeCoinsComplete}</span>
+            </p>
+          </div>
         </div>
       </div>
     </main>
