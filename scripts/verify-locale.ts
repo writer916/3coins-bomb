@@ -63,24 +63,22 @@ writeLocale('ja', null) // no throw
 
 // --- JA copy (mode names / commands) ---
 assert.equal(ja.modeSoloName, 'SOLO')
-assert.equal(ja.modeSoloDesc, '袋に隠されたコイン3枚を探す')
+assert.equal(ja.modeSoloDesc, '3枚のコインが隠された袋を当てる')
 assert.equal(ja.modeDuelName, 'DUEL')
-assert.equal(ja.modeDuelDesc, '互いにコインを隠して探す2人対戦')
+assert.equal(ja.modeDuelDesc, '互いにコインを隠して当てる2人対戦')
 assert.equal(ja.modeGroupName, 'GROUP')
-assert.equal(ja.modeGroupDesc, '同じ出題を解いてスコアを競う')
-assert.equal(ja.cashOut, 'CASH OUT')
-assert.equal(ja.duelContinue, 'NEXT')
+assert.equal(ja.modeGroupDesc, '同じ出題をそれぞれ解いてスコアを競う')
+assert.equal(ja.cashOut, '利確')
+assert.equal(ja.duelRoundsHint, 'ROUND数を決めてください')
+assert.equal(ja.duelContinue, 'OK')
 assert.equal(ja.duelTop, 'TOP')
-assert.equal(ja.duelSet, 'SET')
+assert.equal(ja.duelSet, 'OK')
 assert.equal(ja.duelBack, 'BACK')
 assert.equal(ja.duelResetRound, 'RESET')
-assert.equal(ja.duelNextRound, 'NEXT ROUND')
-assert.equal(ja.duelComplete, 'OK！')
-assert.equal(ja.duelLock, 'OK！')
-assert.ok(!ja.duelComplete.includes('OK!'))
-assert.ok(!ja.duelLock.includes('OK!'))
-assert.ok(ja.duelComplete.endsWith('！'))
-assert.ok(ja.duelLock.endsWith('！'))
+assert.equal(ja.duelNextRound, 'OK')
+assert.equal(ja.duelComplete, 'OK')
+assert.equal(ja.duelLock, 'OK')
+assert.equal(ja.duelLocking, 'LOCKING...')
 assert.equal(ja.duelStartOver, 'RESET ALL')
 assert.equal(
   ja.duelStartOverConfirm,
@@ -100,9 +98,8 @@ assert.equal(
   ja.duelPlaceBomb.split('\n')[0],
   ja.duelPlaceCoins.split('\n')[0],
 )
-assert.equal(ja.duelRoundsReady, 'ALL ROUNDS READY')
+assert.equal(ja.duelRoundsReady, 'すべてよろしいですか？')
 assert.equal(en.duelRoundsReady, 'ALL ROUNDS READY')
-assert.equal(ja.duelRoundsReady, en.duelRoundsReady)
 // Complete summary must not embed a dynamic ROUND count
 assert.ok(!/\d/.test(ja.duelRoundsReady))
 assert.ok(!/\d/.test(en.duelRoundsReady))
@@ -119,7 +116,7 @@ assert.equal(en.cashOut, 'CASH OUT')
 assert.equal(en.duelCashOutRetry, 'Could not cash out. Tap CASH OUT again.')
 assert.equal(
   ja.duelCashOutRetry,
-  'CASH OUTできませんでした。もう一度CASH OUTをタップしてください。',
+  '利確できませんでした。もう一度「利確」をタップしてください。',
 )
 assert.equal(en.duelContinue, 'CONTINUE')
 assert.equal(en.duelTop, 'TOP')
@@ -245,6 +242,16 @@ assert.equal(en.duelPlaceCoins, 'Tap to place 3 coins.')
   )
   assert.ok(bagsBlock.includes('t.duelBack'), 'BAGS keeps BACK')
   assert.ok(!bagsBlock.includes('t.duelTop'), 'BAGS must not add TOP')
+
+  // Placement screens: advance is first, then RESET, then BACK (both locales).
+  const placeStart = src.indexOf('data-duel-slot="buttons"')
+  assert.ok(placeStart >= 0, 'placement button slot missing')
+  const placeButtons = src.slice(placeStart, placeStart + 2600)
+  const advance = placeButtons.indexOf('data-duel-metric="place-advance"')
+  const reset = placeButtons.indexOf('data-duel-metric="place-reset"')
+  const back = placeButtons.indexOf('onClick={onBackFromPlace}')
+  assert.ok(advance >= 0 && reset >= 0 && back >= 0)
+  assert.ok(advance < reset && reset < back, 'placement order must be advance → RESET → BACK')
 }
 
 console.log('verify:locale OK')

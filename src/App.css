@@ -1505,8 +1505,8 @@
   margin-top: 0;
 }
 
-.duel-final-player span,
-.duel-final-stat span {
+.duel-final-player > span,
+.duel-final-stat > span {
   flex: 1 1 auto;
   min-width: 0;
   font-family: Georgia, 'Times New Roman', Times, serif;
@@ -1567,7 +1567,7 @@
     font-size: clamp(0.95rem, 3.8vw, 1.2rem);
   }
 
-  .duel-final-stat span {
+  .duel-final-stat > span {
     font-size: clamp(0.72rem, 3.1vw, 0.86rem);
   }
 

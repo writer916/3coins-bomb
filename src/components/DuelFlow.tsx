@@ -518,14 +518,6 @@ export function DuelFlow({
         data-duel-slot="buttons"
       >
         <div className="duel-btn-stack">
-          <button
-            type="button"
-            className="duel-btn"
-            data-duel-metric="place-reset"
-            onClick={onResetRound}
-          >
-            {t.duelResetRound}
-          </button>
           {isFinalRound ? (
             <button
               type="button"
@@ -547,6 +539,14 @@ export function DuelFlow({
               {t.duelNextRound}
             </button>
           )}
+          <button
+            type="button"
+            className="duel-btn"
+            data-duel-metric="place-reset"
+            onClick={onResetRound}
+          >
+            {t.duelResetRound}
+          </button>
           <button
             type="button"
             className="duel-btn"

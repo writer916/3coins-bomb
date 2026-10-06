@@ -99,7 +99,7 @@ assert.equal(sharedUrl, selfUrl)
 
 assert.equal(ja.duelInviteUrlLabel, '相手用URL')
 assert.equal(ja.duelSelfUrlLabel, 'あなた用URL')
-assert.equal(ja.duelInviteNext, '次へ')
+assert.equal(ja.duelInviteNext, 'OK')
 assert.equal(ja.duelReturnToTop, 'トップへ戻る')
 assert(ja.duelSelfUrlIntro.includes('保管'))
 assert.equal(en.duelInviteUrlLabel, 'OPPONENT URL')

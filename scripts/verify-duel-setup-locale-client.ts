@@ -12,15 +12,17 @@ const [appCss, stepperSource, flowSource] = await Promise.all([
   readFile('src/components/DuelFlow.tsx', 'utf8'),
 ])
 
-/* Copy unchanged — layout-only fix. */
-assert.equal(ja.duelRoundsHint, 'ラウンド数を決めてください')
+/* Confirmed JA copy; EN wording stays unchanged. */
+assert.equal(ja.duelRoundsHint, 'ROUND数を決めてください')
 assert.equal(en.duelRoundsHint, 'Choose the number of rounds.')
 assert.equal(ja.duelBagsHint, '袋の数を決めてください')
 assert.equal(en.duelBagsHint, 'Choose the number of bags.')
 assert.equal(ja.duelBagsLabel, 'BAGS（3–8）')
-assert.equal(en.duelBagsLabel, 'BAGS (3–8)')
+assert.equal(en.duelBagsLabel, 'BAGS（3–8）')
 assert.equal(ja.duelRoundsLabel, 'ROUNDS（1–20）')
-assert.equal(en.duelRoundsLabel, 'ROUNDS (1–20)')
+assert.equal(en.duelRoundsLabel, 'ROUNDS（1–20）')
+assert.equal(ja.duelRoundsLabel, en.duelRoundsLabel)
+assert.equal(ja.duelBagsLabel, en.duelBagsLabel)
 
 /* Setup instruction slot (not place). */
 assert.match(

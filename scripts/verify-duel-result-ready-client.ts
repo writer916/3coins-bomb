@@ -159,11 +159,11 @@ assert.equal(
 )
 
 assert.match(types, /duelViewResult/)
-assert.match(ja, /duelViewResult: '結果を見る'/)
+assert.match(ja, /duelViewResult: '結果をみる'/)
 assert.match(en, /duelViewResult: 'VIEW RESULT'/)
 assert.match(ja, /duelWaitingTitle: 'プレイが完了しました'/)
 assert.match(en, /duelWaitingTitle: 'PLAY COMPLETE'/)
-assert.match(ja, /duelWaitingBody: '相手のプレイ終了を待っています。'/)
+assert.match(ja, /duelWaitingBody: '相手のプレイを待っています'/)
 assert.match(en, /duelWaitingBody: 'WAITING FOR OPPONENT TO FINISH'/)
 assert.match(resultScreen, /CompletionShell/)
 assert.match(resultScreen, /duel-final-completion-slot/)

@@ -29,6 +29,8 @@ assert.match(appCss, /\.score-num\s*{[\s\S]*?font-family:\s*system-ui,/)
 assert.match(app, /withDuelNums\('3COINS COMPLETE'\)/)
 assert.match(duelPlay, /withDuelNums\('3COINS COMPLETE'\)/)
 assert.match(duelResult, /<span>\{withDuelNums\(label\)\}<\/span>/)
+assert.match(appCss, /\.duel-final-stat\s*>\s*span\s*{/)
+assert.doesNotMatch(appCss, /\.duel-final-stat span\s*{/)
 
 // ROUND progress/detail and OPEN-order markers use the same numeric stack.
 assert.match(duelPlay, /withDuelNums\(t\.duelRoundProgress/)

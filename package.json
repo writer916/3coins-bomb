@@ -23,6 +23,7 @@
     "verify:reveal": "tsx scripts/verify-reveal.ts",
     "verify:solo-stats": "tsx scripts/verify-solo-stats.ts",
     "verify:numeric-fonts": "tsx scripts/verify-numeric-fonts.ts",
+    "verify:ui-copy": "tsx scripts/verify-ui-copy.ts",
     "verify:empty": "tsx scripts/verify-empty-fx.ts",
     "verify:locale": "tsx scripts/verify-locale.ts",
     "verify:duel-placement": "tsx scripts/verify-duel-placement.ts",
