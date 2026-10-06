@@ -9,7 +9,7 @@ export const ja: AppStrings = {
   newRound: '新しいROUND',
   reveal: 'REVEAL',
   nextRound: 'NEXT ROUND',
-  cashOut: '利確',
+  cashOut: '利確して進む',
   provisionalCoins: (count) => `COINS ${count}`,
   resultEmpty: 'EMPTY',
   resultBomb: 'BOMB',
@@ -96,7 +96,8 @@ export const ja: AppStrings = {
   duelPlayLoading: '対戦を読み込んでいます…',
   duelPlayError: '対戦を読み込めませんでした。もう一度お試しください。',
   duelOpenRetry: '袋を開けませんでした。同じ袋をもう一度タップしてください。',
-  duelCashOutRetry: '利確できませんでした。もう一度「利確」をタップしてください。',
+  duelCashOutRetry:
+    '利確できませんでした。もう一度「利確して進む」をタップしてください。',
   duelResult: 'RESULT',
   duelWaitingTitle: 'プレイが完了しました',
   duelWaitingBody: '相手のプレイを待っています',

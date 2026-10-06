@@ -14,7 +14,7 @@ const [appCss, resultScreen] = await Promise.all([
 
 /* ——— Completion-flow copy ——— */
 assert.equal(ja.duelWaitingTitle, 'プレイが完了しました')
-assert.equal(en.duelWaitingTitle, 'PLAY COMPLETE')
+assert.equal(en.duelWaitingTitle, 'YOUR PLAY IS COMPLETE')
 assert.equal(ja.duelWaitingBody, '相手のプレイを待っています')
 assert.equal(en.duelWaitingBody, 'WAITING FOR OPPONENT TO FINISH')
 assert.equal(ja.duelViewResult, '結果をみる')

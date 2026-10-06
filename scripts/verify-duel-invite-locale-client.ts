@@ -26,7 +26,7 @@ assert.equal(
 )
 assert.equal(
   en.duelSelfUrlIntro,
-  'Once your opponent finishes placement, you can start the match from this URL. Keep it until the match ends.',
+  'Once your opponent finishes placing their coins and bomb, you can start the match from this URL. Keep it until the match ends.',
 )
 
 /* Shared note slot on invite page only. */

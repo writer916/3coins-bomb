@@ -38,8 +38,8 @@ assert.deepEqual(
     locking: 'LOCKING...',
     roundsReady: 'すべてよろしいですか？',
     inviteNext: 'OK',
-    cashOut: '利確',
-    cashOutRetry: '利確できませんでした。もう一度「利確」をタップしてください。',
+    cashOut: '利確して進む',
+    cashOutRetry: '利確できませんでした。もう一度「利確して進む」をタップしてください。',
     waitingTitle: 'プレイが完了しました',
     waitingBody: '相手のプレイを待っています',
     viewResult: '結果をみる',
@@ -56,16 +56,34 @@ assert.equal(en.duelRoundsLabel, 'ROUNDS（1–20）')
 assert.equal(ja.duelBagsLabel, 'BAGS（3–8）')
 assert.equal(en.duelBagsLabel, 'BAGS（3–8）')
 
-// Existing EN wording remains unchanged except for the confirmed fullwidth parens.
+// Confirmed EN copy and intentionally unchanged command labels.
+assert.equal(en.modeSoloDesc, 'Find the 3 hidden coins')
+assert.equal(en.modeDuelDesc, 'Hide & find — 1 vs 1')
+assert.equal(en.modeGroupDesc, 'Same challenge — highest score wins')
 assert.equal(en.duelContinue, 'CONTINUE')
-assert.equal(en.duelSet, 'SET')
+assert.equal(en.duelSet, 'CONTINUE')
 assert.equal(en.duelNextRound, 'NEXT ROUND')
-assert.equal(en.duelComplete, 'COMPLETE')
+assert.equal(en.duelComplete, 'CONTINUE')
 assert.equal(en.duelLock, 'LOCK')
 assert.equal(en.duelLocking, 'LOCKING…')
+assert.equal(en.duelJoining, 'JOINING THE MATCH…')
+assert.equal(en.duelWaitingForOpponentPlacement, 'WAITING FOR OPPONENT')
+assert.equal(en.duelInviteUrlLabel, 'INVITE LINK')
+assert.equal(en.duelSelfUrlLabel, 'YOUR URL')
+assert.equal(
+  en.duelSelfUrlIntro,
+  'Once your opponent finishes placing their coins and bomb, you can start the match from this URL. Keep it until the match ends.',
+)
 assert.equal(en.cashOut, 'CASH OUT')
 assert.equal(en.duelInviteNext, 'NEXT')
+assert.equal(en.duelWaitingTitle, 'YOUR PLAY IS COMPLETE')
 assert.equal(en.duelViewResult, 'VIEW RESULT')
+assert.equal(en.duelWin, 'YOU WIN')
+assert.equal(en.duelLose, 'YOU LOSE')
+assert.equal(en.duelDraw, 'DRAW')
+assert.equal(en.duelMatchDetailError, 'Could not load details.')
+assert.equal(en.duelThreeCoinsComplete, '3COINS COMPLETE')
+assert.equal(en.duelRoundsReady, 'ALL ROUNDS READY')
 
 const placeStart = flow.indexOf('data-duel-slot="buttons"')
 const placeButtons = flow.slice(placeStart, placeStart + 2600)

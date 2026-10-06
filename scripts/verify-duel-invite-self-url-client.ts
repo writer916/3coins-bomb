@@ -102,7 +102,7 @@ assert.equal(ja.duelSelfUrlLabel, 'あなた用URL')
 assert.equal(ja.duelInviteNext, 'OK')
 assert.equal(ja.duelReturnToTop, 'トップへ戻る')
 assert(ja.duelSelfUrlIntro.includes('保管'))
-assert.equal(en.duelInviteUrlLabel, 'OPPONENT URL')
+assert.equal(en.duelInviteUrlLabel, 'INVITE LINK')
 assert.equal(
   ja.duelInviteOpponentIntro,
   '相手にこのURLを送り、コインと爆弾の位置を決めてもらいましょう。',
@@ -111,7 +111,7 @@ assert.equal(
   en.duelInviteOpponentIntro,
   'Send this URL to your opponent and have them place their coins and bomb.',
 )
-assert.equal(en.duelSelfUrlLabel, 'Your URL')
+assert.equal(en.duelSelfUrlLabel, 'YOUR URL')
 assert.equal(en.duelInviteNext, 'NEXT')
 
 const panelSource = await readFile('src/components/DuelInvitePanel.tsx', 'utf8')

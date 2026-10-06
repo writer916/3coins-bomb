@@ -27,7 +27,7 @@ const [
 assert.equal(ja.duelWaitingForOpponentPlacement, '相手の配置を待っています')
 assert.equal(
   en.duelWaitingForOpponentPlacement,
-  'WAITING FOR OPPONENT PLACEMENT',
+  'WAITING FOR OPPONENT',
 )
 assert.match(waitSource, /duelWaitingForOpponentPlacement/)
 assert.match(waitSource, /duel-placement-wait__status/)
