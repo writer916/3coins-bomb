@@ -68,7 +68,7 @@ assert.equal(ja.modeDuelName, 'DUEL')
 assert.equal(ja.modeDuelDesc, '互いにコインを隠して当てる2人対戦')
 assert.equal(ja.modeGroupName, 'GROUP')
 assert.equal(ja.modeGroupDesc, '同じ出題をそれぞれ解いてスコアを競う')
-assert.equal(ja.cashOut, '利確して進む')
+assert.equal(ja.cashOut, 'ここで利確')
 assert.equal(ja.duelRoundsHint, 'ROUND数を決めてください')
 assert.equal(ja.duelContinue, 'OK')
 assert.equal(ja.duelTop, 'TOP')
@@ -116,7 +116,7 @@ assert.equal(en.cashOut, 'CASH OUT')
 assert.equal(en.duelCashOutRetry, 'Could not cash out. Tap CASH OUT again.')
 assert.equal(
   ja.duelCashOutRetry,
-  '利確できませんでした。もう一度「利確して進む」をタップしてください。',
+  '利確できませんでした。もう一度「ここで利確」をタップしてください。',
 )
 assert.equal(en.duelContinue, 'CONTINUE')
 assert.equal(en.duelTop, 'TOP')
