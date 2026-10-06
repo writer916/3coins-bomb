@@ -8,6 +8,7 @@ import { resolveDuelResultPresentation } from '../duel/duelResultPresentation'
 import type { AppStrings } from '../i18n'
 import { ensureHomeInstallListening } from '../pwa/homeInstall'
 import { useHomeInstallCta } from '../pwa/useHomeInstallCta'
+import { withDuelNums } from '../ui/withDuelNums'
 import { DuelMatchDetailScreen } from './DuelMatchDetailScreen'
 
 ensureHomeInstallListening()
@@ -46,7 +47,7 @@ function StatRow({
 }) {
   return (
     <p className="duel-final-stat">
-      <span>{label}</span>
+      <span>{withDuelNums(label)}</span>
       <strong>{value}</strong>
     </p>
   )

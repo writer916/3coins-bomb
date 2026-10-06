@@ -220,7 +220,11 @@ export function CoinOpenFx({
             alt=""
             draggable={false}
           />
-          {label ? <span className={labelClass}>{label}</span> : null}
+          {label ? (
+            <span className={labelClass}>
+              <span className="duel-num">{label}</span>
+            </span>
+          ) : null}
         </div>
       </div>
     )
@@ -273,7 +277,9 @@ export function CoinOpenFx({
             opacity: labelOpacity,
           }}
         >
-          <span className={labelClass}>{label}</span>
+          <span className={labelClass}>
+            <span className="duel-num">{label}</span>
+          </span>
         </div>
       ) : null}
     </div>

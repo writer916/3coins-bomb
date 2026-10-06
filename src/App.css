@@ -295,18 +295,12 @@
   min-width: 0;
 }
 
-/*
-  Session labels (ROUNDS / COINS / 3COINS COMPLETE): one Georgia stack.
-  Digits inside the label (the leading “3”) must NOT pick up .score-num.
-*/
+/* Session label words stay Georgia; semantic digits use nested `.duel-num`. */
 .score-label {
   font-family: Georgia, 'Times New Roman', Times, serif;
   font-size: clamp(0.95rem, 3.6vw, 1.2rem);
   font-weight: 700;
   font-style: normal;
-  /* Lining figures so the leading “3” matches ROUNDS/COINS capital metrics. */
-  font-variant-numeric: lining-nums;
-  font-feature-settings: 'lnum' 1;
   letter-spacing: 0.04em;
   line-height: 1.15;
 }

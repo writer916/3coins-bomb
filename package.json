@@ -22,6 +22,7 @@
     "verify:coin-sprites": "tsx scripts/verify-coin-sprites.ts",
     "verify:reveal": "tsx scripts/verify-reveal.ts",
     "verify:solo-stats": "tsx scripts/verify-solo-stats.ts",
+    "verify:numeric-fonts": "tsx scripts/verify-numeric-fonts.ts",
     "verify:empty": "tsx scripts/verify-empty-fx.ts",
     "verify:locale": "tsx scripts/verify-locale.ts",
     "verify:duel-placement": "tsx scripts/verify-duel-placement.ts",

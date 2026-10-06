@@ -51,6 +51,7 @@ import {
 } from './game/soloStats'
 import { getStrings, type LocaleId } from './i18n'
 import { isDuelMatchRouteUrl } from './duel/duelInvitation'
+import { withDuelNums } from './ui/withDuelNums'
 import './App.css'
 
 type AppScreen = 'top' | 'solo' | 'coming' | 'duel'
@@ -675,7 +676,9 @@ function App() {
           </div>
           <div className="score-row score-row--secondary">
             <p className="score-item">
-              <span className="score-label">3COINS COMPLETE</span>
+              <span className="score-label">
+                {withDuelNums('3COINS COMPLETE')}
+              </span>
               <span className="score-num">{soloStats.threeCoinsComplete}</span>
             </p>
           </div>

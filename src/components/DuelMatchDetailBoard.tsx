@@ -61,7 +61,7 @@ export function DuelMatchDetailBoard({
               data-bag-number={marker.bagNumber}
               data-open-side={marker.side}
             >
-              {marker.openOrder}
+              <span className="duel-num">{marker.openOrder}</span>
             </span>
           ))}
         </div>

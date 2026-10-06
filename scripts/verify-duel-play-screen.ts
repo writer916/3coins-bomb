@@ -1048,17 +1048,12 @@ assert.doesNotMatch(
   /\.duel-play \.score-row > \.score-item:first-child \.score-num\s*{[^}]*min-width:\s*7\.5ch/s,
 )
 assert.match(appCss, /\.score-label\s*{[^}]*font-family:\s*Georgia/s)
-assert.match(appCss, /\.score-label\s*{[^}]*font-variant-numeric:\s*lining-nums/s)
 assert.match(
   screen,
-  /<span className="score-label">3COINS COMPLETE<\/span>\s*<span className="score-num">/,
-  '3COINS COMPLETE must be one score-label followed by the value score-num',
+  /<span className="score-label">\s*\{withDuelNums\('3COINS COMPLETE'\)\}\s*<\/span>\s*<span className="score-num">/,
+  '3COINS COMPLETE must wrap its semantic digit before the value score-num',
 )
-assert.doesNotMatch(
-  screen,
-  /score-label">3\s*<span/,
-  'leading 3 must not be split into its own span',
-)
+assert.match(screen, /withDuelNums\(t\.duelRoundProgress/)
 assert.match(appCss, /\.duel-final-stat/)
 assert.match(appCss, /\.duel-final-stats\s*{/)
 assert.match(appCss, /\.duel-final\s*{[^}]*width:\s*min\(100%,\s*30rem\)/s)

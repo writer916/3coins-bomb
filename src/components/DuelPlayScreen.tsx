@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { AppStrings } from '../i18n'
+import { withDuelNums } from '../ui/withDuelNums'
 import type { BagId } from '../game/assets'
 import { playBagOpen, warmBagOpenAudio } from '../game/bagAudio'
 import { resolveBagOpenSeRequest } from '../game/bagSfx'
@@ -641,7 +642,9 @@ export function DuelPlayScreen({ matchId, t, onGoTop }: DuelPlayScreenProps) {
 
   return (
     <div className="duel-play">
-      <p className="duel-round-index">{t.duelRoundProgress(round.roundNumber, view.totalRounds)}</p>
+      <p className="duel-round-index">
+        {withDuelNums(t.duelRoundProgress(round.roundNumber, view.totalRounds))}
+      </p>
       <div className="duel-play-board">
         <BagBoard
           bagCount={round.bagCount as BagCount}
@@ -747,7 +750,9 @@ export function DuelPlayScreen({ matchId, t, onGoTop }: DuelPlayScreenProps) {
           </div>
           <div className="score-row score-row--secondary">
             <p className="score-item">
-              <span className="score-label">3COINS COMPLETE</span>
+              <span className="score-label">
+                {withDuelNums('3COINS COMPLETE')}
+              </span>
               <span className="score-num">{view.selfProgress.threeCoinsComplete}</span>
             </p>
           </div>

@@ -69,7 +69,7 @@ assert.doesNotMatch(
 assert.match(playScreenSource, /score-label">ROUNDS/)
 assert.match(playScreenSource, /completedRounds\} \/ \{view\.totalRounds/)
 assert.match(playScreenSource, /score-label">COINS/)
-assert.match(playScreenSource, /score-label">3COINS COMPLETE/)
+assert.match(playScreenSource, /withDuelNums\('3COINS COMPLETE'\)/)
 assert.match(appCss, /--duel-score-pair-gap:\s*0\.45rem/)
 assert.match(appCss, /--duel-score-group-gap:\s*1\.15rem/)
 assert.match(appCss, /\.duel-play \.score-item\s*{[^}]*gap:\s*var\(--duel-score-pair-gap\)/s)

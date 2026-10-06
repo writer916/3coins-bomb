@@ -1,5 +1,6 @@
 import type { DuelMatchDetail, DuelMatchDetailRound } from '../duel/duelPlayClient'
 import type { AppStrings } from '../i18n'
+import { withDuelNums } from '../ui/withDuelNums'
 import { DuelMatchDetailBoard } from './DuelMatchDetailBoard'
 
 type DuelMatchDetailScreenProps = {
@@ -20,7 +21,9 @@ function DetailRoundBlock({
       className="duel-match-detail__round"
       data-duel-match-detail-round={round.roundNumber}
     >
-      <p className="duel-match-detail__round-label">{label}</p>
+      <p className="duel-match-detail__round-label">
+        {withDuelNums(label)}
+      </p>
       <DuelMatchDetailBoard
         bagCount={round.bagCount}
         bombBagNumber={round.bombBagNumber}
