@@ -381,7 +381,7 @@ export function aggregateGroupParticipantResult(
       if (
         !openedBomb ||
         lastOpen?.bagNumber !== placement.bombBagNumber ||
-        capturedCoins !== 0 ||
+        capturedCoins !== foundCoins ||
         foundCoins >= 3
       ) {
         return invalid()
