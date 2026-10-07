@@ -10,7 +10,7 @@ import { readSoundEnabled } from '../game/sound'
 import { bagIdToBagNumber, bagNumberToBagId } from '../duel/duelPlayClient'
 import { createOptimisticOpenGate, markOptimisticFailed, markOptimisticFxDone, markOptimisticServerDone, type OptimisticOpenGate } from '../duel/duelOptimisticOpen'
 import type { GroupLocalOpenResult } from '../group/groupDomain'
-import type { GroupCashOutResult, GroupOpenResult, GroupPlayReady, createGroupPlayBootstrapCoordinator } from '../group/groupPlayClient'
+import type { GroupCashOutResult, GroupOpenResult, GroupPlayReady, GroupResult, createGroupPlayBootstrapCoordinator } from '../group/groupPlayClient'
 import { BagBoard } from './BagBoard'
 import { BombOpenFx } from './BombOpenFx'
 import { CoinOpenFx } from './CoinOpenFx'
@@ -23,7 +23,7 @@ type ActiveFx =
   | { kind: 'bomb'; bagId: BagId; runId: number }
   | { kind: 'empty'; bagId: BagId; runId: number }
 
-export function GroupPlayScreen({ initialReady, coordinator, t }: { initialReady: GroupPlayReady; coordinator: Coordinator; t: AppStrings }) {
+export function GroupPlayScreen({ initialReady, coordinator, t, onResult }: { initialReady: GroupPlayReady; coordinator: Coordinator; t: AppStrings; onResult:(result:GroupResult)=>void }) {
   const [ready, setReady] = useState(initialReady)
   const [openedResults, setOpenedResults] = useState<readonly GroupOpenResult[]>([])
   const [provisionalCoins, setProvisionalCoins] = useState<0 | 1 | 2 | 3>(0)
@@ -107,7 +107,7 @@ export function GroupPlayScreen({ initialReady, coordinator, t }: { initialReady
   }, [coordinator, ready, terminal, requestPending, fx])
 
   const soundEnabled = readSoundEnabled()
-  if (terminal && ready.currentPlacement.roundNumber === ready.state.totalRounds && !fx && !requestPending) return <GroupCompletionWaiting groupId={ready.state.groupId} coordinator={coordinator} t={t}/>
+  if (terminal && ready.currentPlacement.roundNumber === ready.state.totalRounds && !fx && !requestPending) return <GroupCompletionWaiting groupId={ready.state.groupId} coordinator={coordinator} t={t} onResult={onResult}/>
   return <div className="duel-play">
     <p className="duel-round-index">{t.groupRoundLabel} <span className="duel-num">{ready.currentPlacement.roundNumber}</span>{' / '}<span className="duel-num">{ready.state.totalRounds}</span></p>
     <BagBoard bagCount={ready.currentPlacement.bagCount as BagCount} hiddenBagIds={hidden} onBagTap={tap} interactive={!requestPending && !terminal}>

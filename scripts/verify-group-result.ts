@@ -53,7 +53,7 @@ assert.deepEqual(ranked.map(x=>[x.participantId,x.rank]),[['early-a',1],['late-a
 const request=validateGetGroupResultRequest(GROUP_ID,`Bearer ${token}`)
 assert.equal(request.groupId,GROUP_ID)
 for(const authorization of [null,'Bearer invalid','Bearer 3cb_gh1_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA','Bearer 3cb_gi1_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA']) assert.throws(()=>validateGetGroupResultRequest(GROUP_ID,authorization),GetGroupResultError)
-const view={groupId:GROUP_ID,totalRounds:1,playerLimit:2,acceptedCount:2,completedCount:1,status:'closed' as const,ranking:[{rank:1,nickname:'Alice',totalCoins:3,threeCoinsComplete:1,coinBagHits:1,totalOpens:1,coinBagHitRate:{numerator:1,denominator:1}}]}
+const view={groupId:GROUP_ID,totalRounds:1,playerLimit:2,acceptedCount:2,completedCount:1,status:'closed' as const,ranking:[{rank:1,nickname:'Alice',isSelf:true,totalCoins:3,threeCoinsComplete:1,coinBagHits:1,totalOpens:1,coinBagHitRate:{numerator:1,denominator:1}}]}
 assert.deepEqual(await getGroupResult(request,async(id,hash)=>{assert.equal(id,GROUP_ID);assert.match(hash,/^[0-9a-f]{64}$/);return{kind:'closed',view}}),view)
 await assert.rejects(()=>getGroupResult(request,async()=>({kind:'open'})),GetGroupResultError)
 await assert.rejects(()=>getGroupResult(request,async()=>null),GetGroupResultError)

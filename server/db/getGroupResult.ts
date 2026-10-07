@@ -9,6 +9,7 @@ import { getDatabase } from './client.js'
 export interface GroupResultEntry {
   readonly rank: number
   readonly nickname: string
+  readonly isSelf: boolean
   readonly totalCoins: number
   readonly threeCoinsComplete: number
   readonly coinBagHits: number
@@ -63,11 +64,13 @@ function timestamp(value: unknown): string {
   return parsed.toISOString()
 }
 
-function participantInput(value: unknown, placements: GroupParticipantResultInput['placements'], totalRounds: number): GroupParticipantResultInput & { nickname: string } {
+function participantInput(value: unknown, placements: GroupParticipantResultInput['placements'], totalRounds: number): GroupParticipantResultInput & { nickname: string; isSelf: boolean } {
   const participant = object(value)
+  if (typeof participant.isSelf !== 'boolean') throw new Error('Invalid GROUP result data.')
   return {
     participantId: text(participant.participantId),
     nickname: text(participant.nickname),
+    isSelf: participant.isSelf,
     acceptedAt: timestamp(participant.acceptedAt),
     totalRounds,
     placements,
@@ -94,7 +97,7 @@ function participantInput(value: unknown, placements: GroupParticipantResultInpu
 export async function getGroupResultForParticipant(groupId: string, participantTokenHash: string): Promise<GroupResultSnapshot | null> {
   const result = await getDatabase().execute<ResultRow>(sql`
     with candidate as materialized (
-      select match.*
+      select match.*, self.id viewer_participant_id
       from group_matches match
       inner join group_participants self
         on self.group_id = match.id and self.auth_token_hash = ${participantTokenHash}
@@ -125,6 +128,7 @@ export async function getGroupResultForParticipant(groupId: string, participantT
         select coalesce(jsonb_agg(jsonb_build_object(
           'participantId', participant.id,
           'nickname', participant.display_nickname,
+          'isSelf', participant.id = candidate.viewer_participant_id,
           'acceptedAt', participant.accepted_at,
           'rounds', (
             select coalesce(jsonb_agg(jsonb_build_object(
@@ -166,10 +170,11 @@ export async function getGroupResultForParticipant(groupId: string, participantT
     }
   })
   const inputs = array(row.participants).map((value) => participantInput(value, placements, row.total_rounds))
-  const nicknames = new Map(inputs.map((input) => [input.participantId, input.nickname]))
+  const presentation = new Map(inputs.map((input) => [input.participantId, { nickname: input.nickname, isSelf: input.isSelf }]))
   const ranking = rankGroupParticipants(inputs.map(aggregateGroupParticipantResult)).map((summary) => ({
     rank: summary.rank,
-    nickname: nicknames.get(summary.participantId)!,
+    nickname: presentation.get(summary.participantId)!.nickname,
+    isSelf: presentation.get(summary.participantId)!.isSelf,
     totalCoins: summary.totalCapturedCoins,
     threeCoinsComplete: summary.threeCoinsComplete,
     coinBagHits: summary.coinBagHits,

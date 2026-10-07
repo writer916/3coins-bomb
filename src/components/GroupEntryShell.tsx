@@ -5,10 +5,12 @@ import {
   createGroupPlayBootstrapCoordinator,
   createGroupPlayClient,
   type GroupPlayReady,
+  type GroupResult,
 } from '../group/groupPlayClient'
 import type { AppStrings } from '../i18n'
 import { GroupPlayScreen } from './GroupPlayScreen'
 import { GroupCompletionWaiting } from './GroupCompletionWaiting'
+import { GroupResultScreen } from './GroupResultScreen'
 
 export function GroupEntryShell({
   initialUrl,
@@ -28,6 +30,8 @@ export function GroupEntryShell({
   const [playReady, setPlayReady] = useState<GroupPlayReady | null>(null)
   const [playCoordinator, setPlayCoordinator] = useState<ReturnType<typeof createGroupPlayBootstrapCoordinator> | null>(null)
   const [completionGroupId, setCompletionGroupId] = useState<string | null>(null)
+  const [completionInitiallyClosed, setCompletionInitiallyClosed] = useState(false)
+  const [groupResult, setGroupResult] = useState<GroupResult | null>(null)
   const pendingRef = useRef(false)
   const coordinatorRef = useRef<ReturnType<typeof createGroupJoinCoordinator> | null>(null)
   const playCoordinatorRef = useRef<ReturnType<typeof createGroupPlayBootstrapCoordinator> | null>(null)
@@ -61,8 +65,14 @@ export function GroupEntryShell({
         }),
       )
       setPlayCoordinator(playCoordinatorRef.current)
+      if (result.status === 'closed') {
+        setCompletionInitiallyClosed(true)
+        setCompletionGroupId(result.participant.groupId)
+        return
+      }
       const progress = await playCoordinatorRef.current.getProgress(result.participant.groupId)
-      if (progress.selfCompleted) {
+      if (progress.status === 'closed' || progress.selfCompleted) {
+        setCompletionInitiallyClosed(progress.status === 'closed')
         setCompletionGroupId(result.participant.groupId)
         return
       }
@@ -92,12 +102,14 @@ export function GroupEntryShell({
         </header>
       </div>
       <div className="coming-soon">
-        {!validUrl ? (
+        {groupResult ? (
+          <GroupResultScreen result={groupResult} t={t} onGoTop={onGoTop}/>
+        ) : !validUrl ? (
           <p className="coming-soon-mode" role="alert">{t.groupEntryError}</p>
         ) : completionGroupId && playCoordinator ? (
-          <GroupCompletionWaiting groupId={completionGroupId} coordinator={playCoordinator} t={t} />
+          <GroupCompletionWaiting groupId={completionGroupId} coordinator={playCoordinator} t={t} initialClosed={completionInitiallyClosed} onResult={setGroupResult} />
         ) : playReady && playCoordinator ? (
-          <GroupPlayScreen initialReady={playReady} coordinator={playCoordinator} t={t} />
+          <GroupPlayScreen initialReady={playReady} coordinator={playCoordinator} t={t} onResult={setGroupResult} />
         ) : joinedNickname ? (
           <div className="group-entry-complete" aria-live="polite">
             <p className="coming-soon-mode">{t.groupPlayPreparing}</p>
@@ -129,9 +141,9 @@ export function GroupEntryShell({
             </button>
           </form>
         )}
-        <button type="button" className="duel-btn" onClick={onGoTop}>
+        {!groupResult ? <button type="button" className="duel-btn" onClick={onGoTop}>
           {t.duelTop}
-        </button>
+        </button> : null}
       </div>
     </main>
   )

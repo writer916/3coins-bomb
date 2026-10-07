@@ -3,6 +3,7 @@ import {
   GROUP_ROUNDS_MAX,
   GROUP_RULE_VERSION,
   validateGroupPlacement,
+  validateGroupNickname,
   judgeGroupBag,
   type GroupLocalOpenResult,
   type GroupRoundPlacement,
@@ -49,6 +50,8 @@ export interface GroupOpenCommand { readonly groupId: string; readonly bagNumber
 export interface GroupCashOutResult { readonly groupId: string; readonly roundNumber: number; readonly endReason: 'cashed_out'; readonly capturedCoins: 1 | 2; readonly openedBagCount: number; readonly participantCompleted: boolean }
 export interface GroupCashOutCommand { readonly groupId: string; readonly requestId: string }
 export interface GroupProgress { readonly groupId:string;readonly playerLimit:number;readonly acceptedCount:number;readonly completedCount:number;readonly status:'open'|'closed';readonly selfCompleted:boolean;readonly selfIsHostParticipant:boolean;readonly hostCloseAvailable:boolean }
+export interface GroupResultEntry { readonly rank:number;readonly nickname:string;readonly isSelf:boolean;readonly totalCoins:number;readonly threeCoinsComplete:number;readonly coinBagHits:number;readonly totalOpens:number;readonly coinBagHitRate:{readonly numerator:number;readonly denominator:number} }
+export interface GroupResult { readonly groupId:string;readonly totalRounds:number;readonly playerLimit:number;readonly acceptedCount:number;readonly completedCount:number;readonly status:'closed';readonly ranking:readonly GroupResultEntry[] }
 export class GroupPlayClientError extends Error {
   constructor() { super('GROUP play could not be prepared.'); this.name = 'GroupPlayClientError' }
 }
@@ -121,6 +124,7 @@ export function parseGroupCashOutResult(value: unknown, command: GroupCashOutCom
   return { groupId: command.groupId, roundNumber: integer(result.roundNumber,1,20), endReason:'cashed_out', capturedCoins, openedBagCount: integer(result.openedBagCount,1,8), participantCompleted: result.participantCompleted }
 }
 export function parseGroupProgress(value:unknown,expectedGroupId:string):GroupProgress{const r=record(value);exact(r,['groupId','playerLimit','acceptedCount','completedCount','status','selfCompleted','selfIsHostParticipant','hostCloseAvailable']);if(uuid(r.groupId)!==uuid(expectedGroupId)||(r.status!=='open'&&r.status!=='closed')||typeof r.selfCompleted!=='boolean'||typeof r.selfIsHostParticipant!=='boolean'||typeof r.hostCloseAvailable!=='boolean')return fail();const playerLimit=integer(r.playerLimit,2,20),acceptedCount=integer(r.acceptedCount,0,playerLimit),completedCount=integer(r.completedCount,0,acceptedCount);return{groupId:expectedGroupId,playerLimit,acceptedCount,completedCount,status:r.status,selfCompleted:r.selfCompleted,selfIsHostParticipant:r.selfIsHostParticipant,hostCloseAvailable:r.hostCloseAvailable}}
+export function parseGroupResult(value:unknown,expectedGroupId:string):GroupResult{const r=record(value);exact(r,['groupId','totalRounds','playerLimit','acceptedCount','completedCount','status','ranking']);if(uuid(r.groupId)!==uuid(expectedGroupId)||r.status!=='closed'||!Array.isArray(r.ranking))return fail();const totalRounds=integer(r.totalRounds,1,20),playerLimit=integer(r.playerLimit,2,20),acceptedCount=integer(r.acceptedCount,0,playerLimit),completedCount=integer(r.completedCount,0,acceptedCount);if(r.ranking.length!==completedCount||completedCount<1)return fail();let selfCount=0;const ranking=r.ranking.map((value,index)=>{const entry=record(value);exact(entry,['rank','nickname','isSelf','totalCoins','threeCoinsComplete','coinBagHits','totalOpens','coinBagHitRate']);const rate=record(entry.coinBagHitRate);exact(rate,['numerator','denominator']);if(typeof entry.isSelf!=='boolean')return fail();let nickname:string;try{nickname=validateGroupNickname(entry.nickname)}catch{return fail()}if(entry.isSelf)selfCount+=1;const rank=integer(entry.rank,1,completedCount),totalCoins=integer(entry.totalCoins,0,totalRounds*3),threeCoinsComplete=integer(entry.threeCoinsComplete,0,totalRounds),totalOpens=integer(entry.totalOpens,0,totalRounds*8),coinBagHits=integer(entry.coinBagHits,0,totalOpens),numerator=integer(rate.numerator,0,totalOpens),denominator=integer(rate.denominator,0,totalRounds*8);if(numerator!==coinBagHits||denominator!==totalOpens||rank>index+1)return fail();return{rank,nickname,isSelf:entry.isSelf,totalCoins,threeCoinsComplete,coinBagHits,totalOpens,coinBagHitRate:{numerator,denominator}}});if(selfCount>1||ranking[0]?.rank!==1||ranking.some((entry,index)=>index>0&&entry.rank!==ranking[index-1]!.rank&&entry.rank!==index+1))return fail();return{groupId:expectedGroupId,totalRounds,playerLimit,acceptedCount,completedCount,status:'closed',ranking}}
 
 async function json(fetcher: typeof fetch, url: string, init: RequestInit): Promise<unknown> {
   const response = await fetcher(url, init); if (!response.ok) return fail()
@@ -157,6 +161,7 @@ export function createGroupPlayClient(dependencies: { readonly storage: GroupSto
       return parseGroupCashOutResult(await json(dependencies.fetch, `/api/group/matches/${encodeURIComponent(command.groupId)}/cash-out`, { method:'POST', headers:{ ...access(command.groupId), 'Idempotency-Key':command.requestId } }), command)
     },
     async getProgress(groupId:string){return parseGroupProgress(await json(dependencies.fetch,`/api/group/matches/${encodeURIComponent(groupId)}/progress`,{method:'GET',headers:access(groupId)}),groupId)},
+    async getResult(groupId:string){return parseGroupResult(await json(dependencies.fetch,`/api/group/matches/${encodeURIComponent(groupId)}/result`,{method:'GET',headers:access(groupId)}),groupId)},
     hasHostCapability(groupId:string){return readGroupHost(dependencies.storage,groupId)!==null},
     async closeGroup(groupId:string,requestId:string){const host=readGroupHost(dependencies.storage,groupId);if(!host)return fail();return parseGroupProgress(await json(dependencies.fetch,`/api/group/matches/${encodeURIComponent(groupId)}/close`,{method:'POST',headers:{Authorization:`Bearer ${host.hostToken}`,'Idempotency-Key':requestId}}),groupId)},
   }
@@ -223,6 +228,7 @@ export function createGroupPlayBootstrapCoordinator(client: ReturnType<typeof cr
     finally { openInFlight = false }
   },
   getProgress(groupId:string){return client.getProgress(groupId)},
+  getResult(groupId:string){return client.getResult(groupId)},
   hasHostCapability(groupId:string){return client.hasHostCapability(groupId)},
   async closeGroup(groupId:string){closeRequestId??=client.createRequestId();const result=await client.closeGroup(groupId,closeRequestId);closeRequestId=null;return result},
   async startNext(groupId: string): Promise<GroupPlayReady> {
