@@ -283,4 +283,8 @@ for (const destructive of ['DROP TABLE', 'DROP COLUMN', 'TRUNCATE', 'DELETE FROM
   assert.equal(capacityMigration.includes(destructive), false)
 }
 
+const openMigration = readFileSync(join(root, 'drizzle', '0004_rare_paladin.sql'), 'utf8')
+assert.match(openMigration, /captured_coins" between 0 and 2/)
+assert.equal(openMigration.includes('ALTER TABLE "duel_'), false)
+
 console.log('verify:group-db OK')

@@ -1,0 +1,1449 @@
+{
+  "id": "ccb7bc87-c266-4d86-8cbf-52d16f8cdcaa",
+  "prevId": "ea50844c-3cc7-47c5-ba99-104f81939c14",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.duel_matches": {
+      "name": "duel_matches",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "total_rounds": {
+          "name": "total_rounds",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "create_request_id": {
+          "name": "create_request_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "formation_version": {
+          "name": "formation_version",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "rule_version": {
+          "name": "rule_version",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "duel_matches_create_request_id_unique": {
+          "name": "duel_matches_create_request_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "create_request_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "duel_matches_total_rounds_check": {
+          "name": "duel_matches_total_rounds_check",
+          "value": "\"duel_matches\".\"total_rounds\" between 1 and 20"
+        },
+        "duel_matches_formation_version_check": {
+          "name": "duel_matches_formation_version_check",
+          "value": "\"duel_matches\".\"formation_version\" >= 1"
+        },
+        "duel_matches_rule_version_check": {
+          "name": "duel_matches_rule_version_check",
+          "value": "\"duel_matches\".\"rule_version\" >= 1"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.duel_participants": {
+      "name": "duel_participants",
+      "schema": "",
+      "columns": {
+        "match_id": {
+          "name": "match_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "role": {
+          "name": "role",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "auth_token_hash": {
+          "name": "auth_token_hash",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "invite_token_hash": {
+          "name": "invite_token_hash",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "claimed_at": {
+          "name": "claimed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "placement_locked_at": {
+          "name": "placement_locked_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        }
+      },
+      "indexes": {
+        "duel_participants_auth_token_hash_unique": {
+          "name": "duel_participants_auth_token_hash_unique",
+          "columns": [
+            {
+              "expression": "auth_token_hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "duel_participants_invite_token_hash_unique": {
+          "name": "duel_participants_invite_token_hash_unique",
+          "columns": [
+            {
+              "expression": "invite_token_hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "duel_participants_match_id_duel_matches_id_fk": {
+          "name": "duel_participants_match_id_duel_matches_id_fk",
+          "tableFrom": "duel_participants",
+          "tableTo": "duel_matches",
+          "columnsFrom": [
+            "match_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "duel_participants_match_id_role_pk": {
+          "name": "duel_participants_match_id_role_pk",
+          "columns": [
+            "match_id",
+            "role"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "duel_participants_role_check": {
+          "name": "duel_participants_role_check",
+          "value": "\"duel_participants\".\"role\" in ('A', 'B')"
+        },
+        "duel_participants_auth_token_hash_check": {
+          "name": "duel_participants_auth_token_hash_check",
+          "value": "\"duel_participants\".\"auth_token_hash\" is null or \"duel_participants\".\"auth_token_hash\" ~ '^[0-9a-f]{64}$'"
+        },
+        "duel_participants_invite_token_hash_check": {
+          "name": "duel_participants_invite_token_hash_check",
+          "value": "\"duel_participants\".\"invite_token_hash\" is null or \"duel_participants\".\"invite_token_hash\" ~ '^[0-9a-f]{64}$'"
+        },
+        "duel_participants_claim_state_check": {
+          "name": "duel_participants_claim_state_check",
+          "value": "(\n        \"duel_participants\".\"role\" = 'A'\n        and \"duel_participants\".\"auth_token_hash\" is not null\n        and \"duel_participants\".\"invite_token_hash\" is null\n        and \"duel_participants\".\"claimed_at\" is not null\n      ) or (\n        \"duel_participants\".\"role\" = 'B'\n        and (\n          (\n            \"duel_participants\".\"auth_token_hash\" is null\n            and \"duel_participants\".\"invite_token_hash\" is not null\n            and \"duel_participants\".\"claimed_at\" is null\n          ) or (\n            \"duel_participants\".\"auth_token_hash\" is not null\n            and \"duel_participants\".\"invite_token_hash\" is null\n            and \"duel_participants\".\"claimed_at\" is not null\n          )\n        )\n      )"
+        },
+        "duel_participants_version_check": {
+          "name": "duel_participants_version_check",
+          "value": "\"duel_participants\".\"version\" >= 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.duel_round_opens": {
+      "name": "duel_round_opens",
+      "schema": "",
+      "columns": {
+        "match_id": {
+          "name": "match_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "round_number": {
+          "name": "round_number",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "explorer_role": {
+          "name": "explorer_role",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "placement_role": {
+          "name": "placement_role",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "open_order": {
+          "name": "open_order",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "bag_number": {
+          "name": "bag_number",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "request_id": {
+          "name": "request_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "opened_at": {
+          "name": "opened_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "duel_round_opens_explorer_fk": {
+          "name": "duel_round_opens_explorer_fk",
+          "tableFrom": "duel_round_opens",
+          "tableTo": "duel_participants",
+          "columnsFrom": [
+            "match_id",
+            "explorer_role"
+          ],
+          "columnsTo": [
+            "match_id",
+            "role"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "duel_round_opens_placement_fk": {
+          "name": "duel_round_opens_placement_fk",
+          "tableFrom": "duel_round_opens",
+          "tableTo": "duel_round_placements",
+          "columnsFrom": [
+            "match_id",
+            "placement_role",
+            "round_number"
+          ],
+          "columnsTo": [
+            "match_id",
+            "participant_role",
+            "round_number"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "duel_round_opens_match_explorer_round_order_pk": {
+          "name": "duel_round_opens_match_explorer_round_order_pk",
+          "columns": [
+            "match_id",
+            "explorer_role",
+            "round_number",
+            "open_order"
+          ]
+        }
+      },
+      "uniqueConstraints": {
+        "duel_round_opens_match_explorer_round_bag_unique": {
+          "name": "duel_round_opens_match_explorer_round_bag_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "match_id",
+            "explorer_role",
+            "round_number",
+            "bag_number"
+          ]
+        },
+        "duel_round_opens_request_id_unique": {
+          "name": "duel_round_opens_request_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "request_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "duel_round_opens_round_number_check": {
+          "name": "duel_round_opens_round_number_check",
+          "value": "\"duel_round_opens\".\"round_number\" between 1 and 20"
+        },
+        "duel_round_opens_roles_check": {
+          "name": "duel_round_opens_roles_check",
+          "value": "\"duel_round_opens\".\"explorer_role\" in ('A', 'B') and \"duel_round_opens\".\"placement_role\" in ('A', 'B') and \"duel_round_opens\".\"explorer_role\" <> \"duel_round_opens\".\"placement_role\""
+        },
+        "duel_round_opens_open_order_check": {
+          "name": "duel_round_opens_open_order_check",
+          "value": "\"duel_round_opens\".\"open_order\" >= 1"
+        },
+        "duel_round_opens_bag_number_check": {
+          "name": "duel_round_opens_bag_number_check",
+          "value": "\"duel_round_opens\".\"bag_number\" between 1 and 8"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.duel_round_placements": {
+      "name": "duel_round_placements",
+      "schema": "",
+      "columns": {
+        "match_id": {
+          "name": "match_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "participant_role": {
+          "name": "participant_role",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "round_number": {
+          "name": "round_number",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "bag_count": {
+          "name": "bag_count",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "bomb_bag_number": {
+          "name": "bomb_bag_number",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "coin_bag_numbers": {
+          "name": "coin_bag_numbers",
+          "type": "smallint[]",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "locked_at": {
+          "name": "locked_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "duel_round_placements_participant_fk": {
+          "name": "duel_round_placements_participant_fk",
+          "tableFrom": "duel_round_placements",
+          "tableTo": "duel_participants",
+          "columnsFrom": [
+            "match_id",
+            "participant_role"
+          ],
+          "columnsTo": [
+            "match_id",
+            "role"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "duel_round_placements_match_role_round_pk": {
+          "name": "duel_round_placements_match_role_round_pk",
+          "columns": [
+            "match_id",
+            "participant_role",
+            "round_number"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "duel_round_placements_participant_role_check": {
+          "name": "duel_round_placements_participant_role_check",
+          "value": "\"duel_round_placements\".\"participant_role\" in ('A', 'B')"
+        },
+        "duel_round_placements_round_number_check": {
+          "name": "duel_round_placements_round_number_check",
+          "value": "\"duel_round_placements\".\"round_number\" between 1 and 20"
+        },
+        "duel_round_placements_bag_count_check": {
+          "name": "duel_round_placements_bag_count_check",
+          "value": "\"duel_round_placements\".\"bag_count\" between 3 and 8"
+        },
+        "duel_round_placements_bomb_bag_number_check": {
+          "name": "duel_round_placements_bomb_bag_number_check",
+          "value": "\"duel_round_placements\".\"bomb_bag_number\" between 1 and \"duel_round_placements\".\"bag_count\""
+        },
+        "duel_round_placements_coin_count_check": {
+          "name": "duel_round_placements_coin_count_check",
+          "value": "array_ndims(\"duel_round_placements\".\"coin_bag_numbers\") = 1\n        and cardinality(\"duel_round_placements\".\"coin_bag_numbers\") = 3\n        and array_lower(\"duel_round_placements\".\"coin_bag_numbers\", 1) = 1\n        and array_upper(\"duel_round_placements\".\"coin_bag_numbers\", 1) = 3\n        and array_position(\"duel_round_placements\".\"coin_bag_numbers\", null) is null"
+        },
+        "duel_round_placements_coin_bag_numbers_check": {
+          "name": "duel_round_placements_coin_bag_numbers_check",
+          "value": "(\n        (\"duel_round_placements\".\"coin_bag_numbers\")[1] between 1 and \"duel_round_placements\".\"bag_count\"\n        and (\"duel_round_placements\".\"coin_bag_numbers\")[2] between 1 and \"duel_round_placements\".\"bag_count\"\n        and (\"duel_round_placements\".\"coin_bag_numbers\")[3] between 1 and \"duel_round_placements\".\"bag_count\"\n        and (\"duel_round_placements\".\"coin_bag_numbers\")[1] <> \"duel_round_placements\".\"bomb_bag_number\"\n        and (\"duel_round_placements\".\"coin_bag_numbers\")[2] <> \"duel_round_placements\".\"bomb_bag_number\"\n        and (\"duel_round_placements\".\"coin_bag_numbers\")[3] <> \"duel_round_placements\".\"bomb_bag_number\"\n        and (\"duel_round_placements\".\"coin_bag_numbers\")[1] <= (\"duel_round_placements\".\"coin_bag_numbers\")[2]\n        and (\"duel_round_placements\".\"coin_bag_numbers\")[2] <= (\"duel_round_placements\".\"coin_bag_numbers\")[3]\n      )"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.duel_round_results": {
+      "name": "duel_round_results",
+      "schema": "",
+      "columns": {
+        "match_id": {
+          "name": "match_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "round_number": {
+          "name": "round_number",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "explorer_role": {
+          "name": "explorer_role",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "placement_role": {
+          "name": "placement_role",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "end_reason": {
+          "name": "end_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "terminal_open_order": {
+          "name": "terminal_open_order",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "captured_coins": {
+          "name": "captured_coins",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "bomb_hit": {
+          "name": "bomb_hit",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "opened_bag_count": {
+          "name": "opened_bag_count",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "request_id": {
+          "name": "request_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ended_at": {
+          "name": "ended_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "duel_round_results_explorer_fk": {
+          "name": "duel_round_results_explorer_fk",
+          "tableFrom": "duel_round_results",
+          "tableTo": "duel_participants",
+          "columnsFrom": [
+            "match_id",
+            "explorer_role"
+          ],
+          "columnsTo": [
+            "match_id",
+            "role"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "duel_round_results_placement_fk": {
+          "name": "duel_round_results_placement_fk",
+          "tableFrom": "duel_round_results",
+          "tableTo": "duel_round_placements",
+          "columnsFrom": [
+            "match_id",
+            "placement_role",
+            "round_number"
+          ],
+          "columnsTo": [
+            "match_id",
+            "participant_role",
+            "round_number"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "duel_round_results_match_explorer_round_pk": {
+          "name": "duel_round_results_match_explorer_round_pk",
+          "columns": [
+            "match_id",
+            "explorer_role",
+            "round_number"
+          ]
+        }
+      },
+      "uniqueConstraints": {
+        "duel_round_results_request_id_unique": {
+          "name": "duel_round_results_request_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "request_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "duel_round_results_round_number_check": {
+          "name": "duel_round_results_round_number_check",
+          "value": "\"duel_round_results\".\"round_number\" between 1 and 20"
+        },
+        "duel_round_results_roles_check": {
+          "name": "duel_round_results_roles_check",
+          "value": "\"duel_round_results\".\"explorer_role\" in ('A', 'B') and \"duel_round_results\".\"placement_role\" in ('A', 'B') and \"duel_round_results\".\"explorer_role\" <> \"duel_round_results\".\"placement_role\""
+        },
+        "duel_round_results_end_reason_check": {
+          "name": "duel_round_results_end_reason_check",
+          "value": "\"duel_round_results\".\"end_reason\" in ('bombed', 'cashed_out', 'cleared')"
+        },
+        "duel_round_results_captured_coins_check": {
+          "name": "duel_round_results_captured_coins_check",
+          "value": "\"duel_round_results\".\"captured_coins\" between 0 and 3"
+        },
+        "duel_round_results_opened_bag_count_check": {
+          "name": "duel_round_results_opened_bag_count_check",
+          "value": "\"duel_round_results\".\"opened_bag_count\" between 1 and 8"
+        },
+        "duel_round_results_terminal_open_order_check": {
+          "name": "duel_round_results_terminal_open_order_check",
+          "value": "\"duel_round_results\".\"terminal_open_order\" is null or \"duel_round_results\".\"terminal_open_order\" between 1 and \"duel_round_results\".\"opened_bag_count\""
+        },
+        "duel_round_results_state_check": {
+          "name": "duel_round_results_state_check",
+          "value": "(\n        \"duel_round_results\".\"end_reason\" = 'bombed'\n        and \"duel_round_results\".\"bomb_hit\" = true\n        and \"duel_round_results\".\"captured_coins\" = 0\n        and \"duel_round_results\".\"terminal_open_order\" = \"duel_round_results\".\"opened_bag_count\"\n      ) or (\n        \"duel_round_results\".\"end_reason\" = 'cashed_out'\n        and \"duel_round_results\".\"bomb_hit\" = false\n        and \"duel_round_results\".\"captured_coins\" in (1, 2)\n        and \"duel_round_results\".\"terminal_open_order\" is null\n      ) or (\n        \"duel_round_results\".\"end_reason\" = 'cleared'\n        and \"duel_round_results\".\"bomb_hit\" = false\n        and \"duel_round_results\".\"captured_coins\" = 3\n        and \"duel_round_results\".\"terminal_open_order\" = \"duel_round_results\".\"opened_bag_count\"\n      )"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.group_matches": {
+      "name": "group_matches",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "total_rounds": {
+          "name": "total_rounds",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "player_limit": {
+          "name": "player_limit",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "accepted_count": {
+          "name": "accepted_count",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'open'"
+        },
+        "create_request_id": {
+          "name": "create_request_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "invite_token_hash": {
+          "name": "invite_token_hash",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "host_token_hash": {
+          "name": "host_token_hash",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "host_participant_id": {
+          "name": "host_participant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "closed_at": {
+          "name": "closed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "formation_version": {
+          "name": "formation_version",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "rule_version": {
+          "name": "rule_version",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "scoring_version": {
+          "name": "scoring_version",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        }
+      },
+      "indexes": {
+        "group_matches_invite_token_hash_unique": {
+          "name": "group_matches_invite_token_hash_unique",
+          "columns": [
+            {
+              "expression": "invite_token_hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "group_matches_host_token_hash_unique": {
+          "name": "group_matches_host_token_hash_unique",
+          "columns": [
+            {
+              "expression": "host_token_hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "group_matches_host_participant_id_group_participants_id_fk": {
+          "name": "group_matches_host_participant_id_group_participants_id_fk",
+          "tableFrom": "group_matches",
+          "tableTo": "group_participants",
+          "columnsFrom": [
+            "host_participant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "group_matches_create_request_id_unique": {
+          "name": "group_matches_create_request_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "create_request_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "group_matches_total_rounds_check": {
+          "name": "group_matches_total_rounds_check",
+          "value": "\"group_matches\".\"total_rounds\" between 1 and 20"
+        },
+        "group_matches_player_limit_check": {
+          "name": "group_matches_player_limit_check",
+          "value": "\"group_matches\".\"player_limit\" between 2 and 20"
+        },
+        "group_matches_accepted_count_check": {
+          "name": "group_matches_accepted_count_check",
+          "value": "\"group_matches\".\"accepted_count\" between 0 and \"group_matches\".\"player_limit\""
+        },
+        "group_matches_status_check": {
+          "name": "group_matches_status_check",
+          "value": "\"group_matches\".\"status\" in ('open', 'closed')"
+        },
+        "group_matches_closed_state_check": {
+          "name": "group_matches_closed_state_check",
+          "value": "(\n        \"group_matches\".\"status\" = 'open' and \"group_matches\".\"closed_at\" is null\n      ) or (\n        \"group_matches\".\"status\" = 'closed' and \"group_matches\".\"closed_at\" is not null\n      )"
+        },
+        "group_matches_invite_token_hash_check": {
+          "name": "group_matches_invite_token_hash_check",
+          "value": "\"group_matches\".\"invite_token_hash\" ~ '^[0-9a-f]{64}$'"
+        },
+        "group_matches_host_token_hash_check": {
+          "name": "group_matches_host_token_hash_check",
+          "value": "\"group_matches\".\"host_token_hash\" ~ '^[0-9a-f]{64}$'"
+        },
+        "group_matches_formation_version_check": {
+          "name": "group_matches_formation_version_check",
+          "value": "\"group_matches\".\"formation_version\" >= 1"
+        },
+        "group_matches_rule_version_check": {
+          "name": "group_matches_rule_version_check",
+          "value": "\"group_matches\".\"rule_version\" >= 1"
+        },
+        "group_matches_scoring_version_check": {
+          "name": "group_matches_scoring_version_check",
+          "value": "\"group_matches\".\"scoring_version\" >= 1"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.group_participants": {
+      "name": "group_participants",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "group_id": {
+          "name": "group_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "display_nickname": {
+          "name": "display_nickname",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nickname_key": {
+          "name": "nickname_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "auth_token_hash": {
+          "name": "auth_token_hash",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "accepted_at": {
+          "name": "accepted_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "completed_at": {
+          "name": "completed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "excluded_at": {
+          "name": "excluded_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        }
+      },
+      "indexes": {
+        "group_participants_auth_token_hash_unique": {
+          "name": "group_participants_auth_token_hash_unique",
+          "columns": [
+            {
+              "expression": "auth_token_hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "group_participants_group_progress_idx": {
+          "name": "group_participants_group_progress_idx",
+          "columns": [
+            {
+              "expression": "group_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "completed_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "excluded_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "group_participants_group_id_group_matches_id_fk": {
+          "name": "group_participants_group_id_group_matches_id_fk",
+          "tableFrom": "group_participants",
+          "tableTo": "group_matches",
+          "columnsFrom": [
+            "group_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "group_participants_group_id_id_unique": {
+          "name": "group_participants_group_id_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "group_id",
+            "id"
+          ]
+        },
+        "group_participants_group_nickname_key_unique": {
+          "name": "group_participants_group_nickname_key_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "group_id",
+            "nickname_key"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "group_participants_display_nickname_nonempty_check": {
+          "name": "group_participants_display_nickname_nonempty_check",
+          "value": "char_length(\"group_participants\".\"display_nickname\") > 0"
+        },
+        "group_participants_nickname_key_nonempty_check": {
+          "name": "group_participants_nickname_key_nonempty_check",
+          "value": "char_length(\"group_participants\".\"nickname_key\") > 0"
+        },
+        "group_participants_auth_token_hash_check": {
+          "name": "group_participants_auth_token_hash_check",
+          "value": "\"group_participants\".\"auth_token_hash\" ~ '^[0-9a-f]{64}$'"
+        },
+        "group_participants_completion_exclusion_check": {
+          "name": "group_participants_completion_exclusion_check",
+          "value": "\"group_participants\".\"completed_at\" is null or \"group_participants\".\"excluded_at\" is null"
+        },
+        "group_participants_version_check": {
+          "name": "group_participants_version_check",
+          "value": "\"group_participants\".\"version\" >= 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.group_round_attempts": {
+      "name": "group_round_attempts",
+      "schema": "",
+      "columns": {
+        "participant_id": {
+          "name": "participant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "group_id": {
+          "name": "group_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "round_number": {
+          "name": "round_number",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'active'"
+        },
+        "started_at": {
+          "name": "started_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "ended_at": {
+          "name": "ended_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "captured_coins": {
+          "name": "captured_coins",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "opened_bag_count": {
+          "name": "opened_bag_count",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "start_request_id": {
+          "name": "start_request_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "terminal_request_id": {
+          "name": "terminal_request_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        }
+      },
+      "indexes": {
+        "group_round_attempts_group_status_idx": {
+          "name": "group_round_attempts_group_status_idx",
+          "columns": [
+            {
+              "expression": "group_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "group_round_attempts_participant_fk": {
+          "name": "group_round_attempts_participant_fk",
+          "tableFrom": "group_round_attempts",
+          "tableTo": "group_participants",
+          "columnsFrom": [
+            "group_id",
+            "participant_id"
+          ],
+          "columnsTo": [
+            "group_id",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "group_round_attempts_placement_fk": {
+          "name": "group_round_attempts_placement_fk",
+          "tableFrom": "group_round_attempts",
+          "tableTo": "group_round_placements",
+          "columnsFrom": [
+            "group_id",
+            "round_number"
+          ],
+          "columnsTo": [
+            "group_id",
+            "round_number"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "group_round_attempts_participant_round_pk": {
+          "name": "group_round_attempts_participant_round_pk",
+          "columns": [
+            "participant_id",
+            "round_number"
+          ]
+        }
+      },
+      "uniqueConstraints": {
+        "group_round_attempts_group_participant_round_unique": {
+          "name": "group_round_attempts_group_participant_round_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "group_id",
+            "participant_id",
+            "round_number"
+          ]
+        },
+        "group_round_attempts_start_request_id_unique": {
+          "name": "group_round_attempts_start_request_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "start_request_id"
+          ]
+        },
+        "group_round_attempts_terminal_request_id_unique": {
+          "name": "group_round_attempts_terminal_request_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "terminal_request_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "group_round_attempts_round_number_check": {
+          "name": "group_round_attempts_round_number_check",
+          "value": "\"group_round_attempts\".\"round_number\" between 1 and 20"
+        },
+        "group_round_attempts_status_check": {
+          "name": "group_round_attempts_status_check",
+          "value": "\"group_round_attempts\".\"status\" in ('active', 'bombed', 'cashed_out', 'cleared', 'interrupted')"
+        },
+        "group_round_attempts_captured_coins_check": {
+          "name": "group_round_attempts_captured_coins_check",
+          "value": "\"group_round_attempts\".\"captured_coins\" between 0 and 3"
+        },
+        "group_round_attempts_opened_bag_count_check": {
+          "name": "group_round_attempts_opened_bag_count_check",
+          "value": "\"group_round_attempts\".\"opened_bag_count\" between 0 and 8"
+        },
+        "group_round_attempts_state_check": {
+          "name": "group_round_attempts_state_check",
+          "value": "(\n        \"group_round_attempts\".\"status\" = 'active'\n        and \"group_round_attempts\".\"ended_at\" is null\n        and \"group_round_attempts\".\"terminal_request_id\" is null\n        and \"group_round_attempts\".\"captured_coins\" = 0\n      ) or (\n        \"group_round_attempts\".\"status\" = 'bombed'\n        and \"group_round_attempts\".\"ended_at\" is not null\n        and \"group_round_attempts\".\"terminal_request_id\" is not null\n        and \"group_round_attempts\".\"captured_coins\" between 0 and 2\n        and \"group_round_attempts\".\"opened_bag_count\" between 1 and 8\n      ) or (\n        \"group_round_attempts\".\"status\" = 'cashed_out'\n        and \"group_round_attempts\".\"ended_at\" is not null\n        and \"group_round_attempts\".\"terminal_request_id\" is not null\n        and \"group_round_attempts\".\"captured_coins\" in (1, 2)\n        and \"group_round_attempts\".\"opened_bag_count\" between 1 and 8\n      ) or (\n        \"group_round_attempts\".\"status\" = 'cleared'\n        and \"group_round_attempts\".\"ended_at\" is not null\n        and \"group_round_attempts\".\"terminal_request_id\" is not null\n        and \"group_round_attempts\".\"captured_coins\" = 3\n        and \"group_round_attempts\".\"opened_bag_count\" between 1 and 8\n      ) or (\n        \"group_round_attempts\".\"status\" = 'interrupted'\n        and \"group_round_attempts\".\"ended_at\" is not null\n        and \"group_round_attempts\".\"terminal_request_id\" is not null\n        and \"group_round_attempts\".\"captured_coins\" = 0\n      )"
+        },
+        "group_round_attempts_version_check": {
+          "name": "group_round_attempts_version_check",
+          "value": "\"group_round_attempts\".\"version\" >= 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.group_round_opens": {
+      "name": "group_round_opens",
+      "schema": "",
+      "columns": {
+        "participant_id": {
+          "name": "participant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "group_id": {
+          "name": "group_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "round_number": {
+          "name": "round_number",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "open_order": {
+          "name": "open_order",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "bag_number": {
+          "name": "bag_number",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "request_id": {
+          "name": "request_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "opened_at": {
+          "name": "opened_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "group_round_opens_attempt_fk": {
+          "name": "group_round_opens_attempt_fk",
+          "tableFrom": "group_round_opens",
+          "tableTo": "group_round_attempts",
+          "columnsFrom": [
+            "group_id",
+            "participant_id",
+            "round_number"
+          ],
+          "columnsTo": [
+            "group_id",
+            "participant_id",
+            "round_number"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "group_round_opens_participant_round_order_pk": {
+          "name": "group_round_opens_participant_round_order_pk",
+          "columns": [
+            "participant_id",
+            "round_number",
+            "open_order"
+          ]
+        }
+      },
+      "uniqueConstraints": {
+        "group_round_opens_group_participant_round_order_unique": {
+          "name": "group_round_opens_group_participant_round_order_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "group_id",
+            "participant_id",
+            "round_number",
+            "open_order"
+          ]
+        },
+        "group_round_opens_participant_round_bag_unique": {
+          "name": "group_round_opens_participant_round_bag_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "participant_id",
+            "round_number",
+            "bag_number"
+          ]
+        },
+        "group_round_opens_request_id_unique": {
+          "name": "group_round_opens_request_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "request_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "group_round_opens_round_number_check": {
+          "name": "group_round_opens_round_number_check",
+          "value": "\"group_round_opens\".\"round_number\" between 1 and 20"
+        },
+        "group_round_opens_open_order_check": {
+          "name": "group_round_opens_open_order_check",
+          "value": "\"group_round_opens\".\"open_order\" between 1 and 8"
+        },
+        "group_round_opens_bag_number_check": {
+          "name": "group_round_opens_bag_number_check",
+          "value": "\"group_round_opens\".\"bag_number\" between 1 and 8"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.group_round_placements": {
+      "name": "group_round_placements",
+      "schema": "",
+      "columns": {
+        "group_id": {
+          "name": "group_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "round_number": {
+          "name": "round_number",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "bag_count": {
+          "name": "bag_count",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "bomb_bag_number": {
+          "name": "bomb_bag_number",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "coin_bag_numbers": {
+          "name": "coin_bag_numbers",
+          "type": "smallint[]",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "group_round_placements_group_id_group_matches_id_fk": {
+          "name": "group_round_placements_group_id_group_matches_id_fk",
+          "tableFrom": "group_round_placements",
+          "tableTo": "group_matches",
+          "columnsFrom": [
+            "group_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "group_round_placements_group_round_pk": {
+          "name": "group_round_placements_group_round_pk",
+          "columns": [
+            "group_id",
+            "round_number"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "group_round_placements_round_number_check": {
+          "name": "group_round_placements_round_number_check",
+          "value": "\"group_round_placements\".\"round_number\" between 1 and 20"
+        },
+        "group_round_placements_bag_count_check": {
+          "name": "group_round_placements_bag_count_check",
+          "value": "\"group_round_placements\".\"bag_count\" between 3 and 8"
+        },
+        "group_round_placements_bomb_bag_number_check": {
+          "name": "group_round_placements_bomb_bag_number_check",
+          "value": "\"group_round_placements\".\"bomb_bag_number\" between 1 and \"group_round_placements\".\"bag_count\""
+        },
+        "group_round_placements_source_check": {
+          "name": "group_round_placements_source_check",
+          "value": "\"group_round_placements\".\"source\" in ('generated', 'duel-history')"
+        },
+        "group_round_placements_coin_count_check": {
+          "name": "group_round_placements_coin_count_check",
+          "value": "array_ndims(\"group_round_placements\".\"coin_bag_numbers\") = 1\n        and cardinality(\"group_round_placements\".\"coin_bag_numbers\") = 3\n        and array_lower(\"group_round_placements\".\"coin_bag_numbers\", 1) = 1\n        and array_upper(\"group_round_placements\".\"coin_bag_numbers\", 1) = 3\n        and array_position(\"group_round_placements\".\"coin_bag_numbers\", null) is null"
+        },
+        "group_round_placements_coin_bag_numbers_check": {
+          "name": "group_round_placements_coin_bag_numbers_check",
+          "value": "(\n        (\"group_round_placements\".\"coin_bag_numbers\")[1] between 1 and \"group_round_placements\".\"bag_count\"\n        and (\"group_round_placements\".\"coin_bag_numbers\")[2] between 1 and \"group_round_placements\".\"bag_count\"\n        and (\"group_round_placements\".\"coin_bag_numbers\")[3] between 1 and \"group_round_placements\".\"bag_count\"\n        and (\"group_round_placements\".\"coin_bag_numbers\")[1] <> \"group_round_placements\".\"bomb_bag_number\"\n        and (\"group_round_placements\".\"coin_bag_numbers\")[2] <> \"group_round_placements\".\"bomb_bag_number\"\n        and (\"group_round_placements\".\"coin_bag_numbers\")[3] <> \"group_round_placements\".\"bomb_bag_number\"\n        and (\"group_round_placements\".\"coin_bag_numbers\")[1] <= (\"group_round_placements\".\"coin_bag_numbers\")[2]\n        and (\"group_round_placements\".\"coin_bag_numbers\")[2] <= (\"group_round_placements\".\"coin_bag_numbers\")[3]\n      )"
+        }
+      },
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {},
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

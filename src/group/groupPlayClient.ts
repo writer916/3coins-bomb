@@ -3,6 +3,8 @@ import {
   GROUP_ROUNDS_MAX,
   GROUP_RULE_VERSION,
   validateGroupPlacement,
+  judgeGroupBag,
+  type GroupLocalOpenResult,
   type GroupRoundPlacement,
 } from './groupDomain'
 import { readGroupParticipant, type GroupStorageAdapter } from './groupPersistence'
@@ -30,6 +32,20 @@ export interface GroupPlayReady {
   readonly placements: GroupPlacementSet
   readonly currentPlacement: GroupRoundPlacement
 }
+export interface GroupOpenResult {
+  readonly groupId: string
+  readonly roundNumber: number
+  readonly bagNumber: number
+  readonly openOrder: number
+  readonly outcome: 'empty' | 'coins' | 'bomb'
+  readonly coinsFound: 0 | 1 | 2 | 3
+  readonly provisionalCoins: 0 | 1 | 2 | 3
+  readonly openedBagCount: number
+  readonly roundEnded: boolean
+  readonly endReason: 'bombed' | 'cleared' | null
+  readonly capturedCoins: 0 | 1 | 2 | 3
+}
+export interface GroupOpenCommand { readonly groupId: string; readonly bagNumber: number; readonly requestId: string }
 export class GroupPlayClientError extends Error {
   constructor() { super('GROUP play could not be prepared.'); this.name = 'GroupPlayClientError' }
 }
@@ -83,6 +99,19 @@ export function parseGroupPlacementSet(value: unknown, expectedGroupId: string):
   try { return { groupId, totalRounds, formationVersion: GROUP_FORMATION_VERSION, ruleVersion: GROUP_RULE_VERSION, placements: set.placements.map((placement, index) => validateGroupPlacement(placement, index + 1)) } } catch { return fail() }
 }
 
+export function parseGroupOpenResult(value: unknown, command: GroupOpenCommand): GroupOpenResult {
+  const result = record(value)
+  exact(result, ['groupId', 'roundNumber', 'bagNumber', 'openOrder', 'outcome', 'coinsFound', 'provisionalCoins', 'openedBagCount', 'roundEnded', 'endReason', 'capturedCoins'])
+  if (uuid(result.groupId) !== uuid(command.groupId) || result.bagNumber !== command.bagNumber) return fail()
+  const outcome = result.outcome
+  if (outcome !== 'empty' && outcome !== 'coins' && outcome !== 'bomb') return fail()
+  const coinsFound = integer(result.coinsFound, 0, 3) as 0 | 1 | 2 | 3
+  const provisionalCoins = integer(result.provisionalCoins, 0, 3) as 0 | 1 | 2 | 3
+  const capturedCoins = integer(result.capturedCoins, 0, 3) as 0 | 1 | 2 | 3
+  if (typeof result.roundEnded !== 'boolean' || (result.endReason !== null && result.endReason !== 'bombed' && result.endReason !== 'cleared')) return fail()
+  return { groupId: command.groupId, roundNumber: integer(result.roundNumber, 1, 20), bagNumber: command.bagNumber, openOrder: integer(result.openOrder, 1, 8), outcome, coinsFound, provisionalCoins, openedBagCount: integer(result.openedBagCount, 1, 8), roundEnded: result.roundEnded, endReason: result.endReason, capturedCoins }
+}
+
 async function json(fetcher: typeof fetch, url: string, init: RequestInit): Promise<unknown> {
   const response = await fetcher(url, init); if (!response.ok) return fail()
   try { return await response.json() as unknown } catch { return fail() }
@@ -99,6 +128,20 @@ export function createGroupPlayClient(dependencies: { readonly storage: GroupSto
     async getPlacements(groupId: string) { return parseGroupPlacementSet(await json(dependencies.fetch, `/api/group/matches/${encodeURIComponent(groupId)}/placements`, { method: 'GET', headers: access(groupId) }), groupId) },
     async startRound(groupId: string, requestId: string = dependencies.crypto.randomUUID()) { return parseGroupPlayState(await json(dependencies.fetch, `/api/group/matches/${encodeURIComponent(groupId)}/rounds/start`, { method: 'POST', headers: { ...access(groupId), 'Idempotency-Key': requestId } }), groupId) },
     async resume(groupId: string, requestId: string = dependencies.crypto.randomUUID()) { return parseGroupPlayState(await json(dependencies.fetch, `/api/group/matches/${encodeURIComponent(groupId)}/play/resume`, { method: 'POST', headers: { ...access(groupId), 'Idempotency-Key': requestId } }), groupId) },
+    createOpenCommand(groupId: string, bagNumber: number): GroupOpenCommand {
+      return { groupId: uuid(groupId), bagNumber: integer(bagNumber, 1, 8), requestId: dependencies.crypto.randomUUID() }
+    },
+    async openBag(command: GroupOpenCommand): Promise<GroupOpenResult> {
+      const response = await dependencies.fetch(`/api/group/matches/${encodeURIComponent(command.groupId)}/open`, {
+        method: 'POST',
+        headers: { ...access(command.groupId), 'Idempotency-Key': command.requestId, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bagNumber: command.bagNumber }),
+      })
+      if (!response.ok) return fail()
+      let value: unknown
+      try { value = await response.json() as unknown } catch { return fail() }
+      return parseGroupOpenResult(value, command)
+    },
   }
 }
 
@@ -107,6 +150,8 @@ export function createGroupPlayBootstrapCoordinator(client: ReturnType<typeof cr
   let cached: GroupPlacementSet | null = null
   let resumeRequestId: string | null = null
   let startRequestId: string | null = null
+  let pendingOpen: GroupOpenCommand | null = null
+  let openInFlight = false
   return { run(groupId: string, explicitResume: boolean): Promise<GroupPlayReady> {
     if (inFlight) return inFlight
     inFlight = (async () => {
@@ -130,5 +175,32 @@ export function createGroupPlayBootstrapCoordinator(client: ReturnType<typeof cr
       return { state, placements, currentPlacement }
     })().finally(() => { inFlight = null })
     return inFlight
+  },
+  getLocalOpenResult(groupId: string, roundNumber: number, bagCount: number, bagNumber: number): GroupLocalOpenResult {
+    if (cached?.groupId !== groupId) return fail()
+    const placement = cached.placements[roundNumber - 1]
+    if (!placement || placement.roundNumber !== roundNumber || placement.bagCount !== bagCount) return fail()
+    return judgeGroupBag(placement, bagNumber)
+  },
+  getPendingOpen() { return pendingOpen },
+  async open(groupId: string, bagNumber: number): Promise<GroupOpenResult> {
+    if (openInFlight) return fail()
+    if (pendingOpen && (pendingOpen.groupId !== groupId || pendingOpen.bagNumber !== bagNumber)) return fail()
+    pendingOpen ??= client.createOpenCommand(groupId, bagNumber)
+    openInFlight = true
+    try {
+      const result = await client.openBag(pendingOpen)
+      pendingOpen = null
+      return result
+    } finally { openInFlight = false }
+  },
+  async startNext(groupId: string): Promise<GroupPlayReady> {
+    startRequestId ??= client.createRequestId()
+    const state = await client.startRound(groupId, startRequestId)
+    startRequestId = null
+    if (!state.activeAttempt || cached?.groupId !== groupId) return fail()
+    const currentPlacement = cached.placements[state.activeAttempt.roundNumber - 1]
+    if (!currentPlacement) return fail()
+    return { state, placements: cached, currentPlacement }
   } }
 }

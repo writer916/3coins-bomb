@@ -7,6 +7,7 @@ import {
   type GroupPlayReady,
 } from '../group/groupPlayClient'
 import type { AppStrings } from '../i18n'
+import { GroupPlayScreen } from './GroupPlayScreen'
 
 export function GroupEntryShell({
   initialUrl,
@@ -24,6 +25,7 @@ export function GroupEntryShell({
   const [error, setError] = useState<'nickname' | 'join' | null>(null)
   const [joinedNickname, setJoinedNickname] = useState<string | null>(null)
   const [playReady, setPlayReady] = useState<GroupPlayReady | null>(null)
+  const [playCoordinator, setPlayCoordinator] = useState<ReturnType<typeof createGroupPlayBootstrapCoordinator> | null>(null)
   const pendingRef = useRef(false)
   const coordinatorRef = useRef<ReturnType<typeof createGroupJoinCoordinator> | null>(null)
   const playCoordinatorRef = useRef<ReturnType<typeof createGroupPlayBootstrapCoordinator> | null>(null)
@@ -56,6 +58,7 @@ export function GroupEntryShell({
           crypto: window.crypto,
         }),
       )
+      setPlayCoordinator(playCoordinatorRef.current)
       setPlayReady(await playCoordinatorRef.current.run(
         result.participant.groupId,
         explicitResumeRef.current,
@@ -84,16 +87,8 @@ export function GroupEntryShell({
       <div className="coming-soon">
         {!validUrl ? (
           <p className="coming-soon-mode" role="alert">{t.groupEntryError}</p>
-        ) : playReady ? (
-          <div className="group-entry-complete" aria-live="polite">
-            <p className="coming-soon-mode">{t.groupPlayReady}</p>
-            <p className="group-entry-nickname">{playReady.state.participant.displayNickname}</p>
-            <p className="group-entry-nickname">
-              {t.groupRoundLabel}{' '}
-              <span className="duel-num">{playReady.state.activeAttempt?.roundNumber}</span>
-              {' / '}<span className="duel-num">{playReady.state.totalRounds}</span>
-            </p>
-          </div>
+        ) : playReady && playCoordinator ? (
+          <GroupPlayScreen initialReady={playReady} coordinator={playCoordinator} t={t} />
         ) : joinedNickname ? (
           <div className="group-entry-complete" aria-live="polite">
             <p className="coming-soon-mode">{t.groupPlayPreparing}</p>

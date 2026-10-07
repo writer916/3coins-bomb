@@ -29,6 +29,13 @@
       "when": 1791340383682,
       "tag": "0003_silent_the_fury",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791375222048,
+      "tag": "0004_rare_paladin",
+      "breakpoints": true
     }
   ]
 }

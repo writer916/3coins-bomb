@@ -30,6 +30,7 @@
     "verify:group-browser-create": "tsx scripts/verify-group-browser-create.ts",
     "verify:group-join": "tsx scripts/verify-group-join.ts",
     "verify:group-play-bootstrap": "tsx scripts/verify-group-play-bootstrap.ts",
+    "verify:group-open": "tsx scripts/verify-group-open.ts",
     "verify:empty": "tsx scripts/verify-empty-fx.ts",
     "verify:locale": "tsx scripts/verify-locale.ts",
     "verify:duel-placement": "tsx scripts/verify-duel-placement.ts",
