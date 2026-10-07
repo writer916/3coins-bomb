@@ -62,6 +62,13 @@ export type AppStrings = {
   groupPlayPreparing: string
   groupPlayReady: string
   groupPlayError: string
+  groupPlayComplete: string
+  groupResultReady: string
+  groupParticipantsProgress: (accepted: number, limit: number) => string
+  groupCompletedProgress: (completed: number, limit: number) => string
+  groupClose: string
+  groupCloseConfirm: string
+  groupProgressError: string
   groupRoundLabel: string
   /** Accessible name when brand title returns to mode select. */
   backToTop: string

@@ -43,12 +43,13 @@ export async function persistGroupBagOpen(input: {
 }): Promise<OpenGroupBagResult> {
   const result = await getDatabase().execute<Row>(sql`
     with candidate as materialized (
-      select participant.id as participant_id, participant.group_id
+      select participant.id as participant_id, participant.group_id, participant.completed_at, match.status group_status
       from group_participants participant
+      inner join group_matches match on match.id = participant.group_id
       where participant.group_id = ${input.groupId}::uuid
         and participant.auth_token_hash = ${input.participantTokenHash}
         and participant.excluded_at is null
-      for update
+      for update of match, participant
     ), request_open as materialized (
       select opened.*
       from group_round_opens opened
@@ -84,6 +85,8 @@ export async function persistGroupBagOpen(input: {
         on placement.group_id = candidate.group_id
         and placement.round_number = attempt.round_number
       where ${input.bagNumber} between 1 and placement.bag_count
+        and candidate.group_status = 'open'
+        and candidate.completed_at is null
     ), inserted_open as (
       insert into group_round_opens (
         participant_id, group_id, round_number, open_order,
@@ -171,6 +174,14 @@ export async function persistGroupBagOpen(input: {
         and participant.completed_at is null
         and participant.excluded_at is null
       returning participant.id
+    ), auto_closed as (
+      update group_matches match set status='closed',closed_at=statement_timestamp(),updated_at=statement_timestamp()
+      from updated_attempt updated
+      where match.id=updated.group_id and updated.status<>'active' and updated.round_number=match.total_rounds
+        and match.status='open' and match.accepted_count=match.player_limit
+        and (select count(*) from group_participants participant where participant.group_id=match.id and participant.completed_at is not null and participant.excluded_at is null)
+          + (select count(*) from completed_participant) = match.player_limit
+      returning match.id
     ), new_response as materialized (
       select
         'opened'::text as status,

@@ -195,11 +195,13 @@ export async function startGroupRound(input: {
 }): Promise<PersistedGroupPlayState | null> {
   const result = await getDatabase().execute<MutationRow>(sql`
     with locked_participant as materialized (
-      select participant.id, participant.group_id
+      select participant.id, participant.group_id, participant.completed_at,
+        match.total_rounds, match.status group_status
       from group_participants participant
+      inner join group_matches match on match.id = participant.group_id
       where participant.group_id = ${input.groupId}::uuid
         and participant.auth_token_hash = ${input.participantTokenHash}
-      for update
+      for update of match, participant
     ), progress as materialized (
       select
         locked.id as participant_id,
@@ -270,7 +272,24 @@ export async function resumeGroupPlay(input: {
       where attempt.group_id = participant.group_id
         and attempt.participant_id = participant.id
         and attempt.status = 'active'
-      returning attempt.participant_id
+        and participant.group_status = 'open'
+        and participant.completed_at is null
+      returning attempt.participant_id, attempt.group_id, attempt.round_number
+    ), completed_participant as (
+      update group_participants participant
+      set completed_at=statement_timestamp(),version=participant.version+1
+      from interrupted,locked_participant locked
+      where participant.id=interrupted.participant_id and participant.group_id=interrupted.group_id
+        and interrupted.round_number=locked.total_rounds and participant.completed_at is null and participant.excluded_at is null
+      returning participant.id
+    ), auto_closed as (
+      update group_matches match set status='closed',closed_at=statement_timestamp(),updated_at=statement_timestamp()
+      from interrupted
+      where match.id=interrupted.group_id and interrupted.round_number=match.total_rounds
+        and match.status='open' and match.accepted_count=match.player_limit
+        and (select count(*) from group_participants participant where participant.group_id=match.id and participant.completed_at is not null and participant.excluded_at is null)
+          +(select count(*) from completed_participant)=match.player_limit
+      returning match.id
     )
     select exists(select 1 from locked_participant) as accepted
   `)

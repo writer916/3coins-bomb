@@ -8,6 +8,7 @@ import {
 } from '../group/groupPlayClient'
 import type { AppStrings } from '../i18n'
 import { GroupPlayScreen } from './GroupPlayScreen'
+import { GroupCompletionWaiting } from './GroupCompletionWaiting'
 
 export function GroupEntryShell({
   initialUrl,
@@ -26,6 +27,7 @@ export function GroupEntryShell({
   const [joinedNickname, setJoinedNickname] = useState<string | null>(null)
   const [playReady, setPlayReady] = useState<GroupPlayReady | null>(null)
   const [playCoordinator, setPlayCoordinator] = useState<ReturnType<typeof createGroupPlayBootstrapCoordinator> | null>(null)
+  const [completionGroupId, setCompletionGroupId] = useState<string | null>(null)
   const pendingRef = useRef(false)
   const coordinatorRef = useRef<ReturnType<typeof createGroupJoinCoordinator> | null>(null)
   const playCoordinatorRef = useRef<ReturnType<typeof createGroupPlayBootstrapCoordinator> | null>(null)
@@ -59,6 +61,11 @@ export function GroupEntryShell({
         }),
       )
       setPlayCoordinator(playCoordinatorRef.current)
+      const progress = await playCoordinatorRef.current.getProgress(result.participant.groupId)
+      if (progress.selfCompleted) {
+        setCompletionGroupId(result.participant.groupId)
+        return
+      }
       setPlayReady(await playCoordinatorRef.current.run(
         result.participant.groupId,
         explicitResumeRef.current,
@@ -87,6 +94,8 @@ export function GroupEntryShell({
       <div className="coming-soon">
         {!validUrl ? (
           <p className="coming-soon-mode" role="alert">{t.groupEntryError}</p>
+        ) : completionGroupId && playCoordinator ? (
+          <GroupCompletionWaiting groupId={completionGroupId} coordinator={playCoordinator} t={t} />
         ) : playReady && playCoordinator ? (
           <GroupPlayScreen initialReady={playReady} coordinator={playCoordinator} t={t} />
         ) : joinedNickname ? (

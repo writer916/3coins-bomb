@@ -7,7 +7,7 @@ import {
   type GroupLocalOpenResult,
   type GroupRoundPlacement,
 } from './groupDomain'
-import { readGroupParticipant, type GroupStorageAdapter } from './groupPersistence'
+import { readGroupHost, readGroupParticipant, type GroupStorageAdapter } from './groupPersistence'
 
 const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
@@ -48,6 +48,7 @@ export interface GroupOpenResult {
 export interface GroupOpenCommand { readonly groupId: string; readonly bagNumber: number; readonly requestId: string }
 export interface GroupCashOutResult { readonly groupId: string; readonly roundNumber: number; readonly endReason: 'cashed_out'; readonly capturedCoins: 1 | 2; readonly openedBagCount: number; readonly participantCompleted: boolean }
 export interface GroupCashOutCommand { readonly groupId: string; readonly requestId: string }
+export interface GroupProgress { readonly groupId:string;readonly playerLimit:number;readonly acceptedCount:number;readonly completedCount:number;readonly status:'open'|'closed';readonly selfCompleted:boolean;readonly selfIsHostParticipant:boolean;readonly hostCloseAvailable:boolean }
 export class GroupPlayClientError extends Error {
   constructor() { super('GROUP play could not be prepared.'); this.name = 'GroupPlayClientError' }
 }
@@ -119,6 +120,7 @@ export function parseGroupCashOutResult(value: unknown, command: GroupCashOutCom
   const capturedCoins = integer(result.capturedCoins, 1, 2) as 1 | 2
   return { groupId: command.groupId, roundNumber: integer(result.roundNumber,1,20), endReason:'cashed_out', capturedCoins, openedBagCount: integer(result.openedBagCount,1,8), participantCompleted: result.participantCompleted }
 }
+export function parseGroupProgress(value:unknown,expectedGroupId:string):GroupProgress{const r=record(value);exact(r,['groupId','playerLimit','acceptedCount','completedCount','status','selfCompleted','selfIsHostParticipant','hostCloseAvailable']);if(uuid(r.groupId)!==uuid(expectedGroupId)||(r.status!=='open'&&r.status!=='closed')||typeof r.selfCompleted!=='boolean'||typeof r.selfIsHostParticipant!=='boolean'||typeof r.hostCloseAvailable!=='boolean')return fail();const playerLimit=integer(r.playerLimit,2,20),acceptedCount=integer(r.acceptedCount,0,playerLimit),completedCount=integer(r.completedCount,0,acceptedCount);return{groupId:expectedGroupId,playerLimit,acceptedCount,completedCount,status:r.status,selfCompleted:r.selfCompleted,selfIsHostParticipant:r.selfIsHostParticipant,hostCloseAvailable:r.hostCloseAvailable}}
 
 async function json(fetcher: typeof fetch, url: string, init: RequestInit): Promise<unknown> {
   const response = await fetcher(url, init); if (!response.ok) return fail()
@@ -154,6 +156,9 @@ export function createGroupPlayClient(dependencies: { readonly storage: GroupSto
     async cashOut(command: GroupCashOutCommand): Promise<GroupCashOutResult> {
       return parseGroupCashOutResult(await json(dependencies.fetch, `/api/group/matches/${encodeURIComponent(command.groupId)}/cash-out`, { method:'POST', headers:{ ...access(command.groupId), 'Idempotency-Key':command.requestId } }), command)
     },
+    async getProgress(groupId:string){return parseGroupProgress(await json(dependencies.fetch,`/api/group/matches/${encodeURIComponent(groupId)}/progress`,{method:'GET',headers:access(groupId)}),groupId)},
+    hasHostCapability(groupId:string){return readGroupHost(dependencies.storage,groupId)!==null},
+    async closeGroup(groupId:string,requestId:string){const host=readGroupHost(dependencies.storage,groupId);if(!host)return fail();return parseGroupProgress(await json(dependencies.fetch,`/api/group/matches/${encodeURIComponent(groupId)}/close`,{method:'POST',headers:{Authorization:`Bearer ${host.hostToken}`,'Idempotency-Key':requestId}}),groupId)},
   }
 }
 
@@ -164,6 +169,7 @@ export function createGroupPlayBootstrapCoordinator(client: ReturnType<typeof cr
   let startRequestId: string | null = null
   let pendingOpen: GroupOpenCommand | null = null
   let pendingCashOut: GroupCashOutCommand | null = null
+  let closeRequestId: string | null = null
   let openInFlight = false
   return { run(groupId: string, explicitResume: boolean): Promise<GroupPlayReady> {
     if (inFlight) return inFlight
@@ -216,6 +222,9 @@ export function createGroupPlayBootstrapCoordinator(client: ReturnType<typeof cr
     try { const result = await client.cashOut(pendingCashOut); pendingCashOut = null; return result }
     finally { openInFlight = false }
   },
+  getProgress(groupId:string){return client.getProgress(groupId)},
+  hasHostCapability(groupId:string){return client.hasHostCapability(groupId)},
+  async closeGroup(groupId:string){closeRequestId??=client.createRequestId();const result=await client.closeGroup(groupId,closeRequestId);closeRequestId=null;return result},
   async startNext(groupId: string): Promise<GroupPlayReady> {
     startRequestId ??= client.createRequestId()
     const state = await client.startRound(groupId, startRequestId)

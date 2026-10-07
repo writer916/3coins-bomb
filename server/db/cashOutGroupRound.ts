@@ -22,14 +22,13 @@ interface Row extends Record<string, unknown> {
 export async function persistGroupRoundCashOut(input: { groupId: string; participantTokenHash: string; requestId: string }): Promise<CashOutGroupRoundResult> {
   const result = await getDatabase().execute<Row>(sql`
     with candidate as materialized (
-      select participant.id participant_id, participant.group_id, participant.completed_at, match.total_rounds
+      select participant.id participant_id, participant.group_id, participant.completed_at, match.total_rounds, match.status group_status
       from group_participants participant
       inner join group_matches match on match.id = participant.group_id
       where participant.group_id = ${input.groupId}::uuid
         and participant.auth_token_hash = ${input.participantTokenHash}
         and participant.excluded_at is null
-        and match.status = 'open'
-      for update of participant
+      for update of match, participant
     ), exact_retry as materialized (
       select attempt.*, candidate.total_rounds
       from group_round_attempts attempt
@@ -41,7 +40,7 @@ export async function persistGroupRoundCashOut(input: { groupId: string; partici
       from candidate
       inner join group_round_attempts attempt on attempt.group_id = candidate.group_id and attempt.participant_id = candidate.participant_id and attempt.status = 'active'
       inner join group_round_placements placement on placement.group_id = attempt.group_id and placement.round_number = attempt.round_number
-      where candidate.completed_at is null
+      where candidate.completed_at is null and candidate.group_status = 'open'
     ), summary as materialized (
       select target.participant_id, target.group_id, target.total_rounds, target.round_number,
         count(distinct opened.open_order)::smallint opened_bag_count,
@@ -72,6 +71,14 @@ export async function persistGroupRoundCashOut(input: { groupId: string; partici
       where participant.id = updated.participant_id and participant.group_id = updated.group_id
         and updated.round_number = candidate.total_rounds and participant.completed_at is null and participant.excluded_at is null
       returning participant.id
+    ), auto_closed as (
+      update group_matches match set status='closed',closed_at=statement_timestamp(),updated_at=statement_timestamp()
+      from updated_attempt updated
+      where match.id=updated.group_id and updated.round_number=match.total_rounds
+        and match.status='open' and match.accepted_count=match.player_limit
+        and (select count(*) from group_participants participant where participant.group_id=match.id and participant.completed_at is not null and participant.excluded_at is null)
+          + (select count(*) from completed_participant) = match.player_limit
+      returning match.id
     ), response as materialized (
       select 'cashed_out'::text status, updated.group_id, updated.round_number, updated.captured_coins,
         updated.opened_bag_count, (updated.round_number = candidate.total_rounds) participant_completed

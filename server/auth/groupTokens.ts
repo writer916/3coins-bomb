@@ -97,3 +97,12 @@ export function validateGroupParticipantCapability(value: unknown): string {
   }
   return value
 }
+
+export function validateGroupHostCapability(value: unknown): string {
+  if (
+    typeof value !== 'string' ||
+    !value.startsWith(GROUP_HOST_TOKEN_PREFIX) ||
+    !CANONICAL_32_BYTE_BASE64URL.test(value.slice(GROUP_HOST_TOKEN_PREFIX.length))
+  ) throw new Error('A valid GROUP host capability is required.')
+  return value
+}

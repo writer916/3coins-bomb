@@ -15,6 +15,7 @@ import { BagBoard } from './BagBoard'
 import { BombOpenFx } from './BombOpenFx'
 import { CoinOpenFx } from './CoinOpenFx'
 import { EmptyOpenFx } from './EmptyOpenFx'
+import { GroupCompletionWaiting } from './GroupCompletionWaiting'
 
 type Coordinator = ReturnType<typeof createGroupPlayBootstrapCoordinator>
 type ActiveFx =
@@ -106,6 +107,7 @@ export function GroupPlayScreen({ initialReady, coordinator, t }: { initialReady
   }, [coordinator, ready, terminal, requestPending, fx])
 
   const soundEnabled = readSoundEnabled()
+  if (terminal && ready.currentPlacement.roundNumber === ready.state.totalRounds && !fx && !requestPending) return <GroupCompletionWaiting groupId={ready.state.groupId} coordinator={coordinator} t={t}/>
   return <div className="duel-play">
     <p className="duel-round-index">{t.groupRoundLabel} <span className="duel-num">{ready.currentPlacement.roundNumber}</span>{' / '}<span className="duel-num">{ready.state.totalRounds}</span></p>
     <BagBoard bagCount={ready.currentPlacement.bagCount as BagCount} hiddenBagIds={hidden} onBagTap={tap} interactive={!requestPending && !terminal}>

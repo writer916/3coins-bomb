@@ -25,7 +25,7 @@ const client=createGroupPlayClient({storage,crypto:{randomUUID:()=>requestId as 
 const coordinator=createGroupPlayBootstrapCoordinator(client); await assert.rejects(()=>coordinator.cashOut(groupId)); assert.deepEqual(await coordinator.cashOut(groupId),view); assert.deepEqual(ids,[requestId,requestId])
 
 const db=readFileSync(resolve(root,'server/db/cashOutGroupRound.ts'),'utf8')
-for(const fragment of ['for update of participant',"attempt.status = 'active'",'unnest(target.coin_bag_numbers)','summary.provisional_coins in (1, 2)',"status = 'cashed_out'",'terminal_request_id','completed_at = statement_timestamp()']) assert.ok(db.includes(fragment),fragment)
+for(const fragment of ['for update of match, participant',"attempt.status = 'active'",'unnest(target.coin_bag_numbers)','summary.provisional_coins in (1, 2)',"status = 'cashed_out'",'terminal_request_id','completed_at = statement_timestamp()']) assert.ok(db.includes(fragment),fragment)
 assert.match(db,/input: \{ groupId: string; participantTokenHash: string; requestId: string \}/)
 const ui=readFileSync(resolve(root,'src/components/GroupPlayScreen.tsx'),'utf8'); assert.match(ui,/provisionalCoins === 1 \|\| provisionalCoins === 2/); assert.match(ui,/getPendingOpen/); assert.match(ui,/t\.cashOut/); assert.match(ui,/t\.duelCashOutRetry/)
 const duel=readFileSync(resolve(root,'server/db/cashOutDuelRound.ts'),'utf8'); assert.match(duel,/provisional_coins in \(1, 2\)/)
