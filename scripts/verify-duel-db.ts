@@ -308,7 +308,7 @@ for (const name of [
 
 const migrationDirectory = join(root, 'drizzle')
 const migrations = filesBelow(migrationDirectory).filter((path) => path.endsWith('.sql'))
-assert.equal(migrations.length, 2)
+assert.equal(migrations.length, 4)
 const initialMigration = readFileSync(
   join(migrationDirectory, '0000_abandoned_ulik.sql'),
   'utf8',

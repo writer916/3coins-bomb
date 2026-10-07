@@ -1,0 +1,2 @@
+ALTER TABLE "group_matches" ADD COLUMN "accepted_count" smallint DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE "group_matches" ADD CONSTRAINT "group_matches_accepted_count_check" CHECK ("group_matches"."accepted_count" between 0 and "group_matches"."player_limit");

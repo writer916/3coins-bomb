@@ -7,6 +7,8 @@ import { LanguageToggle } from './components/LanguageToggle'
 import { ModeSelect, type PlayMode } from './components/ModeSelect'
 import { DuelFlow } from './components/DuelFlow'
 import { DuelClaimBootstrap } from './components/DuelClaimBootstrap'
+import { GroupCreateFlow } from './components/GroupCreateFlow'
+import { GroupEntryShell } from './components/GroupEntryShell'
 import { RevealBoard } from './components/RevealBoard'
 import { SoundToggle } from './components/SoundToggle'
 import type { BagId } from './game/assets'
@@ -51,10 +53,11 @@ import {
 } from './game/soloStats'
 import { getStrings, type LocaleId } from './i18n'
 import { isDuelMatchRouteUrl } from './duel/duelInvitation'
+import { isGroupRouteUrl } from './group/groupInvitation'
 import { withDuelNums } from './ui/withDuelNums'
 import './App.css'
 
-type AppScreen = 'top' | 'solo' | 'coming' | 'duel'
+type AppScreen = 'top' | 'solo' | 'duel' | 'group'
 
 type DevRoundApi = {
   getRound: () => RoundState
@@ -102,13 +105,17 @@ function soloResultFromEndedRound(state: RoundState): SoloRoundResult | null {
 }
 
 function App() {
+  const [groupBootstrapUrl, setGroupBootstrapUrl] = useState<string | null>(() =>
+    typeof window !== 'undefined' && isGroupRouteUrl(window.location.href)
+      ? window.location.href
+      : null,
+  )
   const [duelBootstrapUrl, setDuelBootstrapUrl] = useState<string | null>(() =>
     typeof window !== 'undefined' && isDuelMatchRouteUrl(window.location.href)
       ? window.location.href
       : null,
   )
   const [screen, setScreen] = useState<AppScreen>('top')
-  const [comingMode, setComingMode] = useState<PlayMode | null>(null)
   const [locale, setLocale] = useState<LocaleId>(() => readLocale())
   const t = getStrings(locale)
   const [round, setRound] = useState<RoundState>(() => createActiveRound())
@@ -379,9 +386,9 @@ function App() {
   }, [])
 
   const goTop = useCallback(() => {
-    setComingMode(null)
     setScreen('top')
     setDuelBootstrapUrl(null)
+    setGroupBootstrapUrl(null)
     try {
       if (typeof window !== 'undefined') {
         window.history.replaceState(null, '', '/')
@@ -393,17 +400,20 @@ function App() {
 
   const handleModeSelect = useCallback((mode: PlayMode) => {
     if (mode === 'solo') {
-      setComingMode(null)
       setScreen('solo')
       return
     }
     if (mode === 'duel') {
-      setComingMode(null)
       setScreen('duel')
       return
     }
-    setComingMode(mode)
-    setScreen('coming')
+    setScreen('group')
+  }, [])
+
+  const handleGroupCreated = useCallback((invitationUrl: string) => {
+    const url = new URL(invitationUrl)
+    window.history.pushState(null, '', `${url.pathname}${url.hash}`)
+    setGroupBootstrapUrl(url.toString())
   }, [])
 
   const handleCoinFxSample = useCallback((sample: CoinFxSample) => {
@@ -490,6 +500,17 @@ function App() {
     </div>
   )
 
+  if (groupBootstrapUrl) {
+    return (
+      <GroupEntryShell
+        initialUrl={groupBootstrapUrl}
+        t={t}
+        onGoTop={goTop}
+        topControls={topControls}
+      />
+    )
+  }
+
   if (duelBootstrapUrl) {
     return (
       <DuelClaimBootstrap
@@ -517,29 +538,21 @@ function App() {
     )
   }
 
-  if (screen === 'coming') {
-    const modeName =
-      comingMode === 'group' ? t.modeGroupName : ''
+  if (screen === 'group') {
     return (
-      <main className="app app--coming">
+      <main className="app app--duel app--group-create">
         <div className="field-header">
           {topControls}
           <header className="app-header">
-            <button
-              type="button"
-              className="brand-title brand-title--link"
-              aria-label={t.backToTop}
-              title={t.backToTop}
-              onClick={goTop}
+            <h1
+              className="brand-title duel-setup-heading"
+              aria-label={t.modeGroupName}
             >
-              {brandTitleNode}
-            </button>
+              {t.modeGroupName}
+            </h1>
           </header>
         </div>
-        <div className="coming-soon">
-          {modeName ? <p className="coming-soon-mode">{modeName}</p> : null}
-          <p className="coming-soon-label">{t.comingSoon}</p>
-        </div>
+        <GroupCreateFlow t={t} onGoTop={goTop} onCreated={handleGroupCreated} />
       </main>
     )
   }

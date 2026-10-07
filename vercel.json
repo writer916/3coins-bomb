@@ -3,6 +3,10 @@
     {
       "source": "/duel/:matchId",
       "destination": "/index.html"
+    },
+    {
+      "source": "/group/:groupId",
+      "destination": "/index.html"
     }
   ]
 }

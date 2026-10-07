@@ -15,6 +15,20 @@
       "when": 1790597567425,
       "tag": "0001_wild_solo",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791337527562,
+      "tag": "0002_futuristic_nocturne",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1791340383682,
+      "tag": "0003_silent_the_fury",
+      "breakpoints": true
     }
   ]
 }

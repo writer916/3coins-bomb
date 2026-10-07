@@ -42,6 +42,23 @@ export type AppStrings = {
   modeGroupDesc: string
   modeGroupBadge: string
   comingSoon: string
+  groupRoundsHint: string
+  groupRoundsLabel: string
+  groupPlayersHint: string
+  groupPlayersLabel: string
+  groupContinue: string
+  groupCreate: string
+  groupCreating: string
+  groupCreateError: string
+  groupEntryReady: string
+  groupEntryError: string
+  groupNicknameLabel: string
+  groupNicknamePlaceholder: string
+  groupNicknameError: string
+  groupJoin: string
+  groupJoining: string
+  groupJoinError: string
+  groupParticipantReady: string
   /** Accessible name when brand title returns to mode select. */
   backToTop: string
   /** DUEL placement flow. */

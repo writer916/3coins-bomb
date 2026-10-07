@@ -285,7 +285,10 @@ assert.equal(readPendingClaim(protectAStorage), null)
 assert.equal(invitationStorageKey(MATCH_ID), `3cb:duel:v1:invitation:${MATCH_ID}`)
 const vercel = JSON.parse(await readFile('vercel.json', 'utf8'))
 assert.deepEqual(vercel, {
-  rewrites: [{ source: '/duel/:matchId', destination: '/index.html' }],
+  rewrites: [
+    { source: '/duel/:matchId', destination: '/index.html' },
+    { source: '/group/:groupId', destination: '/index.html' },
+  ],
 })
 assert(!vercel.rewrites.some((rewrite: { source: string }) => rewrite.source.includes('api')))
 

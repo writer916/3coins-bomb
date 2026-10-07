@@ -482,6 +482,44 @@
   opacity: 0.9;
 }
 
+.group-entry-form,
+.group-entry-complete {
+  width: min(100%, 20rem);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.group-entry-label,
+.group-entry-nickname {
+  margin: 0;
+  color: #f2e6d0;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.group-nickname-input {
+  box-sizing: border-box;
+  width: min(100%, 18rem);
+  min-height: 2.75rem;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid #5a4a38;
+  border-radius: 0.3rem;
+  background: #18120e;
+  color: #f5ebd8;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    'Noto Sans', 'Noto Sans Arabic', 'Noto Sans Thai', sans-serif;
+  font-size: 1rem;
+  line-height: 1.4;
+}
+
+.group-nickname-input:focus-visible {
+  outline: 2px solid #c4a574;
+  outline-offset: 2px;
+}
+
 @media (max-width: 340px) {
   .field-action {
     width: min(100%, 17rem);
