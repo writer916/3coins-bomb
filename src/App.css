@@ -1359,9 +1359,199 @@
   margin: 0 auto;
 }
 
+.group-result__details {
+  width: min(100%, 12rem);
+  margin: 0 auto;
+  min-height: 2.35rem;
+  height: auto;
+  max-height: none;
+  font-size: 0.82rem;
+}
+
+.group-result-detail,
+.group-result-detail-status,
+.group-result-detail-error {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.85rem;
+  width: min(100%, 30rem);
+  max-height: calc(100dvh - 5.5rem);
+  margin: 0 auto;
+  padding: 0.25rem 0.15rem max(0.8rem, env(safe-area-inset-bottom, 0px));
+}
+
+.group-result-detail__title,
+.group-result-detail-status,
+.group-result-detail-error__copy {
+  margin: 0;
+  color: #f2e6d0;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(1.15rem, 4.6vw, 1.55rem);
+  letter-spacing: 0.06em;
+  text-align: center;
+}
+
+.group-result-detail__nickname {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: #f5ebd8;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans', Arial, sans-serif;
+  font-size: 1.08rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.group-result-detail__nickname--self {
+  color: #c4a574;
+}
+
+.group-result-detail__summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.45rem;
+  flex: 0 0 auto;
+}
+
+.group-result-detail__summary p,
+.group-result-detail__round-stats p {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.18rem;
+  margin: 0;
+  text-align: center;
+}
+
+.group-result-detail__summary span,
+.group-result-detail__round-stats span {
+  color: #c4b49a;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(0.58rem, 2.5vw, 0.72rem);
+  font-weight: 700;
+  letter-spacing: 0.025em;
+}
+
+.group-result-detail__summary strong,
+.group-result-detail__round-stats strong {
+  color: #f2e6d0;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+  font-size: clamp(0.95rem, 4vw, 1.15rem);
+  font-variant-numeric: tabular-nums;
+}
+
+.group-result-detail__rounds {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  min-height: 0;
+  margin: 0;
+  padding: 0 0.1rem;
+  overflow-y: auto;
+  list-style: none;
+  scrollbar-gutter: stable;
+}
+
+.group-result-detail__round {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding: 0.75rem 0.8rem;
+  border: 1px solid rgb(242 230 208 / 24%);
+  border-radius: 0.65rem;
+  background: rgb(0 0 0 / 10%);
+}
+
+.group-result-detail__round-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.35rem 0.75rem;
+}
+
+.group-result-detail__round-label,
+.group-result-detail__round-end {
+  margin: 0;
+  color: #f2e6d0;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.group-result-detail__round-label {
+  font-size: clamp(0.95rem, 3.6vw, 1.1rem);
+}
+
+.group-result-detail__round-end {
+  color: #c4a574;
+  font-size: clamp(0.82rem, 3.2vw, 0.95rem);
+}
+
+.group-result-detail__round-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.4rem;
+}
+
+.group-result-detail__opens {
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.group-result-detail__opens li {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.group-result-detail__open-order {
+  flex: 0 0 1.4rem;
+  color: #9a8468;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.group-result-detail__open-result {
+  min-width: 0;
+  color: #f2e6d0;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(0.88rem, 3.4vw, 1rem);
+  letter-spacing: 0.03em;
+}
+
+.group-result-detail__back {
+  flex: 0 0 auto;
+  width: min(100%, 16.5rem);
+  margin: 0 auto;
+}
+
+.group-result-detail-error__actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.group-result-detail-error__actions .duel-btn {
+  width: min(100%, 16.5rem);
+}
+
 @media (max-width: 360px) {
   .group-result__entry { padding: 0.7rem 0.6rem; }
   .group-result__stats { gap: 0.25rem; }
+  .group-result-detail__round { padding: 0.65rem 0.6rem; }
+  .group-result-detail__summary { gap: 0.3rem; }
 }
 
 .duel-final {

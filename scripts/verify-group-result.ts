@@ -53,7 +53,7 @@ assert.deepEqual(ranked.map(x=>[x.participantId,x.rank]),[['early-a',1],['late-a
 const request=validateGetGroupResultRequest(GROUP_ID,`Bearer ${token}`)
 assert.equal(request.groupId,GROUP_ID)
 for(const authorization of [null,'Bearer invalid','Bearer 3cb_gh1_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA','Bearer 3cb_gi1_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA']) assert.throws(()=>validateGetGroupResultRequest(GROUP_ID,authorization),GetGroupResultError)
-const view={groupId:GROUP_ID,totalRounds:1,playerLimit:2,acceptedCount:2,completedCount:1,status:'closed' as const,ranking:[{rank:1,nickname:'Alice',isSelf:true,totalCoins:3,threeCoinsComplete:1,coinBagHits:1,totalOpens:1,coinBagHitRate:{numerator:1,denominator:1}}]}
+const view={groupId:GROUP_ID,totalRounds:1,playerLimit:2,acceptedCount:2,completedCount:1,status:'closed' as const,ranking:[{rank:1,entryKey:'ABCDEFGHIJKLMNOPQRSTUV',nickname:'Alice',isSelf:true,totalCoins:3,threeCoinsComplete:1,coinBagHits:1,totalOpens:1,coinBagHitRate:{numerator:1,denominator:1}}]}
 assert.deepEqual(await getGroupResult(request,async(id,hash)=>{assert.equal(id,GROUP_ID);assert.match(hash,/^[0-9a-f]{64}$/);return{kind:'closed',view}}),view)
 await assert.rejects(()=>getGroupResult(request,async()=>({kind:'open'})),GetGroupResultError)
 await assert.rejects(()=>getGroupResult(request,async()=>null),GetGroupResultError)
@@ -66,7 +66,7 @@ assert.equal((await unavailable(new Request(`https://example.test/api/group/matc
 assert.equal((await handler(new Request(`https://example.test/api/group/matches/${GROUP_ID}/result`,{method:'POST'}))).status,405)
 
 const db=readFileSync(resolve(root,'server/db/getGroupResult.ts'),'utf8')
-for(const fragment of ["candidate.status = 'closed'","participant.completed_at is not null","participant.excluded_at is null",'group_round_placements','group_round_attempts','group_round_opens','openedBagCount','rankGroupParticipants','aggregateGroupParticipantResult']) assert.ok(db.includes(fragment),fragment)
+for(const fragment of ["candidate.status = 'closed'","participant.completed_at is not null","participant.excluded_at is null",'group_round_placements','group_round_attempts','group_round_opens','openedBagCount','rankGroupParticipants','aggregateGroupParticipantResult','createGroupResultEntryKey','entryKey']) assert.ok(db.includes(fragment),fragment)
 assert.match(db,/participant\.accepted_at, participant\.id/)
 assert.doesNotMatch(JSON.stringify(view),/token|hash|participantId|acceptedAt|placement/i)
 assert.doesNotMatch(readFileSync(resolve(root,'api/group/matches/[groupId]/result.ts'),'utf8'),/hostToken|invitationToken|displayNickname/)

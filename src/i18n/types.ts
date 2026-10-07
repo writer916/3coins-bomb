@@ -79,6 +79,17 @@ export type AppStrings = {
   groupTotalCoins: string
   groupThreeCoinsComplete: string
   groupCoinBagHitRate: string
+  groupViewDetails: string
+  groupParticipantDetails: string
+  groupDetailLoading: string
+  groupDetailError: string
+  groupDetailRetry: string
+  groupBackToResult: string
+  groupRoundCashedOut: string
+  groupRoundBombed: string
+  groupRoundInterrupted: string
+  groupOpenedBags: string
+  groupCapturedCoins: string
   /** Accessible name when brand title returns to mode select. */
   backToTop: string
   /** DUEL placement flow. */

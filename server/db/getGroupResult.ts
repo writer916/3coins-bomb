@@ -3,11 +3,18 @@ import {
   aggregateGroupParticipantResult,
   rankGroupParticipants,
   type GroupParticipantResultInput,
+  type GroupRoundPlacement,
 } from '../../src/group/groupDomain.js'
+import {
+  revealGroupRoundOpens,
+  type GroupResultDetailRound,
+} from '../../src/group/groupResultDetail.js'
+import { createGroupResultEntryKey } from '../group/resultEntryKey.js'
 import { getDatabase } from './client.js'
 
 export interface GroupResultEntry {
   readonly rank: number
+  readonly entryKey: string
   readonly nickname: string
   readonly isSelf: boolean
   readonly totalCoins: number
@@ -27,9 +34,27 @@ export interface GroupResultView {
   readonly ranking: readonly GroupResultEntry[]
 }
 
+export interface GroupResultDetailView {
+  readonly groupId: string
+  readonly entryKey: string
+  readonly nickname: string
+  readonly isSelf: boolean
+  readonly totalCoins: number
+  readonly threeCoinsComplete: number
+  readonly coinBagHits: number
+  readonly totalOpens: number
+  readonly coinBagHitRate: { readonly numerator: number; readonly denominator: number }
+  readonly rounds: readonly GroupResultDetailRound[]
+}
+
 export type GroupResultSnapshot =
   | { readonly kind: 'open' }
   | { readonly kind: 'closed'; readonly view: GroupResultView }
+
+export type GroupResultDetailSnapshot =
+  | { readonly kind: 'open' }
+  | { readonly kind: 'missing' }
+  | { readonly kind: 'closed'; readonly view: GroupResultDetailView }
 
 interface ResultRow extends Record<string, unknown> {
   group_id: string
@@ -40,6 +65,11 @@ interface ResultRow extends Record<string, unknown> {
   completed_count: number
   placements: unknown
   participants: unknown
+}
+
+type LoadedParticipant = GroupParticipantResultInput & {
+  nickname: string
+  isSelf: boolean
 }
 
 function object(value: unknown): Record<string, unknown> {
@@ -64,7 +94,11 @@ function timestamp(value: unknown): string {
   return parsed.toISOString()
 }
 
-function participantInput(value: unknown, placements: GroupParticipantResultInput['placements'], totalRounds: number): GroupParticipantResultInput & { nickname: string; isSelf: boolean } {
+function participantInput(
+  value: unknown,
+  placements: readonly GroupRoundPlacement[],
+  totalRounds: number,
+): LoadedParticipant {
   const participant = object(value)
   if (typeof participant.isSelf !== 'boolean') throw new Error('Invalid GROUP result data.')
   return {
@@ -77,7 +111,9 @@ function participantInput(value: unknown, placements: GroupParticipantResultInpu
     rounds: array(participant.rounds).map((roundValue) => {
       const round = object(roundValue)
       const endReason = text(round.endReason)
-      if (!['bombed', 'cashed_out', 'cleared', 'interrupted'].includes(endReason)) throw new Error('Invalid GROUP result data.')
+      if (!['bombed', 'cashed_out', 'cleared', 'interrupted'].includes(endReason)) {
+        throw new Error('Invalid GROUP result data.')
+      }
       const opens = array(round.opens).map((openValue) => {
         const opened = object(openValue)
         return { openOrder: integer(opened.openOrder), bagNumber: integer(opened.bagNumber) }
@@ -93,8 +129,22 @@ function participantInput(value: unknown, placements: GroupParticipantResultInpu
   }
 }
 
-/** Authenticates and reconstructs an immutable closed-GROUP ranking snapshot. */
-export async function getGroupResultForParticipant(groupId: string, participantTokenHash: string): Promise<GroupResultSnapshot | null> {
+function parsePlacements(value: unknown): GroupRoundPlacement[] {
+  return array(value).map((item) => {
+    const placement = object(item)
+    return {
+      roundNumber: integer(placement.roundNumber),
+      bagCount: integer(placement.bagCount),
+      bombBagNumber: integer(placement.bombBagNumber),
+      coinBagNumbers: array(placement.coinBagNumbers).map(integer) as [number, number, number],
+    }
+  })
+}
+
+async function loadResultRow(
+  groupId: string,
+  participantTokenHash: string,
+): Promise<ResultRow | null> {
   const result = await getDatabase().execute<ResultRow>(sql`
     with candidate as materialized (
       select match.*, self.id viewer_participant_id
@@ -156,39 +206,116 @@ export async function getGroupResultForParticipant(groupId: string, participantT
       ) else '[]'::jsonb end participants
     from candidate
   `)
-  const row = result.rows[0]
+  return result.rows[0] ?? null
+}
+
+function loadClosedParticipants(row: ResultRow): {
+  placements: GroupRoundPlacement[]
+  inputs: LoadedParticipant[]
+} {
+  const placements = parsePlacements(row.placements)
+  const inputs = array(row.participants).map((value) =>
+    participantInput(value, placements, row.total_rounds),
+  )
+  if (placements.length !== row.total_rounds || inputs.length !== row.completed_count) {
+    throw new Error('Invalid GROUP result data.')
+  }
+  return { placements, inputs }
+}
+
+function buildDetailRounds(input: LoadedParticipant): readonly GroupResultDetailRound[] {
+  return input.rounds.map((round, index) => {
+    const placement = input.placements[index]!
+    return {
+      roundNumber: round.roundNumber,
+      endReason: round.endReason,
+      capturedCoins: round.capturedCoins as 0 | 1 | 2 | 3,
+      openedBagCount: round.opens.length,
+      opens: revealGroupRoundOpens(placement, round.opens),
+    }
+  })
+}
+
+/** Authenticates and reconstructs an immutable closed-GROUP ranking snapshot. */
+export async function getGroupResultForParticipant(
+  groupId: string,
+  participantTokenHash: string,
+): Promise<GroupResultSnapshot | null> {
+  const row = await loadResultRow(groupId, participantTokenHash)
   if (!row) return null
   if (row.status === 'open') return { kind: 'open' }
 
-  const placements = array(row.placements).map((value) => {
-    const placement = object(value)
-    return {
-      roundNumber: integer(placement.roundNumber),
-      bagCount: integer(placement.bagCount),
-      bombBagNumber: integer(placement.bombBagNumber),
-      coinBagNumbers: array(placement.coinBagNumbers).map(integer) as [number, number, number],
-    }
-  })
-  const inputs = array(row.participants).map((value) => participantInput(value, placements, row.total_rounds))
-  const presentation = new Map(inputs.map((input) => [input.participantId, { nickname: input.nickname, isSelf: input.isSelf }]))
-  const ranking = rankGroupParticipants(inputs.map(aggregateGroupParticipantResult)).map((summary) => ({
-    rank: summary.rank,
-    nickname: presentation.get(summary.participantId)!.nickname,
-    isSelf: presentation.get(summary.participantId)!.isSelf,
-    totalCoins: summary.totalCapturedCoins,
-    threeCoinsComplete: summary.threeCoinsComplete,
-    coinBagHits: summary.coinBagHits,
-    totalOpens: summary.totalOpens,
-    coinBagHitRate: summary.hitRate,
-  }))
-  if (placements.length !== row.total_rounds || inputs.length !== row.completed_count) throw new Error('Invalid GROUP result data.')
-  return { kind: 'closed', view: {
-    groupId: row.group_id,
-    totalRounds: row.total_rounds,
-    playerLimit: row.player_limit,
-    acceptedCount: row.accepted_count,
-    completedCount: row.completed_count,
-    status: 'closed',
-    ranking,
-  } }
+  const { inputs } = loadClosedParticipants(row)
+  const presentation = new Map(
+    inputs.map((input) => [
+      input.participantId,
+      {
+        nickname: input.nickname,
+        isSelf: input.isSelf,
+        entryKey: createGroupResultEntryKey(row.group_id, input.participantId),
+      },
+    ]),
+  )
+  const ranking = rankGroupParticipants(inputs.map(aggregateGroupParticipantResult)).map(
+    (summary) => {
+      const meta = presentation.get(summary.participantId)!
+      return {
+        rank: summary.rank,
+        entryKey: meta.entryKey,
+        nickname: meta.nickname,
+        isSelf: meta.isSelf,
+        totalCoins: summary.totalCapturedCoins,
+        threeCoinsComplete: summary.threeCoinsComplete,
+        coinBagHits: summary.coinBagHits,
+        totalOpens: summary.totalOpens,
+        coinBagHitRate: summary.hitRate,
+      }
+    },
+  )
+  return {
+    kind: 'closed',
+    view: {
+      groupId: row.group_id,
+      totalRounds: row.total_rounds,
+      playerLimit: row.player_limit,
+      acceptedCount: row.accepted_count,
+      completedCount: row.completed_count,
+      status: 'closed',
+      ranking,
+    },
+  }
+}
+
+/** Closed-GROUP detail for one ranking entryKey (eligible participants only). */
+export async function getGroupResultDetailForParticipant(
+  groupId: string,
+  participantTokenHash: string,
+  entryKey: string,
+): Promise<GroupResultDetailSnapshot | null> {
+  const row = await loadResultRow(groupId, participantTokenHash)
+  if (!row) return null
+  if (row.status === 'open') return { kind: 'open' }
+
+  const { inputs } = loadClosedParticipants(row)
+  const target = inputs.find(
+    (input) => createGroupResultEntryKey(row.group_id, input.participantId) === entryKey,
+  )
+  if (!target) return { kind: 'missing' }
+
+  const summary = aggregateGroupParticipantResult(target)
+  return {
+    kind: 'closed',
+    view: {
+      groupId: row.group_id,
+      entryKey,
+      nickname: target.nickname,
+      isSelf: target.isSelf,
+      totalCoins: summary.totalCapturedCoins,
+      threeCoinsComplete: summary.threeCoinsComplete,
+      coinBagHits: summary.coinBagHits,
+      totalOpens: summary.totalOpens,
+      coinBagHitRate: summary.hitRate,
+      rounds: buildDetailRounds(target),
+    },
+  }
 }

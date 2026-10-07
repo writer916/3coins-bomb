@@ -35,6 +35,7 @@
     "verify:group-progress": "tsx scripts/verify-group-progress.ts",
     "verify:group-result": "tsx scripts/verify-group-result.ts",
     "verify:group-result-client": "tsx scripts/verify-group-result-client.ts",
+    "verify:group-result-detail": "tsx scripts/verify-group-result-detail.ts",
     "verify:empty": "tsx scripts/verify-empty-fx.ts",
     "verify:locale": "tsx scripts/verify-locale.ts",
     "verify:duel-placement": "tsx scripts/verify-duel-placement.ts",

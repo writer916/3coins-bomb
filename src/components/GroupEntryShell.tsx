@@ -102,8 +102,15 @@ export function GroupEntryShell({
         </header>
       </div>
       <div className="coming-soon">
-        {groupResult ? (
-          <GroupResultScreen result={groupResult} t={t} onGoTop={onGoTop}/>
+        {groupResult && playCoordinator ? (
+          <GroupResultScreen
+            result={groupResult}
+            t={t}
+            onGoTop={onGoTop}
+            fetchDetail={(entryKey) =>
+              playCoordinator.getResultDetail(groupResult.groupId, entryKey)
+            }
+          />
         ) : !validUrl ? (
           <p className="coming-soon-mode" role="alert">{t.groupEntryError}</p>
         ) : completionGroupId && playCoordinator ? (
