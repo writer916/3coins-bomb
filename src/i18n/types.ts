@@ -59,6 +59,10 @@ export type AppStrings = {
   groupJoining: string
   groupJoinError: string
   groupParticipantReady: string
+  groupPlayPreparing: string
+  groupPlayReady: string
+  groupPlayError: string
+  groupRoundLabel: string
   /** Accessible name when brand title returns to mode select. */
   backToTop: string
   /** DUEL placement flow. */

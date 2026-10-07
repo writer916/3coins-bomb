@@ -1,6 +1,11 @@
 import { useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { createGroupJoinCoordinator } from '../group/groupJoinClient'
 import { parseGroupInvitationUrl } from '../group/groupInvitation'
+import {
+  createGroupPlayBootstrapCoordinator,
+  createGroupPlayClient,
+  type GroupPlayReady,
+} from '../group/groupPlayClient'
 import type { AppStrings } from '../i18n'
 
 export function GroupEntryShell({
@@ -18,8 +23,11 @@ export function GroupEntryShell({
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<'nickname' | 'join' | null>(null)
   const [joinedNickname, setJoinedNickname] = useState<string | null>(null)
+  const [playReady, setPlayReady] = useState<GroupPlayReady | null>(null)
   const pendingRef = useRef(false)
   const coordinatorRef = useRef<ReturnType<typeof createGroupJoinCoordinator> | null>(null)
+  const playCoordinatorRef = useRef<ReturnType<typeof createGroupPlayBootstrapCoordinator> | null>(null)
+  const explicitResumeRef = useRef<boolean | null>(null)
   let validUrl = true
   try {
     parseGroupInvitationUrl(initialUrl)
@@ -39,8 +47,21 @@ export function GroupEntryShell({
         fetch: window.fetch.bind(window),
       })
       const result = await coordinatorRef.current.run(initialUrl, nickname)
+      explicitResumeRef.current ??= !result.newlyJoined
       setJoinedNickname(result.participant.displayNickname)
+      playCoordinatorRef.current ??= createGroupPlayBootstrapCoordinator(
+        createGroupPlayClient({
+          storage: window.localStorage,
+          fetch: window.fetch.bind(window),
+          crypto: window.crypto,
+        }),
+      )
+      setPlayReady(await playCoordinatorRef.current.run(
+        result.participant.groupId,
+        explicitResumeRef.current,
+      ))
     } catch (caught: unknown) {
+      setJoinedNickname(null)
       setError(
         caught instanceof Error && 'code' in caught && caught.code === 'INVALID_NICKNAME'
           ? 'nickname'
@@ -63,9 +84,19 @@ export function GroupEntryShell({
       <div className="coming-soon">
         {!validUrl ? (
           <p className="coming-soon-mode" role="alert">{t.groupEntryError}</p>
+        ) : playReady ? (
+          <div className="group-entry-complete" aria-live="polite">
+            <p className="coming-soon-mode">{t.groupPlayReady}</p>
+            <p className="group-entry-nickname">{playReady.state.participant.displayNickname}</p>
+            <p className="group-entry-nickname">
+              {t.groupRoundLabel}{' '}
+              <span className="duel-num">{playReady.state.activeAttempt?.roundNumber}</span>
+              {' / '}<span className="duel-num">{playReady.state.totalRounds}</span>
+            </p>
+          </div>
         ) : joinedNickname ? (
           <div className="group-entry-complete" aria-live="polite">
-            <p className="coming-soon-mode">{t.groupParticipantReady}</p>
+            <p className="coming-soon-mode">{t.groupPlayPreparing}</p>
             <p className="group-entry-nickname">{joinedNickname}</p>
           </div>
         ) : (
@@ -86,7 +117,7 @@ export function GroupEntryShell({
             />
             {error ? (
               <p className="duel-lock-error" role="alert">
-                {error === 'nickname' ? t.groupNicknameError : t.groupJoinError}
+                {error === 'nickname' ? t.groupNicknameError : t.groupPlayError}
               </p>
             ) : null}
             <button type="submit" className="duel-btn duel-btn--primary" disabled={pending}>

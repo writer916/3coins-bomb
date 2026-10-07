@@ -7,6 +7,7 @@ import {
 export const GROUP_INVITATION_TOKEN_PREFIX = '3cb_gi1_'
 export const GROUP_HOST_TOKEN_PREFIX = '3cb_gh1_'
 export const GROUP_PARTICIPANT_TOKEN_PREFIX = '3cb_gp1_'
+const CANONICAL_32_BYTE_BASE64URL = /^[A-Za-z0-9_-]{42}[AEIMQUYcgkosw048]$/
 
 const GROUP_TOKEN_DERIVATION_VERSION = 1
 
@@ -82,4 +83,17 @@ export function deriveGroupParticipantCapability(
 
 export function hashGroupCapability(token: string): string {
   return createHash('sha256').update(token, 'utf8').digest('hex')
+}
+
+export function validateGroupParticipantCapability(value: unknown): string {
+  if (
+    typeof value !== 'string' ||
+    !value.startsWith(GROUP_PARTICIPANT_TOKEN_PREFIX) ||
+    !CANONICAL_32_BYTE_BASE64URL.test(
+      value.slice(GROUP_PARTICIPANT_TOKEN_PREFIX.length),
+    )
+  ) {
+    throw new Error('A valid GROUP participant capability is required.')
+  }
+  return value
 }

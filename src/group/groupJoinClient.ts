@@ -26,6 +26,7 @@ export interface GroupJoinClientDependencies {
 }
 
 export interface GroupJoinClientResult {
+  readonly newlyJoined: boolean
   readonly participant: GroupParticipantRecord
   readonly totalRounds: number
   readonly playerLimit: number
@@ -42,7 +43,10 @@ function object(value: unknown): Record<string, unknown> {
   return value as Record<string, unknown>
 }
 
-function parseResponse(value: unknown, expectedGroupId: string): GroupJoinClientResult {
+function parseResponse(
+  value: unknown,
+  expectedGroupId: string,
+): Omit<GroupJoinClientResult, 'newlyJoined'> {
   const response = object(value)
   const participant = object(response.participant)
   const expectedResponse = ['groupId', 'totalRounds', 'playerLimit', 'status', 'participant', 'hostAuthenticated'].sort()
@@ -132,7 +136,7 @@ async function executeJoin(
     }
     const result = parseResponse(json, invitation.groupId)
     saveGroupParticipant(dependencies.storage, result.participant)
-    return result
+    return { ...result, newlyJoined: response.status === 201 }
   } catch (error: unknown) {
     if (error instanceof GroupJoinClientError) throw error
     throw new GroupJoinClientError('JOIN_UNAVAILABLE')
