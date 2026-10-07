@@ -10,7 +10,7 @@ import { readSoundEnabled } from '../game/sound'
 import { bagIdToBagNumber, bagNumberToBagId } from '../duel/duelPlayClient'
 import { createOptimisticOpenGate, markOptimisticFailed, markOptimisticFxDone, markOptimisticServerDone, type OptimisticOpenGate } from '../duel/duelOptimisticOpen'
 import type { GroupLocalOpenResult } from '../group/groupDomain'
-import type { GroupOpenResult, GroupPlayReady, createGroupPlayBootstrapCoordinator } from '../group/groupPlayClient'
+import type { GroupCashOutResult, GroupOpenResult, GroupPlayReady, createGroupPlayBootstrapCoordinator } from '../group/groupPlayClient'
 import { BagBoard } from './BagBoard'
 import { BombOpenFx } from './BombOpenFx'
 import { CoinOpenFx } from './CoinOpenFx'
@@ -26,10 +26,11 @@ export function GroupPlayScreen({ initialReady, coordinator, t }: { initialReady
   const [ready, setReady] = useState(initialReady)
   const [openedResults, setOpenedResults] = useState<readonly GroupOpenResult[]>([])
   const [provisionalCoins, setProvisionalCoins] = useState<0 | 1 | 2 | 3>(0)
-  const [terminal, setTerminal] = useState<GroupOpenResult | null>(null)
+  const [terminal, setTerminal] = useState<GroupOpenResult | GroupCashOutResult | null>(null)
   const [requestPending, setRequestPending] = useState(false)
   const [retryBag, setRetryBag] = useState<BagId | null>(null)
   const [error, setError] = useState(false)
+  const [cashOutError, setCashOutError] = useState(false)
   const [fx, setFx] = useState<ActiveFx | null>(null)
   const [coinFxSample, setCoinFxSample] = useState<CoinFxSample | null>(null)
   const lockRef = useRef(false)
@@ -66,8 +67,9 @@ export function GroupPlayScreen({ initialReady, coordinator, t }: { initialReady
     const bagNumber = bagIdToBagNumber(bagId)
     const pending = coordinator.getPendingOpen()
     if (pending && (pending.groupId !== ready.state.groupId || pending.bagNumber !== bagNumber)) { setError(true); return }
+    if (coordinator.getPendingCashOut()) { setCashOutError(true); return }
     const local = coordinator.getLocalOpenResult(ready.state.groupId, ready.currentPlacement.roundNumber, ready.currentPlacement.bagCount, bagNumber)
-    unlockCoinAudio(); warmBagOpenAudio(); lockRef.current = true; setRequestPending(true); setError(false)
+    unlockCoinAudio(); warmBagOpenAudio(); lockRef.current = true; setRequestPending(true); setError(false); setCashOutError(false)
     const gate = createOptimisticOpenGate(); gateRef.current = gate
     if (retryBag === bagId) markOptimisticFxDone(gate)
     else startFx(local, bagId, provisionalCoins)
@@ -82,6 +84,18 @@ export function GroupPlayScreen({ initialReady, coordinator, t }: { initialReady
       if (gate.fxDone) unlock()
     }
   }, [coordinator, ready, opened, openedResults.length, provisionalCoins, requestPending, retryBag, terminal, startFx, unlock])
+
+  const cashOut = useCallback(async () => {
+    if (lockRef.current || requestPending || fx || terminal || (provisionalCoins !== 1 && provisionalCoins !== 2)) return
+    if (coordinator.getPendingOpen()) { setError(true); return }
+    lockRef.current = true; setRequestPending(true); setCashOutError(false); setError(false)
+    try {
+      const result = await coordinator.cashOut(ready.state.groupId)
+      if (result.roundNumber !== ready.currentPlacement.roundNumber || result.capturedCoins !== provisionalCoins || result.openedBagCount !== openedResults.length) throw new Error('mismatch')
+      setTerminal(result); setRetryBag(null)
+    } catch { setCashOutError(true) }
+    finally { lockRef.current = false; setRequestPending(false) }
+  }, [coordinator, ready, provisionalCoins, openedResults.length, requestPending, fx, terminal])
 
   const next = useCallback(async () => {
     if (!terminal || requestPending || fx || ready.currentPlacement.roundNumber >= ready.state.totalRounds) return
@@ -99,7 +113,11 @@ export function GroupPlayScreen({ initialReady, coordinator, t }: { initialReady
       {fx?.kind === 'empty' ? <EmptyOpenFx key={fx.runId} bagId={fx.bagId} bagCount={ready.currentPlacement.bagCount as BagCount} onComplete={fxComplete} /> : null}
       {fx?.kind === 'bomb' ? <BombOpenFx key={fx.runId} bagId={fx.bagId} bagCount={ready.currentPlacement.bagCount as BagCount} hiddenBagIds={hidden} soundEnabled={soundEnabled} onComplete={fxComplete} /> : null}
     </BagBoard>
-    {error ? <p className="duel-lock-error" role="alert">{t.groupPlayError}</p> : null}
-    {terminal && ready.currentPlacement.roundNumber < ready.state.totalRounds ? <button type="button" className="duel-btn duel-btn--primary" disabled={requestPending || !!fx} onClick={next}>{t.nextRound}</button> : null}
+    <div className="field-action" aria-live="polite">
+      {!terminal && (provisionalCoins === 1 || provisionalCoins === 2) && !requestPending && !fx ? <button type="button" className="dev-btn cash-out-btn" onClick={() => { void cashOut() }}>{t.cashOut}</button> : null}
+      {terminal && ready.currentPlacement.roundNumber < ready.state.totalRounds ? <button type="button" className="dev-btn end-action-btn" disabled={requestPending || !!fx} onClick={() => { void next() }}>{t.nextRound}</button> : null}
+    </div>
+    {error ? <p className="duel-play-error" role="alert">{t.groupPlayError}</p> : null}
+    {cashOutError ? <p className="duel-play-error" role="alert">{t.duelCashOutRetry}</p> : null}
   </div>
 }

@@ -46,6 +46,8 @@ export interface GroupOpenResult {
   readonly capturedCoins: 0 | 1 | 2 | 3
 }
 export interface GroupOpenCommand { readonly groupId: string; readonly bagNumber: number; readonly requestId: string }
+export interface GroupCashOutResult { readonly groupId: string; readonly roundNumber: number; readonly endReason: 'cashed_out'; readonly capturedCoins: 1 | 2; readonly openedBagCount: number; readonly participantCompleted: boolean }
+export interface GroupCashOutCommand { readonly groupId: string; readonly requestId: string }
 export class GroupPlayClientError extends Error {
   constructor() { super('GROUP play could not be prepared.'); this.name = 'GroupPlayClientError' }
 }
@@ -111,6 +113,12 @@ export function parseGroupOpenResult(value: unknown, command: GroupOpenCommand):
   if (typeof result.roundEnded !== 'boolean' || (result.endReason !== null && result.endReason !== 'bombed' && result.endReason !== 'cleared')) return fail()
   return { groupId: command.groupId, roundNumber: integer(result.roundNumber, 1, 20), bagNumber: command.bagNumber, openOrder: integer(result.openOrder, 1, 8), outcome, coinsFound, provisionalCoins, openedBagCount: integer(result.openedBagCount, 1, 8), roundEnded: result.roundEnded, endReason: result.endReason, capturedCoins }
 }
+export function parseGroupCashOutResult(value: unknown, command: GroupCashOutCommand): GroupCashOutResult {
+  const result = record(value); exact(result, ['groupId','roundNumber','endReason','capturedCoins','openedBagCount','participantCompleted'])
+  if (uuid(result.groupId) !== uuid(command.groupId) || result.endReason !== 'cashed_out' || typeof result.participantCompleted !== 'boolean') return fail()
+  const capturedCoins = integer(result.capturedCoins, 1, 2) as 1 | 2
+  return { groupId: command.groupId, roundNumber: integer(result.roundNumber,1,20), endReason:'cashed_out', capturedCoins, openedBagCount: integer(result.openedBagCount,1,8), participantCompleted: result.participantCompleted }
+}
 
 async function json(fetcher: typeof fetch, url: string, init: RequestInit): Promise<unknown> {
   const response = await fetcher(url, init); if (!response.ok) return fail()
@@ -142,6 +150,10 @@ export function createGroupPlayClient(dependencies: { readonly storage: GroupSto
       try { value = await response.json() as unknown } catch { return fail() }
       return parseGroupOpenResult(value, command)
     },
+    createCashOutCommand(groupId: string): GroupCashOutCommand { return { groupId: uuid(groupId), requestId: dependencies.crypto.randomUUID() } },
+    async cashOut(command: GroupCashOutCommand): Promise<GroupCashOutResult> {
+      return parseGroupCashOutResult(await json(dependencies.fetch, `/api/group/matches/${encodeURIComponent(command.groupId)}/cash-out`, { method:'POST', headers:{ ...access(command.groupId), 'Idempotency-Key':command.requestId } }), command)
+    },
   }
 }
 
@@ -151,6 +163,7 @@ export function createGroupPlayBootstrapCoordinator(client: ReturnType<typeof cr
   let resumeRequestId: string | null = null
   let startRequestId: string | null = null
   let pendingOpen: GroupOpenCommand | null = null
+  let pendingCashOut: GroupCashOutCommand | null = null
   let openInFlight = false
   return { run(groupId: string, explicitResume: boolean): Promise<GroupPlayReady> {
     if (inFlight) return inFlight
@@ -183,8 +196,9 @@ export function createGroupPlayBootstrapCoordinator(client: ReturnType<typeof cr
     return judgeGroupBag(placement, bagNumber)
   },
   getPendingOpen() { return pendingOpen },
+  getPendingCashOut() { return pendingCashOut },
   async open(groupId: string, bagNumber: number): Promise<GroupOpenResult> {
-    if (openInFlight) return fail()
+    if (openInFlight || pendingCashOut) return fail()
     if (pendingOpen && (pendingOpen.groupId !== groupId || pendingOpen.bagNumber !== bagNumber)) return fail()
     pendingOpen ??= client.createOpenCommand(groupId, bagNumber)
     openInFlight = true
@@ -193,6 +207,14 @@ export function createGroupPlayBootstrapCoordinator(client: ReturnType<typeof cr
       pendingOpen = null
       return result
     } finally { openInFlight = false }
+  },
+  async cashOut(groupId: string): Promise<GroupCashOutResult> {
+    if (openInFlight || pendingOpen) return fail()
+    pendingCashOut ??= client.createCashOutCommand(groupId)
+    if (pendingCashOut.groupId !== groupId) return fail()
+    openInFlight = true
+    try { const result = await client.cashOut(pendingCashOut); pendingCashOut = null; return result }
+    finally { openInFlight = false }
   },
   async startNext(groupId: string): Promise<GroupPlayReady> {
     startRequestId ??= client.createRequestId()
