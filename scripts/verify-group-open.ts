@@ -46,6 +46,29 @@ assert.deepEqual(ids, [requestId, requestId])
 
 const db = readFileSync(resolve(root, 'server/db/openGroupBag.ts'), 'utf8')
 for (const fragment of ['with candidate as materialized', 'for update', 'insert into group_round_opens', 'on conflict do nothing', "status = 'active'", 'terminal_request_id', 'unnest(target.coin_bag_numbers)']) assert.ok(db.includes(fragment), fragment)
+assert.match(db, /when judged\.bomb_hit then 0/)
+assert.doesNotMatch(db, /when judged\.bomb_hit then judged\.prior_coins/)
+const bombOpen = {
+  groupId,
+  roundNumber: 1,
+  bagNumber: 5,
+  openOrder: 2,
+  outcome: 'bomb' as const,
+  coinsFound: 0 as const,
+  provisionalCoins: 0 as const,
+  openedBagCount: 2,
+  roundEnded: true,
+  endReason: 'bombed' as const,
+  capturedCoins: 0 as const,
+}
+assert.deepEqual(parseGroupOpenResult(bombOpen, { groupId, bagNumber: 5, requestId }), bombOpen)
+assert.throws(() =>
+  parseGroupOpenResult({ ...bombOpen, capturedCoins: 1, provisionalCoins: 1 }, {
+    groupId,
+    bagNumber: 5,
+    requestId,
+  }),
+)
 const ui = readFileSync(resolve(root, 'src/components/GroupPlayScreen.tsx'), 'utf8')
 for (const fragment of ['getLocalOpenResult', 'createOptimisticOpenGate', 'CoinOpenFx', 'EmptyOpenFx', 'BombOpenFx', 'visualHiddenBagIds', 'startNext']) assert.ok(ui.includes(fragment), fragment)
 for (const forbidden of ['RevealBoard', 'localStorage', 'sessionStorage']) assert.equal(ui.includes(forbidden), false)

@@ -24,7 +24,8 @@ const aggregate = (id: string, endReason: 'bombed'|'cashed_out'|'cleared'|'inter
   rounds:[{roundNumber:1,endReason,capturedCoins,opens:bags.map((bagNumber,index)=>({openOrder:index+1,bagNumber}))}],
 })
 
-assert.equal(aggregate('bomb', 'bombed', 2, [1,2,4]).totalCapturedCoins, 2)
+assert.equal(aggregate('bomb', 'bombed', 0, [1,2,4]).totalCapturedCoins, 0)
+assert.throws(() => aggregate('bomb-bad', 'bombed', 2, [1,2,4]))
 assert.equal(aggregate('cash', 'cashed_out', 2, [1,2]).totalCapturedCoins, 2)
 assert.equal(aggregate('interrupt', 'interrupted', 0, [1]).totalCapturedCoins, 0)
 assert.equal(aggregate('one-two', 'cleared', 3, [1,2], [1,2,2]).threeCoinsComplete, 1)
@@ -32,13 +33,30 @@ assert.equal(aggregate('ones', 'cleared', 3, [1,2,3]).threeCoinsComplete, 1)
 assert.equal(aggregate('three', 'cleared', 3, [1], [1,1,1]).threeCoinsComplete, 1)
 for (const reason of ['cashed_out','bombed','interrupted'] as const) {
   const bags = reason === 'bombed' ? [1,4] : [1]
-  const captured = reason === 'interrupted' ? 0 : 1
+  const captured = reason === 'cashed_out' ? 1 : 0
   assert.equal(aggregate(reason, reason, captured, bags).threeCoinsComplete, 0)
 }
-assert.deepEqual(aggregate('hits', 'bombed', 2, [1,2,4]).hitRate, { numerator:2, denominator:3 })
+assert.deepEqual(aggregate('hits', 'bombed', 0, [1,2,4]).hitRate, { numerator:2, denominator:3 })
 assert.deepEqual(aggregate('multi', 'cleared', 3, [1], [1,1,1]).hitRate, { numerator:1, denominator:1 })
 assert.deepEqual(aggregate('empty-bomb', 'bombed', 0, [2,4], [1,1,1]).hitRate, { numerator:0, denominator:2 })
 assert.deepEqual(aggregate('zero', 'interrupted', 0, []).hitRate, { numerator:0, denominator:0 })
+/* Screenshot regression: BOMB(1 provisional) → COMPLETE → COMPLETE => TOTAL 6 / COMPLETE 2 */
+const screenshotCase = [
+  aggregateGroupParticipantResult({
+    participantId: 'shot',
+    acceptedAt: accepted(0),
+    totalRounds: 3,
+    placements: [placement(1), placement(2), placement(3)],
+    rounds: [
+      { roundNumber: 1, endReason: 'bombed', capturedCoins: 0, opens: [{ openOrder: 1, bagNumber: 1 }, { openOrder: 2, bagNumber: 4 }] },
+      { roundNumber: 2, endReason: 'cleared', capturedCoins: 3, opens: [{ openOrder: 1, bagNumber: 1 }, { openOrder: 2, bagNumber: 2 }, { openOrder: 3, bagNumber: 3 }] },
+      { roundNumber: 3, endReason: 'cleared', capturedCoins: 3, opens: [{ openOrder: 1, bagNumber: 1 }, { openOrder: 2, bagNumber: 2 }, { openOrder: 3, bagNumber: 3 }] },
+    ],
+  }),
+][0]!
+assert.equal(screenshotCase.totalCapturedCoins, 6)
+assert.equal(screenshotCase.threeCoinsComplete, 2)
+assert.equal(screenshotCase.rounds[0]?.capturedCoins, 0)
 
 function summary(id:string,coins:number,completes:number,hits:number,opens:number,at=accepted(0)):GroupParticipantResultSummary{return{participantId:id,acceptedAt:at,totalCapturedCoins:coins,threeCoinsComplete:completes,coinBagHits:hits,totalOpens:opens,hitRate:{numerator:hits,denominator:opens},rounds:Array.from({length:Math.max(1,completes)},(_,i)=>({roundNumber:i+1,endReason:i<completes?'cleared':'interrupted',capturedCoins:i<completes?3:0,openedBagCount:0,coinBagHits:0}))}}
 assert(compareGroupParticipantScores(summary('coins',9,0,0,1),summary('complete',8,2,1,1))<0)

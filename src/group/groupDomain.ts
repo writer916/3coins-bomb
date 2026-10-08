@@ -378,10 +378,12 @@ export function aggregateGroupParticipantResult(
     const capturedCoins = integer(round.capturedCoins, 0, 3)
     const lastOpen = round.opens[round.opens.length - 1]
     if (round.endReason === 'bombed') {
+      // BOMB forfeits every provisional coin; confirmed capturedCoins must be 0.
+      // foundCoins (0–2) still drives COIN-BAG HIT RATE from the open history.
       if (
         !openedBomb ||
         lastOpen?.bagNumber !== placement.bombBagNumber ||
-        capturedCoins !== foundCoins ||
+        capturedCoins !== 0 ||
         foundCoins >= 3
       ) {
         return invalid()

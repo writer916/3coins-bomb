@@ -141,7 +141,7 @@ export function GroupResultScreen({
                 className="group-result__rank"
                 aria-label={`${t.groupRank} ${entry.rank}`}
               >
-                {entry.rank}
+                <span className="duel-num">{entry.rank}</span>
               </span>
               <span className="group-result__nickname" title={entry.nickname}>
                 {entry.nickname}
@@ -150,19 +150,21 @@ export function GroupResultScreen({
                 className="group-result__metric"
                 aria-label={`${t.groupTotalCoins} ${entry.totalCoins}`}
               >
-                {entry.totalCoins}
+                <span className="duel-num">{entry.totalCoins}</span>
               </strong>
               <strong
                 className="group-result__metric"
                 aria-label={`${t.groupThreeCoinsComplete} ${entry.threeCoinsComplete}`}
               >
-                {entry.threeCoinsComplete}
+                <span className="duel-num">{entry.threeCoinsComplete}</span>
               </strong>
               <strong
                 className="group-result__metric"
                 aria-label={`${t.groupCoinBagHitRate} ${formatGroupHitRate(entry.coinBagHits, entry.totalOpens)}`}
               >
-                {formatGroupHitRate(entry.coinBagHits, entry.totalOpens)}
+                {withDuelNums(
+                  formatGroupHitRate(entry.coinBagHits, entry.totalOpens),
+                )}
               </strong>
               <button
                 type="button"

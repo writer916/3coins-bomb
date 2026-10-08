@@ -1738,7 +1738,8 @@
   text-align: center;
 }
 
-.group-result-detail__summary span {
+/* Labels only — do not override nested `.duel-num` value digits. */
+.group-result-detail__summary > p > span {
   color: #c4b49a;
   font-family: Georgia, 'Times New Roman', serif;
   font-size: clamp(0.58rem, 2.5vw, 0.72rem);
@@ -1824,7 +1825,8 @@
   white-space: nowrap;
 }
 
-.match-detail-round__stats span {
+/* Labels only — nested `.duel-num` keeps the shared digit stack. */
+.match-detail-round__stats > p > span {
   color: #c4b49a;
   font-family: Georgia, 'Times New Roman', serif;
   font-size: clamp(0.52rem, 2.1vw, 0.64rem);

@@ -134,7 +134,7 @@ export async function persistGroupBagOpen(input: {
       set
         opened_bag_count = judged.open_order,
         captured_coins = case
-          when judged.bomb_hit then judged.prior_coins
+          when judged.bomb_hit then 0
           when judged.prior_coins + judged.coins_found = 3 then 3
           else 0
         end,

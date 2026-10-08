@@ -119,10 +119,14 @@ function participantInput(
         return { openOrder: integer(opened.openOrder), bagNumber: integer(opened.bagNumber) }
       })
       if (integer(round.openedBagCount) !== opens.length) throw new Error('Invalid GROUP result data.')
+      const storedCapturedCoins = integer(round.capturedCoins)
+      // Legacy bombed rows may still store provisional finds; confirmed coins are always 0.
+      const capturedCoins =
+        endReason === 'bombed' ? 0 : storedCapturedCoins
       return {
         roundNumber: integer(round.roundNumber),
         endReason: endReason as GroupParticipantResultInput['rounds'][number]['endReason'],
-        capturedCoins: integer(round.capturedCoins),
+        capturedCoins,
         opens,
       }
     }),

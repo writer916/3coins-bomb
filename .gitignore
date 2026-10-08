@@ -32,3 +32,6 @@ dist-ssr
 *.sw?
 
 .vercel
+
+# Local headless Chrome user-data from browser verifies
+.tmp-chrome-font-verify/

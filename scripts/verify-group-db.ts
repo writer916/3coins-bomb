@@ -284,7 +284,17 @@ for (const destructive of ['DROP TABLE', 'DROP COLUMN', 'TRUNCATE', 'DELETE FROM
 }
 
 const openMigration = readFileSync(join(root, 'drizzle', '0004_rare_paladin.sql'), 'utf8')
+/* Historical migration loosened bombed captured_coins; current schema restores = 0. */
 assert.match(openMigration, /captured_coins" between 0 and 2/)
 assert.equal(openMigration.includes('ALTER TABLE "duel_'), false)
+const schemaSource = readFileSync(join(root, 'server', 'db', 'schema.ts'), 'utf8')
+assert.match(
+  schemaSource,
+  /\$\{table\.status\} = 'bombed'[\s\S]*?\$\{table\.capturedCoins\} = 0/,
+)
+assert.doesNotMatch(
+  schemaSource,
+  /\$\{table\.status\} = 'bombed'[\s\S]*?\$\{table\.capturedCoins\} between 0 and 2/,
+)
 
 console.log('verify:group-db OK')

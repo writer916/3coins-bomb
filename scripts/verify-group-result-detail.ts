@@ -83,7 +83,7 @@ const bombSummary = aggregateGroupParticipantResult({
     {
       roundNumber: 1,
       endReason: 'bombed',
-      capturedCoins: 2,
+      capturedCoins: 0,
       opens: [
         { openOrder: 1, bagNumber: 1 },
         { openOrder: 2, bagNumber: 2 },
@@ -92,8 +92,30 @@ const bombSummary = aggregateGroupParticipantResult({
     },
   ],
 })
-assert.equal(bombSummary.totalCapturedCoins, 2)
+assert.equal(bombSummary.totalCapturedCoins, 0)
+assert.equal(bombSummary.rounds[0]?.capturedCoins, 0)
 assert.equal(bombSummary.rounds[0]?.openedBagCount, 3)
+assert.deepEqual(bombSummary.hitRate, { numerator: 2, denominator: 3 })
+assert.throws(() =>
+  aggregateGroupParticipantResult({
+    participantId: PARTICIPANT_A,
+    acceptedAt: '2026-01-01T00:00:00.000Z',
+    totalRounds: 1,
+    placements: [placement(1)],
+    rounds: [
+      {
+        roundNumber: 1,
+        endReason: 'bombed',
+        capturedCoins: 2,
+        opens: [
+          { openOrder: 1, bagNumber: 1 },
+          { openOrder: 2, bagNumber: 2 },
+          { openOrder: 3, bagNumber: 4 },
+        ],
+      },
+    ],
+  }),
+)
 
 const interrupted = aggregateGroupParticipantResult({
   participantId: PARTICIPANT_A,

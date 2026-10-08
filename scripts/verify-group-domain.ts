@@ -142,14 +142,26 @@ const mixed = aggregate(
   [
     round(1, 'cleared', 3, [1]),
     round(2, 'cashed_out', 2, [3, 1]),
-    round(3, 'bombed', 1, [1, 4]),
+    round(3, 'bombed', 0, [1, 4]),
     round(4, 'interrupted', 0, [2, 3]),
   ],
 )
-assert.equal(mixed.totalCapturedCoins, 6, 'coins found before BOMB remain captured')
+assert.equal(mixed.totalCapturedCoins, 5, 'BOMB forfeits provisional coins; TOTAL uses confirmed only')
 assert.equal(mixed.threeCoinsComplete, 1)
 assert.equal(mixed.coinBagHits, 5, '1/2/3 coin contents count as one hit per opened bag')
 assert.equal(mixed.totalOpens, 7, 'EMPTY/BOMB/interrupted opens remain in denominator')
+assert.equal(mixed.rounds[2]?.capturedCoins, 0, 'BOMB ROUND confirmed coins are 0')
+assert.throws(
+  () =>
+    aggregate(
+      'bomb-keeps-coins',
+      [
+        placement(1, [1, 1, 1]),
+      ],
+      [round(1, 'bombed', 1, [1, 4])],
+    ),
+  GroupDomainValidationError,
+)
 assert.deepEqual(mixed.rounds[3], {
   roundNumber: 4,
   endReason: 'interrupted',

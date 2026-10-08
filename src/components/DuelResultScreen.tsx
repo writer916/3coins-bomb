@@ -52,7 +52,9 @@ function StatRow({
   return (
     <p className="duel-final-stat">
       <span>{withDuelNums(label)}</span>
-      <strong>{value}</strong>
+      <strong>
+        <span className="duel-num">{value}</span>
+      </strong>
     </p>
   )
 }

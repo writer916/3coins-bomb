@@ -40,11 +40,15 @@ function DetailRoundBlock({
       <div className="match-detail-round__stats">
         <p>
           <span>{t.detailCapturedCoins}</span>
-          <strong>{round.capturedCoins}</strong>
+          <strong>
+            <span className="duel-num">{round.capturedCoins}</span>
+          </strong>
         </p>
         <p>
           <span>{t.detailOpenedBags}</span>
-          <strong>{round.openedBagCount}</strong>
+          <strong>
+            <span className="duel-num">{round.openedBagCount}</span>
+          </strong>
         </p>
       </div>
       <DuelMatchDetailBoard

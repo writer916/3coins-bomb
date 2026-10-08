@@ -33,15 +33,21 @@ export function GroupResultDetailScreen({
       <div className="group-result-detail__summary">
         <p>
           <span>{withDuelNums(t.groupTotalCoins)}</span>
-          <strong>{detail.totalCoins}</strong>
+          <strong>
+            <span className="duel-num">{detail.totalCoins}</span>
+          </strong>
         </p>
         <p>
           <span>{withDuelNums(t.groupThreeCoinsComplete)}</span>
-          <strong>{detail.threeCoinsComplete}</strong>
+          <strong>
+            <span className="duel-num">{detail.threeCoinsComplete}</span>
+          </strong>
         </p>
         <p>
           <span>{t.groupCoinBagHitRate}</span>
-          <strong>{formatGroupHitRate(detail.coinBagHits, detail.totalOpens)}</strong>
+          <strong>
+            {withDuelNums(formatGroupHitRate(detail.coinBagHits, detail.totalOpens))}
+          </strong>
         </p>
       </div>
       <ol className="group-result-detail__rounds">
@@ -56,17 +62,21 @@ export function GroupResultDetailScreen({
                 {withDuelNums(`${t.groupRoundLabel} ${round.roundNumber}`)}
               </p>
               <p className="group-result-detail__round-end match-detail-round__end">
-                {formatGroupRoundEndReason(round.endReason, t)}
+                {withDuelNums(formatGroupRoundEndReason(round.endReason, t))}
               </p>
             </div>
             <div className="group-result-detail__round-stats match-detail-round__stats">
               <p>
                 <span>{t.detailCapturedCoins}</span>
-                <strong>{round.capturedCoins}</strong>
+                <strong>
+                  <span className="duel-num">{round.capturedCoins}</span>
+                </strong>
               </p>
               <p>
                 <span>{t.detailOpenedBags}</span>
-                <strong>{round.openedBagCount}</strong>
+                <strong>
+                  <span className="duel-num">{round.openedBagCount}</span>
+                </strong>
               </p>
             </div>
             <DuelMatchDetailBoard

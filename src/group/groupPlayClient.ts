@@ -134,6 +134,8 @@ export function parseGroupOpenResult(value: unknown, command: GroupOpenCommand):
   const provisionalCoins = integer(result.provisionalCoins, 0, 3) as 0 | 1 | 2 | 3
   const capturedCoins = integer(result.capturedCoins, 0, 3) as 0 | 1 | 2 | 3
   if (typeof result.roundEnded !== 'boolean' || (result.endReason !== null && result.endReason !== 'bombed' && result.endReason !== 'cleared')) return fail()
+  if (outcome === 'bomb' && (coinsFound !== 0 || !result.roundEnded || result.endReason !== 'bombed' || capturedCoins !== 0 || provisionalCoins !== 0)) return fail()
+  if (result.endReason === 'cleared' && (capturedCoins !== 3 || provisionalCoins !== 3 || !result.roundEnded)) return fail()
   return { groupId: command.groupId, roundNumber: integer(result.roundNumber, 1, 20), bagNumber: command.bagNumber, openOrder: integer(result.openOrder, 1, 8), outcome, coinsFound, provisionalCoins, openedBagCount: integer(result.openedBagCount, 1, 8), roundEnded: result.roundEnded, endReason: result.endReason, capturedCoins }
 }
 export function parseGroupCashOutResult(value: unknown, command: GroupCashOutCommand): GroupCashOutResult {
@@ -225,6 +227,10 @@ export function parseGroupResultDetail(
     const openedBagCount = integer(round.openedBagCount, 0, bagCount)
     if (openedBagCount !== round.opens.length) return fail()
     const capturedCoins = integer(round.capturedCoins, 0, 3) as 0 | 1 | 2 | 3
+    if (endReason === 'bombed' && capturedCoins !== 0) return fail()
+    if (endReason === 'cleared' && capturedCoins !== 3) return fail()
+    if (endReason === 'cashed_out' && capturedCoins !== 1 && capturedCoins !== 2) return fail()
+    if (endReason === 'interrupted' && capturedCoins !== 0) return fail()
     const seenBags = new Set<number>()
     const opens: GroupResultDetailOpen[] = round.opens.map((openValue, openIndex) => {
       const opened = record(openValue)

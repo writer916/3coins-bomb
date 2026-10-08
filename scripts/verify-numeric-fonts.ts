@@ -8,6 +8,9 @@ const [
   duelResult,
   detailScreen,
   detailBoard,
+  detailBoardCss,
+  groupResult,
+  groupResultDetail,
   coinFx,
   numericText,
 ] = await Promise.all([
@@ -17,6 +20,9 @@ const [
   readFile('src/components/DuelResultScreen.tsx', 'utf8'),
   readFile('src/components/DuelMatchDetailScreen.tsx', 'utf8'),
   readFile('src/components/DuelMatchDetailBoard.tsx', 'utf8'),
+  readFile('src/components/DuelMatchDetailBoard.css', 'utf8'),
+  readFile('src/components/GroupResultScreen.tsx', 'utf8'),
+  readFile('src/components/GroupResultDetailScreen.tsx', 'utf8'),
   readFile('src/components/CoinOpenFx.tsx', 'utf8'),
   readFile('src/ui/withDuelNums.tsx', 'utf8'),
 ])
@@ -35,7 +41,19 @@ assert.doesNotMatch(appCss, /\.duel-final-stat span\s*{/)
 // ROUND progress/detail and OPEN-order markers use the same numeric stack.
 assert.match(duelPlay, /withDuelNums\(t\.duelRoundProgress/)
 assert.match(detailScreen, /withDuelNums\(label\)/)
+assert.match(detailScreen, /className="duel-num">\{round\.capturedCoins\}/)
 assert.match(detailBoard, /<span className="duel-num">\{marker\.openOrder\}<\/span>/)
+assert.match(detailBoardCss, /\.duel-detail-open-marker\s*{[\s\S]*?font-family:\s*system-ui/)
+assert.doesNotMatch(detailBoardCss, /\.duel-detail-open-marker\s*{[\s\S]*?font-family:\s*Georgia/)
+assert.match(duelResult, /className="duel-num">\{value\}/)
+assert.match(groupResult, /className="duel-num">\{entry\.totalCoins\}/)
+assert.match(groupResultDetail, /className="duel-num">\{detail\.totalCoins\}/)
+assert.match(groupResultDetail, /withDuelNums\(formatGroupRoundEndReason/)
+/* Label Georgia must not out-specify `.duel-num` value digits. */
+assert.match(appCss, /\.group-result-detail__summary\s*>\s*p\s*>\s*span\s*{/)
+assert.match(appCss, /\.match-detail-round__stats\s*>\s*p\s*>\s*span\s*{/)
+assert.doesNotMatch(appCss, /\.group-result-detail__summary\s+span\s*{/)
+assert.doesNotMatch(appCss, /\.match-detail-round__stats\s+span\s*{/)
 
 // COIN +1/+2/+3 labels use numeric glyphs without changing FX timing.
 assert.equal((coinFx.match(/<span className="duel-num">\{label\}<\/span>/g) ?? []).length, 2)

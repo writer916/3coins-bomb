@@ -592,7 +592,7 @@ export const groupRoundAttempts = pgTable(
         ${table.status} = 'bombed'
         and ${table.endedAt} is not null
         and ${table.terminalRequestId} is not null
-        and ${table.capturedCoins} between 0 and 2
+        and ${table.capturedCoins} = 0
         and ${table.openedBagCount} between 1 and 8
       ) or (
         ${table.status} = 'cashed_out'
