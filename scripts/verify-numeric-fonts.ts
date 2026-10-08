@@ -13,6 +13,8 @@ const [
   groupResultDetail,
   coinFx,
   numericText,
+  brandTitleUi,
+  brandTitleNodesUi,
 ] = await Promise.all([
   readFile('src/App.tsx', 'utf8'),
   readFile('src/App.css', 'utf8'),
@@ -25,6 +27,8 @@ const [
   readFile('src/components/GroupResultDetailScreen.tsx', 'utf8'),
   readFile('src/components/CoinOpenFx.tsx', 'utf8'),
   readFile('src/ui/withDuelNums.tsx', 'utf8'),
+  readFile('src/ui/BrandTitle.tsx', 'utf8'),
+  readFile('src/ui/brandTitleNodes.tsx', 'utf8'),
 ])
 
 assert.match(numericText, /className="duel-num"/)
@@ -58,9 +62,18 @@ assert.doesNotMatch(appCss, /\.match-detail-round__stats\s+span\s*{/)
 // COIN +1/+2/+3 labels use numeric glyphs without changing FX timing.
 assert.equal((coinFx.match(/<span className="duel-num">\{label\}<\/span>/g) ?? []).length, 2)
 
-// Brand title remains the deliberate Georgia exception.
-assert.match(app, /className="brand-title-digit"/)
-assert.doesNotMatch(app, /brand-title-digit duel-num|duel-num brand-title-digit/)
+// Brand title lead digit uses the shared lining numeral stack; rest stays Georgia.
+assert.match(brandTitleNodesUi, /brand-title-digit duel-num/)
+assert.match(brandTitleNodesUi, /brand-title-rest/)
+assert.match(brandTitleUi, /brandTitleNodes/)
+assert.match(app, /BrandTitle|brandTitleNodes/)
+assert.match(duelResult, /BrandTitle/)
+assert.match(detailScreen, /BrandTitle/)
+assert.match(groupResult, /BrandTitle/)
+assert.match(groupResultDetail, /BrandTitle/)
+assert.match(appCss, /\.brand-title-digit\s*{/)
+assert.match(appCss, /\.brand-title-rest\s*{/)
+assert.doesNotMatch(appCss, /\.brand-title-digit\s*\{[^}]*transform:\s*translateY/)
 assert.match(appCss, /\.app\s*{[\s\S]*?font-family:\s*Georgia,/)
 
 console.log('verify:numeric-fonts OK')

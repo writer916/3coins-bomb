@@ -12,6 +12,11 @@ import {
   claimOpenFxCompletion,
   openFxFallbackDelayMs,
 } from '../game/openFxCompletion'
+import {
+  markScreenPresentationVisualDone,
+  noteScreenPresentationAudio,
+  waitScreenPresentationSettled,
+} from '../game/screenPresentation'
 import { bagDepthZIndex, type BagCount } from '../game/formations'
 import './BombOpenFx.css'
 
@@ -22,6 +27,8 @@ type BombOpenFxProps = {
   hiddenBagIds: ReadonlySet<BagId>
   /** Current SOUND ON/OFF — gates pop without touching ROUND. */
   soundEnabled: boolean
+  /** Presentation generation from `beginScreenPresentation`. */
+  presentationGen: number
   onSample?: (sample: BombFxSample) => void
   onComplete: () => void
 }
@@ -29,12 +36,14 @@ type BombOpenFxProps = {
 /**
  * BOMB reveal at the opened bag’s visual center — no upward flight.
  * Visual only for ROUND (already bombed); optional fade-start pop SE.
+ * Completes only after visual + owned SFX settle (or audio grace timeout).
  */
 export function BombOpenFx({
   bagId,
   bagCount,
   hiddenBagIds,
   soundEnabled,
+  presentationGen,
   onSample,
   onComplete,
 }: BombOpenFxProps) {
@@ -46,6 +55,7 @@ export function BombOpenFx({
   const soundEnabledRef = useRef(soundEnabled)
   const onCompleteRef = useRef(onComplete)
   const onSampleRef = useRef(onSample)
+  const presentationGenRef = useRef(presentationGen)
 
   useEffect(() => {
     onCompleteRef.current = onComplete
@@ -55,6 +65,10 @@ export function BombOpenFx({
   useEffect(() => {
     soundEnabledRef.current = soundEnabled
   }, [soundEnabled])
+
+  useEffect(() => {
+    presentationGenRef.current = presentationGen
+  }, [presentationGen])
 
   useEffect(() => {
     warmBombAudio()
@@ -97,7 +111,12 @@ export function BombOpenFx({
       const final = sampleBombFx(plan, Math.max(elapsedForSample, plan.totalMs))
       setSample(final)
       onSampleRef.current?.(final)
-      onCompleteRef.current()
+      const gen = presentationGenRef.current
+      markScreenPresentationVisualDone(gen)
+      void waitScreenPresentationSettled(gen).then(() => {
+        if (cancelled) return
+        onCompleteRef.current()
+      })
     }
 
     const tick = (now: number) => {
@@ -115,7 +134,10 @@ export function BombOpenFx({
         popFiredRef.current = true
       }
       if (pop.play) {
-        playBombPop({ soundEnabled: true })
+        noteScreenPresentationAudio(
+          presentationGenRef.current,
+          playBombPop({ soundEnabled: true }),
+        )
       }
 
       setSample(next)
@@ -140,7 +162,7 @@ export function BombOpenFx({
       cancelAnimationFrame(rafRef.id)
       window.clearTimeout(fallbackTimer)
     }
-  }, [plan, cue.atMs])
+  }, [plan, cue.atMs, presentationGen])
 
   if (sample.finished) return null
 

@@ -68,7 +68,15 @@ window.__paint = (locale) => {
   const t = window.__COPY[locale];
   document.documentElement.lang = locale;
   document.getElementById('root').innerHTML = \`
+    <header class="app-header" data-pane="brand-title">
+      <h1 class="brand-title" aria-label="3 COINS BOMB">
+        <span class="brand-title-digit duel-num">3</span><span class="brand-title-rest"> COINS BOMB</span>
+      </h1>
+    </header>
     <section class="group-result" data-pane="group-result">
+      <h1 class="brand-title duel-final-brand" aria-label="3 COINS BOMB">
+        <span class="brand-title-digit duel-num">3</span><span class="brand-title-rest"> COINS BOMB</span>
+      </h1>
       <h2 class="group-result__title">\${t.groupResultTitle}</h2>
       <div class="group-result__table">
         <ol class="group-result__ranking">
@@ -93,6 +101,9 @@ window.__paint = (locale) => {
       <button type="button" class="duel-btn group-result__top">\${t.duelReturnToTop}</button>
     </section>
     <section class="group-result-detail" data-pane="group-detail">
+      <h1 class="brand-title duel-final-brand" aria-label="3 COINS BOMB">
+        <span class="brand-title-digit duel-num">3</span><span class="brand-title-rest"> COINS BOMB</span>
+      </h1>
       <h2 class="group-result-detail__title">\${t.groupParticipantDetails}</h2>
       <p class="group-result-detail__nickname">Player</p>
       <div class="group-result-detail__summary">
@@ -121,6 +132,9 @@ window.__paint = (locale) => {
     </section>
     <section class="duel-final duel-final--completed" data-pane="duel-result">
       <div class="duel-final-body">
+        <h1 class="brand-title duel-final-brand" aria-label="3 COINS BOMB">
+          <span class="brand-title-digit duel-num">3</span><span class="brand-title-rest"> COINS BOMB</span>
+        </h1>
         <div class="duel-final-scores">
           <div class="duel-final-player">
             <h3>\${t.duelYou}</h3>
@@ -134,6 +148,9 @@ window.__paint = (locale) => {
       </div>
     </section>
     <section class="duel-match-detail" data-pane="duel-detail">
+      <h1 class="brand-title duel-final-brand" aria-label="3 COINS BOMB">
+        <span class="brand-title-digit duel-num">3</span><span class="brand-title-rest"> COINS BOMB</span>
+      </h1>
       <div class="match-detail-round__stats">
         <p><span>COINS</span><strong><span class="duel-num">0</span></strong></p>
         <p><span>OPEN</span><strong><span class="duel-num">12</span></strong></p>
@@ -246,6 +263,8 @@ try {
     const duelNumRules = sheet.filter((text) => text.includes('.duel-num'))
     const sample = document.querySelector('.group-result__metric .duel-num')
     const bare = document.querySelector('.group-result-detail__summary .duel-num')
+    const brandDigit = document.querySelector('.brand-title-digit.duel-num')
+    const brandRest = document.querySelector('.brand-title-rest')
     return {
       duelNumRuleCount: duelNumRules.length,
       sampleFamily: sample ? getComputedStyle(sample).fontFamily : null,
@@ -253,12 +272,16 @@ try {
       bareParentFamily: bare?.parentElement
         ? getComputedStyle(bare.parentElement).fontFamily
         : null,
+      brandDigitFamily: brandDigit ? getComputedStyle(brandDigit).fontFamily : null,
+      brandRestFamily: brandRest ? getComputedStyle(brandRest).fontFamily : null,
       firstDuelNumRule: duelNumRules[0] || null,
     }
   })()`)
   console.log('cssProbe', cssProbe)
   assert.ok(cssProbe.duelNumRuleCount > 0, '`.duel-num` CSS rule missing from stylesheet')
   assert.match(cssProbe.sampleFamily || '', /system-ui/i)
+  assert.match(cssProbe.brandDigitFamily || '', /system-ui/i)
+  assert.match(cssProbe.brandRestFamily || '', /Georgia/i)
 
   let cases = 0
   for (const [width, height] of viewports) {
@@ -281,12 +304,25 @@ try {
         const families = [...new Set(details.map((d) => d.family))]
         const nonSystem = details.filter((d) => !/system-ui/i.test(d.family))
         const overflowX = document.documentElement.scrollWidth > document.documentElement.clientWidth + 0.5
-        const panes = ['group-result','group-detail','duel-result','duel-detail'].map((name) => {
+        const panes = ['brand-title','group-result','group-detail','duel-result','duel-detail'].map((name) => {
           const el = document.querySelector('[data-pane="' + name + '"]')
           const rect = el.getBoundingClientRect()
           return { name, width: rect.width, overflow: el.scrollWidth > el.clientWidth + 0.5 }
         })
-        return { families, nonSystem, overflowX, panes, count: nums.length }
+        const brandDigit = document.querySelector('.brand-title-digit.duel-num')
+        const brandRest = document.querySelector('.brand-title-rest')
+        const brand = {
+          digitFamily: brandDigit ? getComputedStyle(brandDigit).fontFamily : null,
+          restFamily: brandRest ? getComputedStyle(brandRest).fontFamily : null,
+          centered: (() => {
+            if (!brandDigit?.parentElement) return false
+            const parent = brandDigit.parentElement.getBoundingClientRect()
+            const mid = parent.left + parent.width / 2
+            const root = document.documentElement.getBoundingClientRect()
+            return Math.abs(mid - (root.left + root.width / 2)) < root.width * 0.25
+          })(),
+        }
+        return { families, nonSystem, overflowX, panes, count: nums.length, brand }
       })()`)
       assert.equal(
         measured.nonSystem.length,
@@ -294,6 +330,9 @@ try {
         `non-system duel-num @${width} ${locale}: ${JSON.stringify(measured.nonSystem)}`,
       )
       assert.ok(measured.families.every((family) => /system-ui/i.test(family)))
+      assert.match(measured.brand.digitFamily || '', /system-ui/i)
+      assert.match(measured.brand.restFamily || '', /Georgia/i)
+      assert.equal(measured.brand.centered, true, `brand title alignment @${width} ${locale}`)
       assert.equal(measured.overflowX, false, `overflow-x @${width}x${height} ${locale}`)
       for (const pane of measured.panes) {
         assert.equal(pane.overflow, false, `${pane.name} overflow @${width}`)

@@ -13,9 +13,8 @@ import { RevealBoard } from './components/RevealBoard'
 import { SoundToggle } from './components/SoundToggle'
 import type { BagId } from './game/assets'
 import { unlockCoinAudio } from './game/coinAudio'
-import { playBagOpen, warmBagOpenAudio } from './game/bagAudio'
+import { warmBagOpenAudio } from './game/bagAudio'
 import { prepareBagImages } from './game/bagImagePrep'
-import { resolveBagOpenSeRequest } from './game/bagSfx'
 import {
   visualHiddenBagIds,
   type CoinFxSample,
@@ -38,6 +37,11 @@ import {
   tryCashOut,
   type RoundState,
 } from './game/round'
+import {
+  abandonScreenPresentation,
+  isScreenPresentationBlocking,
+} from './game/screenPresentation'
+import { startOpenPresentation } from './game/startOpenPresentation'
 import { readSoundEnabled, writeSoundEnabled } from './game/sound'
 import {
   applyAcceptedOpenToDraft,
@@ -54,6 +58,8 @@ import {
 import { getStrings, type LocaleId } from './i18n'
 import { isDuelMatchRouteUrl } from './duel/duelInvitation'
 import { isGroupRouteUrl } from './group/groupInvitation'
+import { BrandTitle } from './ui/BrandTitle'
+import { brandTitleNodes } from './ui/brandTitleNodes'
 import { withDuelNums } from './ui/withDuelNums'
 import './App.css'
 
@@ -76,16 +82,19 @@ type ActiveCoinFx = {
   /** This open caused phase=cleared (3 COINS). */
   clearsRound: boolean
   runId: number
+  presentationGen: number
 }
 
 type ActiveBombFx = {
   bagId: BagId
   runId: number
+  presentationGen: number
 }
 
 type ActiveEmptyFx = {
   bagId: BagId
   runId: number
+  presentationGen: number
 }
 
 declare global {
@@ -174,6 +183,7 @@ function App() {
   }, [])
 
   const clearOpenFx = useCallback(() => {
+    abandonScreenPresentation()
     fxLockRef.current = false
     setCoinFx(null)
     setBombFx(null)
@@ -301,10 +311,7 @@ function App() {
       setRound(result.state)
       recordOpenAndMaybeCommit(result.reveal.contents, result.state)
 
-      const bagSe = resolveBagOpenSeRequest(soundOnRef.current, true)
-      if (bagSe.play) {
-        playBagOpen({ soundEnabled: true })
-      }
+      const presentationGen = startOpenPresentation(soundOnRef.current)
 
       const contents = result.reveal.contents
       if (contents.kind === 'coins') {
@@ -318,6 +325,7 @@ function App() {
           coinCount: contents.coinCount,
           clearsRound: result.state.phase === 'cleared',
           runId: fxRunIdRef.current,
+          presentationGen,
         })
       } else if (contents.kind === 'bomb') {
         fxLockRef.current = true
@@ -328,6 +336,7 @@ function App() {
         setBombFx({
           bagId,
           runId: fxRunIdRef.current,
+          presentationGen,
         })
       } else if (contents.kind === 'empty') {
         fxLockRef.current = true
@@ -338,6 +347,7 @@ function App() {
         setEmptyFx({
           bagId,
           runId: fxRunIdRef.current,
+          presentationGen,
         })
       }
     },
@@ -345,6 +355,7 @@ function App() {
   )
 
   const handleCashOut = useCallback(() => {
+    if (fxLockRef.current || isScreenPresentationBlocking()) return
     const prev = roundRef.current
     const result = tryCashOut(prev)
     if (!result.ok) return
@@ -353,6 +364,7 @@ function App() {
   }, [commitEndedRoundOnce])
 
   const handleNewRound = useCallback(() => {
+    if (fxLockRef.current || isScreenPresentationBlocking()) return
     beginFreshRound()
   }, [beginFreshRound])
 
@@ -390,6 +402,7 @@ function App() {
   }, [])
 
   const goTop = useCallback(() => {
+    if (fxLockRef.current || isScreenPresentationBlocking()) return
     setScreen('top')
     setDuelBootstrapUrl(null)
     setGroupBootstrapUrl(null)
@@ -472,21 +485,9 @@ function App() {
     }
   }, [clearOpenFx, beginFreshRound, setDraft])
 
-  // ROUND already ended on bomb; also block while any open FX runs.
+  // ROUND already ended on bomb; also block while any open FX / owned SFX runs.
   const canTapBags = isRoundActive(round) && !coinFx && !bombFx && !emptyFx
-  const showCashOut = canCashOut(round) && !showEndActions
-
-  // Georgia oldstyle "3" sits optically lower than caps — split for micro lift.
-  const brandTitleMatch = /^(\d)(\s.+)$/.exec(t.brandTitle)
-
-  const brandTitleNode = brandTitleMatch ? (
-    <>
-      <span className="brand-title-digit">{brandTitleMatch[1]}</span>
-      <span className="brand-title-rest">{brandTitleMatch[2]}</span>
-    </>
-  ) : (
-    t.brandTitle
-  )
+  const showCashOut = canCashOut(round) && !showEndActions && !openFxActive
 
   const topControls = (
     <div className="app-topbar">
@@ -532,9 +533,7 @@ function App() {
         <div className="field-header">
           {topControls}
           <header className="app-header">
-            <h1 className="brand-title" aria-label={t.brandTitle}>
-              {brandTitleNode}
-            </h1>
+            <BrandTitle title={t.brandTitle} />
           </header>
         </div>
         <ModeSelect t={t} onSelect={handleModeSelect} />
@@ -594,7 +593,7 @@ function App() {
             title={t.backToTop}
             onClick={goTop}
           >
-            {brandTitleNode}
+            {brandTitleNodes(t.brandTitle)}
           </button>
         </header>
       </div>
@@ -616,6 +615,7 @@ function App() {
                 coinCount={coinFx.coinCount}
                 clearsRound={coinFx.clearsRound}
                 soundEnabled={soundOn}
+                presentationGen={coinFx.presentationGen}
                 onSample={handleCoinFxSample}
                 onComplete={handleCoinFxComplete}
               />
@@ -627,6 +627,7 @@ function App() {
                 bagCount={round.hand.bagCount}
                 hiddenBagIds={hiddenBagIds}
                 soundEnabled={soundOn}
+                presentationGen={bombFx.presentationGen}
                 onComplete={handleBombFxComplete}
               />
             ) : null}
@@ -635,6 +636,7 @@ function App() {
                 key={`empty-${emptyFx.runId}`}
                 bagId={emptyFx.bagId}
                 bagCount={round.hand.bagCount}
+                presentationGen={emptyFx.presentationGen}
                 onComplete={handleEmptyFxComplete}
               />
             ) : null}

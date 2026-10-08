@@ -1079,6 +1079,7 @@ const optimisticOpen = screen.match(
 assert.ok(optimisticOpen.includes('startPredictedOpenFx'))
 assert.ok(optimisticOpen.indexOf('startPredictedOpenFx') < optimisticOpen.indexOf('await coordinator.open'))
 assert.doesNotMatch(optimisticOpen, /await coordinator\.open[\s\S]*startPredictedOpenFx/)
+assert.doesNotMatch(optimisticOpen, /await coordinator\.open[\s\S]*startOpenPresentation/)
 assert.doesNotMatch(optimisticOpen, /await coordinator\.open[\s\S]*playBagOpen/)
 assert.doesNotMatch(optimisticOpen, /await coordinator\.open[\s\S]*setFx\(\{/)
 // Unresolved pendingOpen/pendingCashOut must be gated before predicted FX.
@@ -1093,7 +1094,7 @@ const fallbackOpen = screen.match(
   /const result = outcome\.result\n      const nextRound = appendOpen\(round, result\)[\s\S]*?if \(result\.roundEnded\) refreshSelfProgress\(\)/,
 )?.[0] ?? ''
 assert.ok(fallbackOpen.includes('setFx({'))
-assert.ok(fallbackOpen.indexOf('appendOpen') < fallbackOpen.indexOf('playBagOpen'))
+assert.ok(fallbackOpen.indexOf('appendOpen') < fallbackOpen.indexOf('startOpenPresentation'))
 assert.equal((fallbackOpen.match(/setFx\(/g) ?? []).length, 3)
 assert.match(coordinatorSource, /latestTerminalRound/)
 assert.match(coordinatorSource, /activeRound/)

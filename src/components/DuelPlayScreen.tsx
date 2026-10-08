@@ -2,8 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { AppStrings } from '../i18n'
 import { withDuelNums } from '../ui/withDuelNums'
 import type { BagId } from '../game/assets'
-import { playBagOpen, warmBagOpenAudio } from '../game/bagAudio'
-import { resolveBagOpenSeRequest } from '../game/bagSfx'
+import { warmBagOpenAudio } from '../game/bagAudio'
 import { unlockCoinAudio } from '../game/coinAudio'
 import {
   visualHiddenBagIds,
@@ -13,6 +12,8 @@ import {
 import type { BagCount } from '../game/formations'
 import { canRequestReveal, canShowEndActions, type RevealPlan } from '../game/reveal'
 import type { RoundPhase } from '../game/round'
+import { abandonScreenPresentation } from '../game/screenPresentation'
+import { startOpenPresentation } from '../game/startOpenPresentation'
 import { readSoundEnabled } from '../game/sound'
 import {
   bagIdToBagNumber,
@@ -72,9 +73,16 @@ type ViewState =
   | ReadyView
 
 type ActiveFx =
-  | { readonly kind: 'coins'; readonly bagId: BagId; readonly count: FxCoinCount; readonly clearsRound: boolean; readonly runId: number }
-  | { readonly kind: 'bomb'; readonly bagId: BagId; readonly runId: number }
-  | { readonly kind: 'empty'; readonly bagId: BagId; readonly runId: number }
+  | {
+      readonly kind: 'coins'
+      readonly bagId: BagId
+      readonly count: FxCoinCount
+      readonly clearsRound: boolean
+      readonly runId: number
+      readonly presentationGen: number
+    }
+  | { readonly kind: 'bomb'; readonly bagId: BagId; readonly runId: number; readonly presentationGen: number }
+  | { readonly kind: 'empty'; readonly bagId: BagId; readonly runId: number; readonly presentationGen: number }
 
 function duelTerminalPhase(endReason: DuelPlayEndReason): RoundPhase {
   if (endReason === 'bombed') return 'bombed'
@@ -255,10 +263,7 @@ export function DuelPlayScreen({ matchId, t, onGoTop }: DuelPlayScreenProps) {
     bagId: BagId,
     provisionalCoins: 0 | 1 | 2,
   ) => {
-    const soundEnabled = readSoundEnabled()
-    if (resolveBagOpenSeRequest(soundEnabled, true).play) {
-      playBagOpen({ soundEnabled: true })
-    }
+    const presentationGen = startOpenPresentation(readSoundEnabled())
     runIdRef.current += 1
     if (local.outcome === 'coins') {
       setFx({
@@ -267,11 +272,12 @@ export function DuelPlayScreen({ matchId, t, onGoTop }: DuelPlayScreenProps) {
         count: local.coinsFound as FxCoinCount,
         clearsRound: predictsClearsRound(provisionalCoins, local),
         runId: runIdRef.current,
+        presentationGen,
       })
     } else if (local.outcome === 'bomb') {
-      setFx({ kind: 'bomb', bagId, runId: runIdRef.current })
+      setFx({ kind: 'bomb', bagId, runId: runIdRef.current, presentationGen })
     } else {
-      setFx({ kind: 'empty', bagId, runId: runIdRef.current })
+      setFx({ kind: 'empty', bagId, runId: runIdRef.current, presentationGen })
     }
   }, [])
 
@@ -359,6 +365,7 @@ export function DuelPlayScreen({ matchId, t, onGoTop }: DuelPlayScreenProps) {
         if (outcome.kind === 'resynced') {
           markOptimisticFailed(gate)
           optimisticGateRef.current = null
+          abandonScreenPresentation()
           setCoinFxSample(null)
           setFx(null)
           interactionLockedRef.current = false
@@ -374,6 +381,7 @@ export function DuelPlayScreen({ matchId, t, onGoTop }: DuelPlayScreenProps) {
         if (!sameLocalAndServerOpen(local, result)) {
           markOptimisticFailed(gate)
           optimisticGateRef.current = null
+          abandonScreenPresentation()
           setCoinFxSample(null)
           setFx(null)
           interactionLockedRef.current = false
@@ -430,21 +438,19 @@ export function DuelPlayScreen({ matchId, t, onGoTop }: DuelPlayScreenProps) {
         canAdvance: nextRound.terminal ? !result.participantCompleted : false,
         selfProgress: view.selfProgress,
       })
-      const soundEnabled = readSoundEnabled()
-      if (resolveBagOpenSeRequest(soundEnabled, true).play) {
-        playBagOpen({ soundEnabled: true })
-      }
+      const presentationGen = startOpenPresentation(readSoundEnabled())
       runIdRef.current += 1
       if (result.outcome === 'coins') {
         setFx({
           kind: 'coins', bagId, count: result.coinsFound as FxCoinCount,
           clearsRound: result.roundEnded && result.endReason === 'cleared',
           runId: runIdRef.current,
+          presentationGen,
         })
       } else if (result.outcome === 'bomb') {
-        setFx({ kind: 'bomb', bagId, runId: runIdRef.current })
+        setFx({ kind: 'bomb', bagId, runId: runIdRef.current, presentationGen })
       } else {
-        setFx({ kind: 'empty', bagId, runId: runIdRef.current })
+        setFx({ kind: 'empty', bagId, runId: runIdRef.current, presentationGen })
       }
       if (result.roundEnded) refreshSelfProgress()
     } catch {
@@ -591,6 +597,8 @@ export function DuelPlayScreen({ matchId, t, onGoTop }: DuelPlayScreenProps) {
       current.phase !== 'ready' || current.matchId !== matchId || !current.round.terminal ||
       current.round.roundNumber !== current.totalRounds
     ) return
+    // Defense-in-depth: never leave PLAY mid open FX / owned SFX.
+    if (fx !== null || interactionLockedRef.current) return
     resultPendingRef.current = true
     setResultPending(true)
     setResultError(false)
@@ -602,7 +610,7 @@ export function DuelPlayScreen({ matchId, t, onGoTop }: DuelPlayScreenProps) {
       resultPendingRef.current = false
       setResultPending(false)
     }
-  }, [coordinator, matchId])
+  }, [coordinator, matchId, fx])
 
   if (view.phase === 'loading' || view.matchId !== matchId) {
     return <div className="duel-play-status" role="status">{t.duelPlayLoading}</div>
@@ -660,6 +668,7 @@ export function DuelPlayScreen({ matchId, t, onGoTop }: DuelPlayScreenProps) {
               coinCount={fx.count}
               clearsRound={fx.clearsRound}
               soundEnabled={soundEnabled}
+              presentationGen={fx.presentationGen}
               onSample={setCoinFxSample}
               onComplete={clearFx}
             />
@@ -671,6 +680,7 @@ export function DuelPlayScreen({ matchId, t, onGoTop }: DuelPlayScreenProps) {
               bagCount={round.bagCount as BagCount}
               hiddenBagIds={hiddenBagIds}
               soundEnabled={soundEnabled}
+              presentationGen={fx.presentationGen}
               onComplete={clearFx}
             />
           ) : null}
@@ -679,6 +689,7 @@ export function DuelPlayScreen({ matchId, t, onGoTop }: DuelPlayScreenProps) {
               key={fx.runId}
               bagId={fx.bagId}
               bagCount={round.bagCount as BagCount}
+              presentationGen={fx.presentationGen}
               onComplete={clearFx}
             />
           ) : null}

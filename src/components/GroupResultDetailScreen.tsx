@@ -4,6 +4,7 @@ import {
   formatGroupHitRate,
   formatGroupRoundEndReason,
 } from '../group/groupResultPresentation'
+import { BrandTitle } from '../ui/BrandTitle'
 import { withDuelNums } from '../ui/withDuelNums'
 import { DuelMatchDetailBoard } from './DuelMatchDetailBoard'
 
@@ -22,6 +23,7 @@ export function GroupResultDetailScreen({
       aria-labelledby="group-result-detail-title"
       data-group-result-detail=""
     >
+      <BrandTitle title={t.brandTitle} className="brand-title duel-final-brand" />
       <h2 id="group-result-detail-title" className="group-result-detail__title">
         {t.groupParticipantDetails}
       </h2>

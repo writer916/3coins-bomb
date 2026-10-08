@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { AppStrings } from '../i18n'
 import type { BagId } from '../game/assets'
-import { playBagOpen, warmBagOpenAudio } from '../game/bagAudio'
-import { resolveBagOpenSeRequest } from '../game/bagSfx'
+import { warmBagOpenAudio } from '../game/bagAudio'
 import { unlockCoinAudio } from '../game/coinAudio'
 import { visualHiddenBagIds, type CoinFxSample, type FxCoinCount } from '../game/coinFx'
 import type { BagCount } from '../game/formations'
+import { startOpenPresentation } from '../game/startOpenPresentation'
 import { readSoundEnabled } from '../game/sound'
 import { bagIdToBagNumber, bagNumberToBagId } from '../duel/duelPlayClient'
 import { createOptimisticOpenGate, markOptimisticFailed, markOptimisticFxDone, markOptimisticServerDone, type OptimisticOpenGate } from '../duel/duelOptimisticOpen'
@@ -30,9 +30,16 @@ import { GroupCompletionWaiting } from './GroupCompletionWaiting'
 
 type Coordinator = ReturnType<typeof createGroupPlayBootstrapCoordinator>
 type ActiveFx =
-  | { kind: 'coins'; bagId: BagId; count: FxCoinCount; clearsRound: boolean; runId: number }
-  | { kind: 'bomb'; bagId: BagId; runId: number }
-  | { kind: 'empty'; bagId: BagId; runId: number }
+  | {
+      kind: 'coins'
+      bagId: BagId
+      count: FxCoinCount
+      clearsRound: boolean
+      runId: number
+      presentationGen: number
+    }
+  | { kind: 'bomb'; bagId: BagId; runId: number; presentationGen: number }
+  | { kind: 'empty'; bagId: BagId; runId: number; presentationGen: number }
 
 export function GroupPlayScreen({ initialReady, coordinator, t, onResult }: { initialReady: GroupPlayReady; coordinator: Coordinator; t: AppStrings; onResult:(result:GroupResult)=>void }) {
   const [ready, setReady] = useState(initialReady)
@@ -70,11 +77,22 @@ export function GroupPlayScreen({ initialReady, coordinator, t, onResult }: { in
     if (!gate || gate.failed || markOptimisticFxDone(gate)) unlock()
   }, [unlock])
   const startFx = useCallback((local: GroupLocalOpenResult, bagId: BagId, coins: number) => {
-    if (resolveBagOpenSeRequest(readSoundEnabled(), true).play) playBagOpen({ soundEnabled: true })
+    const presentationGen = startOpenPresentation(readSoundEnabled())
     const runId = ++runIdRef.current
-    if (local.outcome === 'coins') setFx({ kind: 'coins', bagId, count: local.coinsFound as FxCoinCount, clearsRound: coins + local.coinsFound === 3, runId })
-    else if (local.outcome === 'bomb') setFx({ kind: 'bomb', bagId, runId })
-    else setFx({ kind: 'empty', bagId, runId })
+    if (local.outcome === 'coins') {
+      setFx({
+        kind: 'coins',
+        bagId,
+        count: local.coinsFound as FxCoinCount,
+        clearsRound: coins + local.coinsFound === 3,
+        runId,
+        presentationGen,
+      })
+    } else if (local.outcome === 'bomb') {
+      setFx({ kind: 'bomb', bagId, runId, presentationGen })
+    } else {
+      setFx({ kind: 'empty', bagId, runId, presentationGen })
+    }
   }, [])
 
   const tap = useCallback(async (bagId: BagId) => {
@@ -113,7 +131,7 @@ export function GroupPlayScreen({ initialReady, coordinator, t, onResult }: { in
   }, [coordinator, ready, provisionalCoins, openedResults.length, requestPending, fx, terminal])
 
   const next = useCallback(async () => {
-    if (!terminal || requestPending || fx || ready.currentPlacement.roundNumber >= ready.state.totalRounds) return
+    if (!terminal || requestPending || fx || lockRef.current || ready.currentPlacement.roundNumber >= ready.state.totalRounds) return
     setRequestPending(true); setError(false)
     try { const nextReady = await coordinator.startNext(ready.state.groupId); setReady(nextReady); setOpenedResults([]); setProvisionalCoins(0); setTerminal(null); setRetryBag(null) }
     catch { setError(true) }
@@ -165,9 +183,9 @@ export function GroupPlayScreen({ initialReady, coordinator, t, onResult }: { in
   return <div className="duel-play">
     <p className="duel-round-index">{t.groupRoundLabel} <span className="duel-num">{ready.currentPlacement.roundNumber}</span>{' / '}<span className="duel-num">{ready.state.totalRounds}</span></p>
     <BagBoard bagCount={ready.currentPlacement.bagCount as BagCount} hiddenBagIds={hidden} onBagTap={tap} interactive={!requestPending && !terminal}>
-      {fx?.kind === 'coins' ? <CoinOpenFx key={fx.runId} bagId={fx.bagId} bagCount={ready.currentPlacement.bagCount as BagCount} coinCount={fx.count} clearsRound={fx.clearsRound} soundEnabled={soundEnabled} onSample={setCoinFxSample} onComplete={fxComplete} /> : null}
-      {fx?.kind === 'empty' ? <EmptyOpenFx key={fx.runId} bagId={fx.bagId} bagCount={ready.currentPlacement.bagCount as BagCount} onComplete={fxComplete} /> : null}
-      {fx?.kind === 'bomb' ? <BombOpenFx key={fx.runId} bagId={fx.bagId} bagCount={ready.currentPlacement.bagCount as BagCount} hiddenBagIds={hidden} soundEnabled={soundEnabled} onComplete={fxComplete} /> : null}
+      {fx?.kind === 'coins' ? <CoinOpenFx key={fx.runId} bagId={fx.bagId} bagCount={ready.currentPlacement.bagCount as BagCount} coinCount={fx.count} clearsRound={fx.clearsRound} soundEnabled={soundEnabled} presentationGen={fx.presentationGen} onSample={setCoinFxSample} onComplete={fxComplete} /> : null}
+      {fx?.kind === 'empty' ? <EmptyOpenFx key={fx.runId} bagId={fx.bagId} bagCount={ready.currentPlacement.bagCount as BagCount} presentationGen={fx.presentationGen} onComplete={fxComplete} /> : null}
+      {fx?.kind === 'bomb' ? <BombOpenFx key={fx.runId} bagId={fx.bagId} bagCount={ready.currentPlacement.bagCount as BagCount} hiddenBagIds={hidden} soundEnabled={soundEnabled} presentationGen={fx.presentationGen} onComplete={fxComplete} /> : null}
     </BagBoard>
     <div className="field-action" aria-live="polite">
       {showCashOut ? (

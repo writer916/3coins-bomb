@@ -1,4 +1,5 @@
 import { bombPopSrc } from './assets'
+import { playMediaElement, resolvedPlay } from './playMedia'
 import { isSoundEnabled } from './sound'
 
 /**
@@ -53,35 +54,24 @@ export function warmBombAudio(): void {
 
 /**
  * Play one BOMB pop. Never throws; never touches ROUND state.
+ * Resolves when playback ends / fails / times out (for presentation settle).
  */
 export function playBombPop(options?: {
   soundEnabled?: boolean
   volume?: number
-}): void {
+}): Promise<void> {
   try {
     const enabled =
       options?.soundEnabled !== undefined
         ? options.soundEnabled
         : isSoundEnabled()
-    if (!enabled) return
+    if (!enabled) return resolvedPlay()
 
     const p = getPool()
-    if (!p?.element) return
+    if (!p?.element) return resolvedPlay()
 
-    const audio = p.element
-    audio.volume = options?.volume ?? BOMB_POP_VOLUME
-    try {
-      audio.currentTime = 0
-    } catch {
-      /* some browsers throw if not loaded yet */
-    }
-    const result = audio.play()
-    if (result && typeof result.catch === 'function') {
-      void result.catch(() => {
-        /* autoplay / decode errors — ignore */
-      })
-    }
+    return playMediaElement(p.element, options?.volume ?? BOMB_POP_VOLUME)
   } catch {
-    /* ignore — game must continue */
+    return resolvedPlay()
   }
 }

@@ -118,17 +118,26 @@
 }
 
 /*
-  Georgia’s oldstyle “3” has lower ascent / nonzero descent vs lining caps
-  (measured ~14px ascent vs “C” ≈18px at 25.6px). Lining-nums does not remap
-  Georgia glyphs here — optically lift the lead digit only.
+  Brand lead digit uses `.duel-num` lining stack (same as RESULT / score digits).
+  Rest of the title stays on Georgia via `.brand-title-rest`.
 */
 .brand-title-digit {
   display: inline-block;
-  transform: translateY(-0.18em);
+  font-size: inherit;
+  font-weight: inherit;
+  letter-spacing: inherit;
+  line-height: inherit;
+  vertical-align: baseline;
 }
 
 .brand-title-rest {
   display: inline;
+}
+
+/* RESULT / detail: full brand mark above section kickers (not mode labels). */
+.duel-final-brand {
+  margin: 0 0 0.45rem;
+  text-align: center;
 }
 
 /* ——— GROUP B: CURRENT ROUND (BAG + ACTION, close together) ——— */

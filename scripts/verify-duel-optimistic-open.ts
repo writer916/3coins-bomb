@@ -109,7 +109,7 @@ const coordinator = await readFile(
 
 assert.match(screen, /getLocalOpenResult/, '1. local judge on tap')
 assert.match(screen, /startPredictedOpenFx/, '2-5. predicted OPEN SE/FX')
-assert.match(screen, /playBagOpen/, '2. OPEN SE')
+assert.match(screen, /startOpenPresentation/, '2. OPEN SE via presentation start')
 assert.match(screen, /kind: 'coins'/, '3/11-13. COIN FX')
 assert.match(screen, /kind: 'bomb'/, '5. BOMB FX')
 assert.match(screen, /kind: 'empty'/, '4. EMPTY FX')
@@ -152,8 +152,13 @@ assert.doesNotMatch(
 )
 assert.doesNotMatch(
   optimisticBlock,
-  /await coordinator\.open[\s\S]*playBagOpen/,
+  /await coordinator\.open[\s\S]*startOpenPresentation/,
   '10. no SE restart after server',
+)
+assert.doesNotMatch(
+  optimisticBlock,
+  /await coordinator\.open[\s\S]*playBagOpen/,
+  '10. no SE restart after server (legacy)',
 )
 assert.doesNotMatch(
   optimisticBlock,
@@ -192,8 +197,11 @@ const fallbackBlock = screen.match(
 )?.[0] ?? ''
 assert.ok(fallbackBlock.includes('local = null'), '19. local failure nulls prediction')
 assert.ok(
-  fallbackBlock.indexOf('await coordinator.open') < fallbackBlock.lastIndexOf('playBagOpen') ||
-    /if \(local\) \{[\s\S]*startPredictedOpenFx[\s\S]*return\n    \}[\s\S]*await coordinator\.open[\s\S]*playBagOpen/.test(screen),
+  fallbackBlock.indexOf('await coordinator.open') <
+      fallbackBlock.lastIndexOf('startOpenPresentation') ||
+    /if \(local\) \{[\s\S]*startPredictedOpenFx[\s\S]*return\n    \}[\s\S]*await coordinator\.open[\s\S]*startOpenPresentation/.test(
+      screen,
+    ),
   '19. without local, FX waits for server',
 )
 assert.match(screen, /catch \{\s*local = null\s*\}/, '19. getLocalOpenResult failure → fallback')

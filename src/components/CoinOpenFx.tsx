@@ -14,6 +14,11 @@ import {
   openFxFallbackDelayMs,
 } from '../game/openFxCompletion'
 import { resolveCoinChimeRequest } from '../game/coinSfx'
+import {
+  markScreenPresentationVisualDone,
+  noteScreenPresentationAudio,
+  waitScreenPresentationSettled,
+} from '../game/screenPresentation'
 import { playThreeCoins } from '../game/threeCoinsAudio'
 import {
   resolveThreeCoinsSeRequest,
@@ -34,6 +39,8 @@ type CoinOpenFxProps = {
   clearsRound: boolean
   /** Current SOUND ON/OFF — gates chimes without touching ROUND. */
   soundEnabled: boolean
+  /** Presentation generation from `beginScreenPresentation`. */
+  presentationGen: number
   onSample?: (sample: CoinFxSample) => void
   onComplete: () => void
 }
@@ -55,6 +62,7 @@ function opacityFromMotion(motionT: number): number {
  * Local COIN burst above the opened bag. Visual only — does not mutate ROUND.
  * Remount via `key` when a new open starts.
  * Chimes fire when +N advances; optional 3 COINS SE after last chime + delay.
+ * Completes only after visual + owned SFX settle (or audio grace timeout).
  *
  * coinCount 1: legacy single-sprite path (unchanged motion).
  * coinCount 2|3: overlapping sprites, same plan.totalMs / totalAtMs / chimes.
@@ -65,6 +73,7 @@ export function CoinOpenFx({
   coinCount,
   clearsRound,
   soundEnabled,
+  presentationGen,
   onSample,
   onComplete,
 }: CoinOpenFxProps) {
@@ -83,6 +92,7 @@ export function CoinOpenFx({
   const soundEnabledRef = useRef(soundEnabled)
   const onCompleteRef = useRef(onComplete)
   const onSampleRef = useRef(onSample)
+  const presentationGenRef = useRef(presentationGen)
 
   useEffect(() => {
     onCompleteRef.current = onComplete
@@ -92,6 +102,10 @@ export function CoinOpenFx({
   useEffect(() => {
     soundEnabledRef.current = soundEnabled
   }, [soundEnabled])
+
+  useEffect(() => {
+    presentationGenRef.current = presentationGen
+  }, [presentationGen])
 
   const slot = getFormation(bagCount).find((s) => s.bagId === bagId)
   const sample = frame.sample
@@ -118,7 +132,12 @@ export function CoinOpenFx({
       if (cancelled || !claimOpenFxCompletion(completedRef)) return
       const final = sampleCoinFx(plan, Math.max(elapsedForSample, plan.totalMs))
       publish(final, plan.totalMs)
-      onCompleteRef.current()
+      const gen = presentationGenRef.current
+      markScreenPresentationVisualDone(gen)
+      void waitScreenPresentationSettled(gen).then(() => {
+        if (cancelled) return
+        onCompleteRef.current()
+      })
     }
 
     const tick = (now: number) => {
@@ -132,7 +151,10 @@ export function CoinOpenFx({
         next.displayTotal,
       )
       if (chime.play) {
-        playCoinChime({ soundEnabled: true })
+        noteScreenPresentationAudio(
+          presentationGenRef.current,
+          playCoinChime({ soundEnabled: true }),
+        )
       }
       if (next.displayTotal !== prevDisplayRef.current) {
         prevDisplayRef.current = next.displayTotal
@@ -157,7 +179,10 @@ export function CoinOpenFx({
           threeFiredRef.current = true
         }
         if (three.play) {
-          playThreeCoins({ soundEnabled: true })
+          noteScreenPresentationAudio(
+            presentationGenRef.current,
+            playThreeCoins({ soundEnabled: true }),
+          )
         }
       }
 
@@ -182,7 +207,7 @@ export function CoinOpenFx({
       cancelAnimationFrame(rafRef.id)
       window.clearTimeout(fallbackTimer)
     }
-  }, [plan, clearsRound, threeCueAt])
+  }, [plan, clearsRound, threeCueAt, presentationGen])
 
   if (!slot || sample.finished) return null
 

@@ -197,21 +197,26 @@ function ok(label: string): void {
   if (!tap) fail('handleBagTap block not found')
   else if (tap[0]!.includes('warmBagOpenAudio')) {
     fail('accepted open path still calls warmBagOpenAudio (load race risk)')
-  } else if (!tap[0]!.includes('playBagOpen')) {
-    fail('accepted open path missing playBagOpen')
+  } else if (!tap[0]!.includes('startOpenPresentation')) {
+    fail('accepted open path missing startOpenPresentation')
   } else ok('accepted open直前にwarm/loadしない')
 
   const bagSrc = readFileSync(
     new URL('../src/game/bagAudio.ts', import.meta.url),
     'utf8',
   )
-  const playFn = bagSrc.match(
-    /export function playBagOpen\([\s\S]*?\n\}/,
+  const mediaSrc = readFileSync(
+    new URL('../src/game/playMedia.ts', import.meta.url),
+    'utf8',
   )
-  if (!playFn) fail('playBagOpen not found')
-  else if (/\.load\s*\(/.test(playFn[0]!)) {
-    fail('playBagOpen must not call load()')
-  } else ok('playBagOpenはloadせずcurrentTime+playのみ')
+  if (!/export function playBagOpen\(/.test(bagSrc)) fail('playBagOpen not found')
+  else if (/\.load\s*\(/.test(bagSrc)) {
+    fail('bagAudio must not call load()')
+  } else if (!bagSrc.includes('playMediaElement')) {
+    fail('playBagOpen must use playMediaElement')
+  } else if (/\.load\s*\(/.test(mediaSrc)) {
+    fail('playMediaElement must not call load()')
+  } else ok('playBagOpenはloadせずplayMedia経由')
 
   const warmFn = bagSrc.match(
     /export function warmBagOpenAudio\([\s\S]*?\n\}/,

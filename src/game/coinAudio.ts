@@ -1,5 +1,6 @@
 import { coinChimeSrc } from './assets'
 import { warmBagOpenAudio } from './bagAudio'
+import { playMediaElement, resolvedPlay } from './playMedia'
 import { warmThreeCoinsAudio } from './threeCoinsAudio'
 import { isSoundEnabled } from './sound'
 
@@ -81,39 +82,29 @@ export function unlockCoinAudio(): void {
 /**
  * Play one coin chime. Overlapping calls use a small Audio pool (no wait).
  * Never throws; never touches ROUND state.
+ * Resolves when that pool element's playback ends / fails / times out.
  */
 export function playCoinChime(options?: {
   soundEnabled?: boolean
   volume?: number
-}): void {
+}): Promise<void> {
   try {
     const enabled =
       options?.soundEnabled !== undefined
         ? options.soundEnabled
         : isSoundEnabled()
-    if (!enabled) return
+    if (!enabled) return resolvedPlay()
 
     const p = getPool()
-    if (!p) return
+    if (!p) return resolvedPlay()
 
     const audio = p.elements[p.index % p.elements.length]
     p.index = (p.index + 1) % p.elements.length
-    if (!audio) return
+    if (!audio) return resolvedPlay()
 
-    audio.volume = options?.volume ?? COIN_CHIME_VOLUME
-    try {
-      audio.currentTime = 0
-    } catch {
-      /* some browsers throw if not loaded yet */
-    }
-    const result = audio.play()
-    if (result && typeof result.catch === 'function') {
-      void result.catch(() => {
-        /* autoplay / decode errors — ignore */
-      })
-    }
+    return playMediaElement(audio, options?.volume ?? COIN_CHIME_VOLUME)
   } catch {
-    /* ignore — game must continue */
+    return resolvedPlay()
   }
 }
 

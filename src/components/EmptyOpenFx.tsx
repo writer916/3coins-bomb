@@ -6,12 +6,18 @@ import {
   claimOpenFxCompletion,
   openFxFallbackDelayMs,
 } from '../game/openFxCompletion'
+import {
+  markScreenPresentationVisualDone,
+  waitScreenPresentationSettled,
+} from '../game/screenPresentation'
 import { bagDepthZIndex, type BagCount } from '../game/formations'
 import './EmptyOpenFx.css'
 
 type EmptyOpenFxProps = {
   bagId: BagId
   bagCount: BagCount
+  /** Presentation generation from `beginScreenPresentation`. */
+  presentationGen: number
   onSample?: (sample: EmptyFxSample) => void
   onComplete: () => void
 }
@@ -19,10 +25,12 @@ type EmptyOpenFxProps = {
 /**
  * Quiet EMPTY label at the opened bag’s visual center.
  * Visual only; ROUND stays active via game logic. Silent.
+ * Still settles via the shared presentation lock (bag-open SE may be pending).
  */
 export function EmptyOpenFx({
   bagId,
   bagCount,
+  presentationGen,
   onSample,
   onComplete,
 }: EmptyOpenFxProps) {
@@ -31,11 +39,16 @@ export function EmptyOpenFx({
   const completedRef = useRef(false)
   const onCompleteRef = useRef(onComplete)
   const onSampleRef = useRef(onSample)
+  const presentationGenRef = useRef(presentationGen)
 
   useEffect(() => {
     onCompleteRef.current = onComplete
     onSampleRef.current = onSample
   }, [onComplete, onSample])
+
+  useEffect(() => {
+    presentationGenRef.current = presentationGen
+  }, [presentationGen])
 
   const placement = useMemo(
     () => resolveEmptyPlacement({ bagId, bagCount }),
@@ -59,7 +72,12 @@ export function EmptyOpenFx({
       const final = sampleEmptyFx(plan, Math.max(elapsedForSample, plan.totalMs))
       setSample(final)
       onSampleRef.current?.(final)
-      onCompleteRef.current()
+      const gen = presentationGenRef.current
+      markScreenPresentationVisualDone(gen)
+      void waitScreenPresentationSettled(gen).then(() => {
+        if (cancelled) return
+        onCompleteRef.current()
+      })
     }
 
     const tick = (now: number) => {
@@ -88,7 +106,7 @@ export function EmptyOpenFx({
       cancelAnimationFrame(rafRef.id)
       window.clearTimeout(fallbackTimer)
     }
-  }, [plan])
+  }, [plan, presentationGen])
 
   if (sample.finished) return null
 
