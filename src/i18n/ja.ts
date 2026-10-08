@@ -87,7 +87,7 @@ export const ja: AppStrings = {
   groupTotalCoins: 'TOTAL COINS',
   groupThreeCoinsComplete: '3COINS COMPLETE',
   groupCoinBagHitRate: 'COIN-BAG HIT RATE',
-  groupViewDetails: '詳細をみる',
+  groupViewDetails: '詳細',
   groupParticipantDetails: 'プレイ詳細',
   groupDetailLoading: '読み込み中…',
   groupDetailError: '詳細を読み込めませんでした',

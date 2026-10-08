@@ -233,10 +233,21 @@ assert.match(screen, /group-result__header/)
 assert.match(screen, /group-result__table/)
 assert.match(screen, /title=\{entry\.nickname\}/)
 assert.doesNotMatch(screen, /group-result__stats/)
-assert.match(css, /\.group-result__ranking[\s\S]*overflow-y: auto/)
+/* Header + rows share one vertical scroller; ranking alone must not scroll. */
+const groupResultTableBlock = css.match(/\.group-result__table\s*\{[^}]*\}/)?.[0]
+const groupResultRankingBlock = css.match(/\.group-result__ranking\s*\{[^}]*\}/)?.[0]
+assert.ok(groupResultTableBlock)
+assert.ok(groupResultRankingBlock)
+assert.match(groupResultTableBlock!, /overflow-y:\s*auto/)
+assert.doesNotMatch(groupResultRankingBlock!, /overflow-y:\s*auto/)
+assert.doesNotMatch(groupResultRankingBlock!, /scrollbar-gutter/)
 assert.match(css, /--group-result-cols/)
 assert.match(css, /\.group-result__cols[\s\S]*grid-template-columns: var\(--group-result-cols\)/)
+assert.match(css, /8em/)
+assert.match(css, /\.group-result__cols > \*\s*\{[\s\S]*?min-width:\s*0/)
+assert.match(css, /\.group-result \.group-result__details\.duel-btn--quiet-top/)
 assert.match(css, /\.group-result__nickname[\s\S]*text-overflow: ellipsis/)
+assert.match(css, /\.group-result__top\s*\{[\s\S]*?flex:\s*0 0 auto/)
 assert.match(css, /\.group-result-detail__rounds[\s\S]*overflow-y: auto/)
 assert.match(css, /\.group-result__nickname[\s\S]*font-family: system-ui/)
 assert.match(css, /\.group-result-detail__nickname[\s\S]*font-family: system-ui/)
@@ -246,8 +257,9 @@ assert.doesNotMatch(
   `${screen}${detailScreen}${waiting}${entryShell}`,
   /console\.|participantId|token/,
 )
-assert.equal(ja.groupViewDetails, '詳細をみる')
+assert.equal(ja.groupViewDetails, '詳細')
 assert.equal(en.groupViewDetails, 'VIEW DETAILS')
+assert.doesNotMatch(ja.groupViewDetails, /詳細をみる/)
 assert.equal(ja.groupBackToResult, '結果に戻る')
 assert.equal(en.groupBackToResult, 'BACK TO RESULT')
 assert.equal(ja.groupRoundInterrupted, '離脱')
