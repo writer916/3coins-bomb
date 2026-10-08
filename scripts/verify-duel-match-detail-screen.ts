@@ -144,6 +144,14 @@ assert.doesNotMatch(detailScreen, /virtual|VirtualList|accordion|pagination|lazy
 assert.match(appCss, /\.duel-match-detail\s*{[^}]*overflow-x:\s*hidden/s)
 assert.match(appCss, /\.duel-match-detail\s*{[^}]*max-width:\s*100%/s)
 assert.match(appCss, /width:\s*min\(100%,\s*20rem\)/)
+assert.doesNotMatch(
+  appCss.match(/\.duel-match-detail\s*\{[^}]*\}/s)?.[0] ?? '',
+  /overflow-y/,
+)
+assert.match(
+  appCss,
+  /\.group-result-detail__rounds\s*\{[\s\S]*?overflow-y:\s*auto/,
+)
 
 /* i18n */
 assert.equal(ja.duelViewDetails, '詳細をみる')

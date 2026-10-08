@@ -73,10 +73,18 @@ assert.match(
   /\.group-result__top\s*\{[\s\S]*?safe-area-inset-bottom/,
 )
 
-/* GROUP detail bag field — scoped; must not alter shared board CSS. */
+/* DUEL / GROUP detail field shares one scoped geometry source. */
 assert.match(
+  boardCss,
+  /\.duel-match-detail-board \.bag-board\s*\{[\s\S]*?aspect-ratio:\s*7\s*\/\s*6[\s\S]*?max-height:\s*min\(52vw,\s*17rem\)/,
+)
+assert.match(
+  boardCss,
+  /@media \(max-width:\s*360px\)[\s\S]*?aspect-ratio:\s*8\s*\/\s*7[\s\S]*?max-height:\s*min\(56vw,\s*15\.5rem\)/,
+)
+assert.doesNotMatch(
   css,
-  /\.group-result-detail \.duel-match-detail-board \.bag-board\s*\{[\s\S]*?aspect-ratio:\s*7\s*\/\s*6/,
+  /\.group-result-detail \.duel-match-detail-board \.bag-board/,
 )
 assert.match(
   css,
@@ -87,8 +95,6 @@ assert.doesNotMatch(
   /\.group-result-detail__round\s*\{[^}]*overflow-y:\s*auto/,
 )
 assert.match(bagCss, /aspect-ratio:\s*4\s*\/\s*5/)
-assert.doesNotMatch(boardCss, /aspect-ratio/)
-assert.match(boardCss, /\.duel-match-detail-board \.bag-board\s*\{[\s\S]*?max-height:\s*none/)
 assert.match(
   css,
   /\.group-result-detail__round-stats\s*\{[\s\S]*?display:\s*flex[\s\S]*?justify-content:\s*center/,

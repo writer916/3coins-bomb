@@ -14,12 +14,14 @@
 
 .duel-match-detail-board .bag-board {
   width: 100%;
-  max-height: none;
+  /* Shared DUEL / GROUP detail geometry; PLAY / SOLO keep BagBoard.css 4 / 5. */
+  aspect-ratio: 7 / 6;
+  max-height: min(52vw, 17rem);
   /* Room for OPEN markers outside bag centers without clipping. */
   overflow: visible;
 }
 
-/* Readable 1-ROUND size on 320px; not minimized for 40-ROUND density. */
+/* Shared detail-only bag sizes for 3–8 bags. */
 .duel-match-detail-board .bag-board[data-bag-count='3'] {
   --bag-size: clamp(4.35rem, 27vw, 5.6rem);
 }
@@ -81,4 +83,11 @@
 
 .duel-detail-open-marker--below {
   transform: translate(-50%, calc(-50% + var(--duel-detail-open-offset)));
+}
+
+@media (max-width: 360px) {
+  .duel-match-detail-board .bag-board {
+    aspect-ratio: 8 / 7;
+    max-height: min(56vw, 15.5rem);
+  }
 }

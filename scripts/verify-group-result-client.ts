@@ -190,6 +190,10 @@ const waiting = readFileSync(resolve(root, 'src/components/GroupCompletionWaitin
 const entryShell = readFileSync(resolve(root, 'src/components/GroupEntryShell.tsx'), 'utf8')
 const play = readFileSync(resolve(root, 'src/components/GroupPlayScreen.tsx'), 'utf8')
 const css = readFileSync(resolve(root, 'src/App.css'), 'utf8')
+const detailBoardCss = readFileSync(
+  resolve(root, 'src/components/DuelMatchDetailBoard.css'),
+  'utf8',
+)
 
 assert.doesNotMatch(screen, /\.sort\s*\(/)
 for (const fragment of [
@@ -252,8 +256,8 @@ assert.match(css, /\.group-result\s*\{[\s\S]*?height:\s*calc\(100dvh - 5\.5rem\)
 assert.match(css, /\.group-result__cols[\s\S]*padding-inline:\s*var\(--group-result-row-inline-pad\)/)
 assert.match(css, /\.group-result-detail__rounds[\s\S]*overflow-y: auto/)
 assert.match(
-  css,
-  /\.group-result-detail \.duel-match-detail-board \.bag-board[\s\S]*aspect-ratio:\s*7\s*\/\s*6/,
+  detailBoardCss,
+  /\.duel-match-detail-board \.bag-board[\s\S]*aspect-ratio:\s*7\s*\/\s*6/,
 )
 assert.match(css, /\.group-result__nickname[\s\S]*font-family: system-ui/)
 assert.match(css, /\.group-result-detail__nickname[\s\S]*font-family: system-ui/)

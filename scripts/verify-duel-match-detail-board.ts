@@ -65,6 +65,14 @@ assert.match(
 )
 assert.match(boardCss, /\.duel-match-detail-board \.bag-board\[data-bag-count='3'\]/)
 assert.match(boardCss, /\.duel-match-detail-board \.bag-board\[data-bag-count='8'\]/)
+assert.match(
+  boardCss,
+  /\.duel-match-detail-board \.bag-board\s*\{[\s\S]*?aspect-ratio:\s*7\s*\/\s*6[\s\S]*?max-height:\s*min\(52vw,\s*17rem\)/,
+)
+assert.match(
+  boardCss,
+  /@media \(max-width:\s*360px\)[\s\S]*?aspect-ratio:\s*8\s*\/\s*7[\s\S]*?max-height:\s*min\(56vw,\s*15\.5rem\)/,
+)
 assert.match(boardCss, /duel-detail-open-marker--above/)
 assert.match(boardCss, /duel-detail-open-marker--below/)
 assert.match(boardCss, /--duel-detail-open-offset:\s*calc\(var\(--bag-size\) \* 0\.62\)/)
@@ -253,10 +261,9 @@ for (const count of BAG_COUNTS) {
   assert.equal(coinTotal, 3)
 }
 
-/* Geometry @ 320px: board + bags + markers stay inside; markers clear COIN/BOMB */
+/* Responsive detail geometry: bags + markers stay inside and clear content. */
 const rem = 16
-const viewportW = 320
-const detailBagSizePx = (count: BagCount): number => {
+const detailBagSizePx = (count: BagCount, viewportW: number): number => {
   const rules: Record<BagCount, readonly [number, number, number]> = {
     3: [4.35 * rem, 0.27, 5.6 * rem],
     4: [3.9 * rem, 0.23, 5.1 * rem],
@@ -269,47 +276,58 @@ const detailBagSizePx = (count: BagCount): number => {
   return Math.min(max, Math.max(min, viewportW * vw))
 }
 
-const boardWidth = Math.min(viewportW, 20 * rem)
-const boardHeight = boardWidth * (5 / 4)
 const markerOffsetFrac = 0.62
 const markerSizeFrac = 0.28
 const bombSizeFrac = 0.52
 const coinSizeFrac = 0.22
 const coinStackFrac = 0.1
 
-for (const count of BAG_COUNTS) {
-  const bagSize = detailBagSizePx(count)
-  assert(
-    bagSize >= 3.2 * rem,
-    `${count}: detail bag too small for readability (${bagSize})`,
+for (const viewportW of [320, 360, 375, 390, 768, 1280]) {
+  /* DUEL shell is narrower than GROUP; test the smaller effective width. */
+  const boardWidth = Math.min(viewportW - 1.3 * rem, 20 * rem)
+  const narrow = viewportW <= 360
+  const ratioHeight = boardWidth * (narrow ? 7 / 8 : 6 / 7)
+  const maxHeight = Math.min(
+    (narrow ? 56 : 52) / 100 * viewportW,
+    (narrow ? 15.5 : 17) * rem,
   )
-  for (const slot of FORMATIONS[count]) {
-    const cx = (boardWidth * slot.x) / 100
-    const cy = (boardHeight * slot.y) / 100
-    const half = bagSize / 2
-    assert(cx - half > -8, `${count}:${slot.bagId} left overflow`)
-    assert(cx + half < boardWidth + 8, `${count}:${slot.bagId} right overflow`)
-    assert(cy - half > -8, `${count}:${slot.bagId} top overflow`)
-    assert(cy + half < boardHeight + 8, `${count}:${slot.bagId} bottom overflow`)
+  const boardHeight = Math.min(ratioHeight, maxHeight)
+  const legacyHeight = boardWidth * (5 / 4)
+  assert(boardHeight < legacyHeight * 0.75, `${viewportW}: detail height not compact`)
 
-    const side = openOrderMarkerSideForBag(count, slot.bagId)
-    const markerY =
-      side === 'above'
+  for (const count of BAG_COUNTS) {
+    const bagSize = detailBagSizePx(count, viewportW)
+    assert(
+      bagSize >= 3.2 * rem,
+      `${count}@${viewportW}: detail bag too small (${bagSize})`,
+    )
+    for (const slot of FORMATIONS[count]) {
+      const cx = (boardWidth * slot.x) / 100
+      const cy = (boardHeight * slot.y) / 100
+      const half = bagSize / 2
+      assert(cx - half > -8, `${count}@${viewportW}:${slot.bagId} left overflow`)
+      assert(cx + half < boardWidth + 8, `${count}@${viewportW}:${slot.bagId} right overflow`)
+      assert(cy - half > -8, `${count}@${viewportW}:${slot.bagId} top overflow`)
+      assert(cy + half < boardHeight + 8, `${count}@${viewportW}:${slot.bagId} bottom overflow`)
+
+      const side = openOrderMarkerSideForBag(count, slot.bagId)
+      const markerY = side === 'above'
         ? cy - bagSize * markerOffsetFrac
         : cy + bagSize * markerOffsetFrac
-    const markerR = Math.max(rem / 2, (bagSize * markerSizeFrac) / 2)
-    assert(markerY - markerR > -4, `${count}:${slot.bagId} marker top clip`)
-    assert(
-      markerY + markerR < boardHeight + 4,
-      `${count}:${slot.bagId} marker bottom clip`,
-    )
-    const contentR =
-      bagSize * Math.max(bombSizeFrac, coinSizeFrac + coinStackFrac) * 0.5
-    const gap = Math.abs(markerY - cy) - markerR - contentR
-    assert(
-      gap > 2,
-      `${count}:${slot.bagId} open marker overlaps bag content (gap ${gap})`,
-    )
+      const markerR = Math.max(rem / 2, (bagSize * markerSizeFrac) / 2)
+      assert(markerY - markerR > 0, `${count}@${viewportW}:${slot.bagId} marker top clip`)
+      assert(
+        markerY + markerR < boardHeight,
+        `${count}@${viewportW}:${slot.bagId} marker bottom clip`,
+      )
+      const contentR =
+        bagSize * Math.max(bombSizeFrac, coinSizeFrac + coinStackFrac) * 0.5
+      const gap = Math.abs(markerY - cy) - markerR - contentR
+      assert(
+        gap > 2,
+        `${count}@${viewportW}:${slot.bagId} marker/content gap ${gap}`,
+      )
+    }
   }
 }
 

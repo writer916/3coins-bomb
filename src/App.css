@@ -1695,18 +1695,6 @@
   margin: 0 auto;
 }
 
-/*
-  GROUP-only bag field: PLAY/DUEL keep aspect-ratio 4/5.
-  Formation Y sits ~34–55%; shorten the empty upper band while leaving room for
-  OPEN markers (offset ≈ 0.62×bag-size) via overflow:visible — no formation edits.
-*/
-.group-result-detail .duel-match-detail-board .bag-board {
-  width: 100%;
-  aspect-ratio: 7 / 6;
-  max-height: min(52vw, 17rem);
-  overflow: visible;
-}
-
 .group-result-detail__round-head {
   display: flex;
   flex-wrap: wrap;
@@ -1791,10 +1779,6 @@
   .group-result__entry { min-height: 1.95rem; padding: 0.2rem 0; }
   .group-result-detail__round { padding: 0.65rem 0.6rem; }
   .group-result-detail__summary { gap: 0.3rem; }
-  .group-result-detail .duel-match-detail-board .bag-board {
-    aspect-ratio: 8 / 7;
-    max-height: min(56vw, 15.5rem);
-  }
 }
 
 .duel-final {
