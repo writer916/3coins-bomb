@@ -286,11 +286,14 @@ assert.equal(invitationStorageKey(MATCH_ID), `3cb:duel:v1:invitation:${MATCH_ID}
 const vercel = JSON.parse(await readFile('vercel.json', 'utf8'))
 assert.deepEqual(vercel, {
   rewrites: [
+    { source: '/api/duel/:path*', destination: '/api/duel' },
+    { source: '/api/group/:path*', destination: '/api/group' },
     { source: '/duel/:matchId', destination: '/index.html' },
     { source: '/group/:groupId', destination: '/index.html' },
   ],
 })
-assert(!vercel.rewrites.some((rewrite: { source: string }) => rewrite.source.includes('api')))
+assert(vercel.rewrites.some((rewrite: { source: string }) => rewrite.source === '/api/duel/:path*'))
+assert(vercel.rewrites.some((rewrite: { source: string }) => rewrite.source === '/api/group/:path*'))
 
 const invitationSource = await readFile('src/duel/duelInvitation.ts', 'utf8')
 const persistenceSource = await readFile('src/duel/duelPersistence.ts', 'utf8')

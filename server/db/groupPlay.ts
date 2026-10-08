@@ -255,11 +255,13 @@ export async function resumeGroupPlay(input: {
 }): Promise<PersistedGroupPlayState | null> {
   const result = await getDatabase().execute<MutationRow>(sql`
     with locked_participant as materialized (
-      select participant.id, participant.group_id
+      select participant.id, participant.group_id, participant.completed_at,
+        match.total_rounds, match.status group_status
       from group_participants participant
+      inner join group_matches match on match.id = participant.group_id
       where participant.group_id = ${input.groupId}::uuid
         and participant.auth_token_hash = ${input.participantTokenHash}
-      for update
+      for update of match, participant
     ), interrupted as (
       update group_round_attempts attempt
       set

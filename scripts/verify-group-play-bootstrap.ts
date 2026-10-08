@@ -171,6 +171,13 @@ assert.match(dbSource, /match\.status = 'open'/)
 assert.match(dbSource, /participant\.excluded_at is null/)
 assert.match(dbSource, /participant\.completed_at is null/)
 assert.match(dbSource, /progress\.terminal_count \+ 1/)
+// resumeGroupPlay must project match.status/total_rounds (and completed_at) into locked_participant;
+// otherwise PostgreSQL rejects participant.group_status / locked.total_rounds and PLAY resume 500s.
+assert.match(
+  dbSource,
+  /export async function resumeGroupPlay[\s\S]*?with locked_participant as materialized \(\s*select participant\.id, participant\.group_id, participant\.completed_at,\s*match\.total_rounds, match\.status group_status\s*from group_participants participant\s*inner join group_matches match on match\.id = participant\.group_id/,
+)
+assert.match(dbSource, /for update of match, participant/)
 const clientSource = readFileSync(resolve(root, 'src/group/groupPlayClient.ts'), 'utf8')
 for (const forbidden of ['localStorage', 'sessionStorage', 'indexedDB', 'server/db']) assert.equal(clientSource.includes(forbidden), false)
 const uiSource = readFileSync(resolve(root, 'src/components/GroupEntryShell.tsx'), 'utf8')
