@@ -96,7 +96,7 @@ function DuelConfigShell({
 }) {
   const showRound = roundCurrent != null && roundTotal != null
   return (
-    <div className="duel-flow duel-flow--setup duel-flow--duel-config">
+    <div className="duel-flow duel-flow--setup">
       <div
         className="duel-status-slot"
         aria-hidden={showRound ? undefined : true}
@@ -123,7 +123,7 @@ function DuelConfigShell({
         className="duel-btn-area duel-button-field"
         data-duel-metric="btn-area"
       >
-        <div className="duel-btn-stack" data-duel-metric="btn-stack">
+        <div className="duel-btn-stack standard-action-stack" data-duel-metric="btn-stack">
           {primary}
           {secondary}
         </div>
@@ -403,7 +403,7 @@ export function DuelFlow({
           </p>
         ) : null}
         <div className="duel-field duel-field--actions duel-field--stack-actions">
-          <div className="duel-btn-stack">
+          <div className="duel-btn-stack standard-action-stack">
             {/* Primary confirm first (locale-agnostic layout). */}
             <button
               type="button"
@@ -415,7 +415,7 @@ export function DuelFlow({
             </button>
             <button
               type="button"
-              className="duel-btn"
+              className={`duel-btn${t.duelStartOver === 'START OVER' ? ' standard-action-btn--start-over' : ''}`}
               onClick={onStartOver}
               disabled={lockPending}
             >
@@ -480,7 +480,7 @@ export function DuelFlow({
   const advanceEnabled = isFinalRound ? canComplete(session) : canNextRound(session)
 
   return (
-    <div className="duel-flow duel-flow--place duel-flow--duel-config">
+    <div className="duel-flow duel-flow--place">
       <div className="duel-slot duel-slot-round" data-duel-slot="round">
         <DuelRoundIndex
           current={draft.roundNumber}
@@ -517,7 +517,7 @@ export function DuelFlow({
         className="duel-slot duel-slot-buttons duel-button-field"
         data-duel-slot="buttons"
       >
-        <div className="duel-btn-stack">
+        <div className="duel-btn-stack standard-action-stack">
           {isFinalRound ? (
             <button
               type="button"
@@ -531,7 +531,7 @@ export function DuelFlow({
           ) : (
             <button
               type="button"
-              className="duel-btn duel-btn--primary"
+              className="duel-btn duel-btn--primary standard-action-btn--next-round"
               data-duel-metric="place-advance"
               disabled={!advanceEnabled}
               onClick={onNextRound}

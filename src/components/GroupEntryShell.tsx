@@ -187,7 +187,7 @@ export function GroupEntryShell({
           </p>
           <div className="duel-setup-spacer duel-setup-spacer--mid" aria-hidden="true" />
           <div className="duel-btn-area duel-button-field">
-            <div className="duel-btn-stack">
+            <div className="duel-btn-stack standard-action-stack">
               <button type="button" className="duel-btn" onClick={onGoTop}>
                 {t.duelTop}
               </button>
@@ -257,10 +257,10 @@ export function GroupEntryShell({
           </div>
           <div className="duel-setup-spacer duel-setup-spacer--mid" aria-hidden="true" />
           <div className="duel-btn-area duel-button-field">
-            <div className="duel-btn-stack">
+            <div className="duel-btn-stack standard-action-stack">
               <button
                 type="submit"
-                className="duel-btn duel-btn--primary"
+                className={`duel-btn duel-btn--primary${!pending && t.groupJoin === 'JOIN GROUP' ? ' standard-action-btn--join-group' : ''}`}
                 disabled={pending}
               >
                 {pending ? t.groupJoining : t.groupJoin}

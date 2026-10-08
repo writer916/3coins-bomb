@@ -10,6 +10,10 @@ const flowSource = await readFile('src/components/DuelFlow.tsx', 'utf8')
 const bagCss = await readFile('src/components/BagBoard.css', 'utf8')
 const numsSource = await readFile('src/ui/withDuelNums.tsx', 'utf8')
 const playScreen = await readFile('src/components/DuelPlayScreen.tsx', 'utf8')
+const groupCreate = await readFile('src/components/GroupCreateFlow.tsx', 'utf8')
+const groupEntry = await readFile('src/components/GroupEntryShell.tsx', 'utf8')
+const groupWaiting = await readFile('src/components/GroupCompletionWaiting.tsx', 'utf8')
+const groupPlay = await readFile('src/components/GroupPlayScreen.tsx', 'utf8')
 const optimistic = await readFile('src/duel/duelOptimisticOpen.ts', 'utf8')
 
 assert.doesNotMatch(
@@ -31,18 +35,24 @@ assert(
 // Shared button field class on both setup and place docks.
 assert.match(flowSource, /duel-btn-area duel-button-field/)
 assert.match(flowSource, /duel-slot-buttons duel-button-field/)
-assert.equal(
-  (flowSource.match(/duel-flow--duel-config/g) ?? []).length,
-  2,
-  'DUEL setup and placement roots must share the scoped width class',
+assert.match(
+  appCss,
+  /\.duel-btn-stack\.standard-action-stack\s*\{[\s\S]*?width:\s*min\(100%,\s*8rem\)[\s\S]*?min-width:\s*min\(100%,\s*8rem\)/,
+)
+assert.doesNotMatch(appCss, /duel-flow--duel-config|width:\s*min\(100%,\s*9rem\)/)
+assert.equal((flowSource.match(/standard-action-stack/g) ?? []).length, 3)
+assert.equal((groupCreate.match(/standard-action-stack/g) ?? []).length, 1)
+assert.equal((groupEntry.match(/standard-action-stack/g) ?? []).length, 2)
+assert.equal((groupWaiting.match(/standard-action-stack/g) ?? []).length, 1)
+assert.match(playScreen, /standard-round-action-btn--next-round/)
+assert.match(groupPlay, /standard-round-action-btn--next-round/)
+assert.match(
+  appCss,
+  /\.duel-play \.end-actions\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2,\s*8rem\)[\s\S]*?justify-content:\s*center/,
 )
 assert.match(
   appCss,
-  /\.duel-flow--duel-config \.duel-btn-stack\s*\{[\s\S]*?width:\s*min\(100%,\s*9rem\)[\s\S]*?min-width:\s*min\(100%,\s*9rem\)/,
-)
-assert.doesNotMatch(
-  await readFile('src/components/GroupCreateFlow.tsx', 'utf8'),
-  /duel-flow--duel-config/,
+  /\.duel-play \.standard-round-action-btn\s*\{[\s\S]*?width:\s*8rem[\s\S]*?min-width:\s*8rem[\s\S]*?max-width:\s*8rem/,
 )
 
 // Japanese place copy: shared intentional break to avoid mid-phrase wrap.
@@ -90,6 +100,48 @@ const configButtonLabels = [
 ]
 assert.equal(Math.max(...configButtonLabels.map((label) => label.length)), 10)
 assert.ok(configButtonLabels.includes('NEXT ROUND'))
+
+/* Chrome/Windows Georgia measurements at the production button styles. */
+const standardTextAreaPx = 98.8
+const measuredAt092Rem = new Map<string, number>([
+  ['CONTINUE', 85.656],
+  ['NEXT ROUND', 107.594],
+  ['RESET ALL', 86.078],
+  ['START OVER', 99.781],
+  ['CREATE GROUP', 124.219],
+  ['CREATING…', 95.922],
+  ['JOIN GROUP', 100.063],
+  ['JOINING…', 82.25],
+  ['TRY AGAIN', 87.453],
+  ['GROUPを作成', 103.297],
+  ['もう一度試す', 93.625],
+])
+const fitSizes = new Map<string, number>([
+  ['NEXT ROUND', 0.84],
+  ['START OVER', 0.9],
+  ['CREATE GROUP', 0.72],
+  ['GROUPを作成', 0.87],
+  ['JOIN GROUP', 0.9],
+])
+for (const [label, measuredWidth] of measuredAt092Rem) {
+  const fittedWidth = measuredWidth * ((fitSizes.get(label) ?? 0.92) / 0.92)
+  assert.ok(fittedWidth <= standardTextAreaPx, `${label} must fit the 8rem button`)
+}
+for (const unchanged of ['CONTINUE', 'RESET ALL', 'CREATING…', 'JOINING…', 'TRY AGAIN', 'もう一度試す']) {
+  assert.equal(fitSizes.has(unchanged), false, `${unchanged} keeps the base font size`)
+}
+assert.match(appCss, /standard-action-btn--next-round\s*\{\s*font-size:\s*0\.84rem/)
+assert.match(appCss, /standard-action-btn--start-over\s*\{\s*font-size:\s*0\.9rem/)
+assert.match(appCss, /standard-action-btn--create-group-en\s*\{\s*font-size:\s*0\.72rem/)
+assert.match(appCss, /standard-action-btn--create-group-ja\s*\{\s*font-size:\s*0\.87rem/)
+assert.match(appCss, /standard-action-btn--join-group\s*\{\s*font-size:\s*0\.9rem/)
+assert.match(appCss, /standard-round-action-btn--next-round\s*\{[\s\S]*?font-size:\s*0\.91rem/)
+assert.match(
+  appCss,
+  /@media \(max-width:\s*340px\)[\s\S]*?\.duel-play \.standard-round-action-btn--next-round\s*\{[\s\S]*?font-size:\s*0\.86rem/,
+)
+assert.match(groupCreate, /pending[\s\S]*?standard-action-btn--create-group-en/)
+assert.match(groupEntry, /!pending[^\n]*standard-action-btn--join-group/)
 
 assert.match(numsSource, /duel-instruction-line/)
 assert.match(
@@ -191,10 +243,15 @@ const rem = 16
 const buttonFieldH = 9.35 * rem
 const btnH = 2.75 * rem
 const btnGap = 0.55 * rem
-const configButtonW = 9 * rem
+const configButtonW = 8 * rem
 
 for (const viewport of viewports) {
   assert(configButtonW <= viewport.width, `button width fits ${viewport.width}px`)
+  const endActionGap = viewport.width <= 340 ? 0.5 * rem : 0.85 * rem
+  assert(
+    2 * configButtonW + endActionGap <= Math.min(viewport.width, viewport.width <= 340 ? 17 * rem : 17.5 * rem),
+    `viewport ${viewport.width}px: two 8rem ROUND actions fit their field`,
+  )
   const short = viewport.height <= 600
   const roomy = viewport.width >= 768 && viewport.height >= 700
   const boardHeight = short

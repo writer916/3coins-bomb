@@ -185,7 +185,7 @@ export function GroupCompletionWaiting({
       <div className="duel-setup-spacer duel-setup-spacer--mid" aria-hidden="true" />
       {error ? (
         <div className="duel-btn-area duel-button-field">
-          <div className="duel-btn-stack">
+          <div className="duel-btn-stack standard-action-stack">
             <button type="button" className="duel-btn" onClick={retry}>
               {t.groupResultRetry}
             </button>

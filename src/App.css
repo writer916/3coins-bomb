@@ -221,6 +221,23 @@
   text-align: center;
 }
 
+/* DUEL/GROUP only: completed-ROUND actions share the standard 8rem width. */
+.duel-play .end-actions {
+  grid-template-columns: repeat(2, 8rem);
+  justify-content: center;
+}
+
+.duel-play .standard-round-action-btn {
+  width: 8rem;
+  min-width: 8rem;
+  max-width: 8rem;
+}
+
+/* NEXT ROUND is 101.98px at .95rem; .91rem fits the 98.8px text area. */
+.duel-play .standard-round-action-btn--next-round {
+  font-size: 0.91rem;
+}
+
 /*
   GROUP C: SESSION SCORE
   One centered flex row: ROUNDS | COINS | RESET.
@@ -660,6 +677,11 @@
     min-width: 8.25rem;
   }
 
+  /* Preserve the existing narrow-screen END action size. */
+  .duel-play .standard-round-action-btn--next-round {
+    font-size: 0.86rem;
+  }
+
   .group-session {
     padding-top: clamp(0.55rem, 2.2vh, 1rem);
     padding-bottom: clamp(0.55rem, 4vh, 1.75rem);
@@ -972,13 +994,20 @@
   min-width: 9.007rem; /* ≈144.12px @ 16px root */
 }
 
-/* DUEL config/place only: one compact width across locales and commands. */
-.duel-flow--duel-config .duel-btn-stack {
+/* DUEL/GROUP standard actions: locale-independent fixed width. */
+.duel-btn-stack.standard-action-stack {
   box-sizing: border-box;
-  width: min(100%, 9rem);
-  min-width: min(100%, 9rem);
+  width: min(100%, 8rem);
+  min-width: min(100%, 8rem);
   max-width: 100%;
 }
+
+/* Only labels that exceed the 98.8px text area at the base .92rem size. */
+.duel-btn.standard-action-btn--next-round { font-size: 0.84rem; }
+.duel-btn.standard-action-btn--start-over { font-size: 0.9rem; }
+.duel-btn.standard-action-btn--create-group-en { font-size: 0.72rem; }
+.duel-btn.standard-action-btn--create-group-ja { font-size: 0.87rem; }
+.duel-btn.standard-action-btn--join-group { font-size: 0.9rem; }
 
 /*
   GROUP create error: overlay above the shared button field so ROUNDS /

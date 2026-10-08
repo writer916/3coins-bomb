@@ -701,7 +701,7 @@ export function DuelPlayScreen({ matchId, t, onGoTop }: DuelPlayScreenProps) {
               {showRevealBtn ? (
                 <button
                   type="button"
-                  className="dev-btn end-action-btn"
+                  className="dev-btn end-action-btn standard-round-action-btn"
                   onClick={() => { void handleReveal() }}
                   disabled={revealPending}
                 >
@@ -713,7 +713,7 @@ export function DuelPlayScreen({ matchId, t, onGoTop }: DuelPlayScreenProps) {
               {showNextRound ? (
                 <button
                   type="button"
-                  className="dev-btn end-action-btn"
+                  className="dev-btn end-action-btn standard-round-action-btn standard-round-action-btn--next-round"
                   onClick={() => { void handleNextRound() }}
                   disabled={requestPending}
                 >
@@ -722,7 +722,7 @@ export function DuelPlayScreen({ matchId, t, onGoTop }: DuelPlayScreenProps) {
               ) : showResult ? (
                 <button
                   type="button"
-                  className="dev-btn end-action-btn"
+                  className="dev-btn end-action-btn standard-round-action-btn"
                   onClick={() => { void handleResult() }}
                   disabled={resultPending}
                 >

@@ -63,7 +63,7 @@ function ConfigShell({
             {error}
           </p>
         ) : null}
-        <div className="duel-btn-stack">
+        <div className="duel-btn-stack standard-action-stack">
           {primary}
           {secondary}
         </div>
@@ -149,7 +149,18 @@ export function GroupCreateFlow({ t, onGoTop, onCreated }: GroupCreateFlowProps)
       }
       error={failed ? t.groupCreateError : null}
       primary={
-        <button type="button" className="duel-btn duel-btn--primary" onClick={create} disabled={pending}>
+        <button
+          type="button"
+          className={`duel-btn duel-btn--primary${
+            pending
+              ? ''
+              : t.groupCreate === 'CREATE GROUP'
+                ? ' standard-action-btn--create-group-en'
+                : ' standard-action-btn--create-group-ja'
+          }`}
+          onClick={create}
+          disabled={pending}
+        >
           {pending ? t.groupCreating : t.groupCreate}
         </button>
       }
