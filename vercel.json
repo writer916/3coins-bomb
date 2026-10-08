@@ -1,6 +1,14 @@
 {
   "rewrites": [
     {
+      "source": "/api/duel/:path*",
+      "destination": "/api/duel"
+    },
+    {
+      "source": "/api/group/:path*",
+      "destination": "/api/group"
+    },
+    {
       "source": "/duel/:matchId",
       "destination": "/index.html"
     },

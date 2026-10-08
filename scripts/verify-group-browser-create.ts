@@ -295,8 +295,26 @@ const vercel = JSON.parse(await readFile('vercel.json', 'utf8')) as {
 }
 assert(vercel.rewrites.some((entry) => entry.source === '/duel/:matchId'))
 assert(vercel.rewrites.some((entry) => entry.source === '/group/:groupId'))
-assert(vercel.rewrites.every((entry) => entry.destination === '/index.html'))
-assert(!vercel.rewrites.some((entry) => entry.source.includes('api')))
+assert(
+  vercel.rewrites.some(
+    (entry) =>
+      entry.source === '/api/duel/:path*' && entry.destination === '/api/duel',
+  ),
+)
+assert(
+  vercel.rewrites.some(
+    (entry) =>
+      entry.source === '/api/group/:path*' && entry.destination === '/api/group',
+  ),
+)
+assert(
+  vercel.rewrites
+    .filter(
+      (entry) =>
+        entry.source === '/duel/:matchId' || entry.source === '/group/:groupId',
+    )
+    .every((entry) => entry.destination === '/index.html'),
+)
 
 const [app, mode, flow, shell, clientSource, persistenceSource, invitationSource] =
   await Promise.all([

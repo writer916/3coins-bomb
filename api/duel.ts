@@ -1,14 +1,14 @@
-import createMatches from '../_duel/matches.js'
-import getMatch from '../_duel/matches/[matchId].js'
-import claimParticipant from '../_duel/matches/[matchId]/claim.js'
-import getDetail from '../_duel/matches/[matchId]/detail.js'
-import getOpponentPlacements from '../_duel/matches/[matchId]/opponent-placements.js'
-import lockPlacements from '../_duel/matches/[matchId]/placements/lock.js'
-import getPlayState from '../_duel/matches/[matchId]/play.js'
-import getResult from '../_duel/matches/[matchId]/result.js'
-import cashOutRound from '../_duel/matches/[matchId]/rounds/[roundNumber]/cash-out.js'
-import openBag from '../_duel/matches/[matchId]/rounds/[roundNumber]/open.js'
-import getRoundReveal from '../_duel/matches/[matchId]/rounds/[roundNumber]/reveal.js'
+import createMatches from './_duel/matches.js'
+import getMatch from './_duel/matches/[matchId].js'
+import claimParticipant from './_duel/matches/[matchId]/claim.js'
+import getDetail from './_duel/matches/[matchId]/detail.js'
+import getOpponentPlacements from './_duel/matches/[matchId]/opponent-placements.js'
+import lockPlacements from './_duel/matches/[matchId]/placements/lock.js'
+import getPlayState from './_duel/matches/[matchId]/play.js'
+import getResult from './_duel/matches/[matchId]/result.js'
+import cashOutRound from './_duel/matches/[matchId]/rounds/[roundNumber]/cash-out.js'
+import openBag from './_duel/matches/[matchId]/rounds/[roundNumber]/open.js'
+import getRoundReveal from './_duel/matches/[matchId]/rounds/[roundNumber]/reveal.js'
 
 type FetchHandler = {
   readonly fetch: (request: Request) => Promise<Response>
@@ -17,6 +17,16 @@ type FetchHandler = {
 function normalizePathname(pathname: string): string {
   if (pathname.length > 1 && pathname.endsWith('/')) return pathname.slice(0, -1)
   return pathname
+}
+
+/** Prefer the original request path; fall back to rewrite `path` query. */
+function requestPathname(request: Request): string {
+  const url = new URL(request.url)
+  const pathname = normalizePathname(url.pathname)
+  if (pathname !== '/api/duel') return pathname
+  const rewritten = url.searchParams.get('path')
+  if (!rewritten) return pathname
+  return normalizePathname(`/api/duel/${rewritten.split('/').map(decodeURIComponent).join('/')}`)
 }
 
 function resolveHandler(pathname: string): FetchHandler | null {
@@ -45,9 +55,19 @@ function resolveHandler(pathname: string): FetchHandler | null {
   return null
 }
 
+function withEffectivePathname(request: Request, pathname: string): Request {
+  const url = new URL(request.url)
+  if (normalizePathname(url.pathname) === pathname) return request
+  const next = new URL(request.url)
+  next.pathname = pathname
+  next.searchParams.delete('path')
+  return new Request(next, request)
+}
+
 export default {
   async fetch(request: Request): Promise<Response> {
-    const handler = resolveHandler(new URL(request.url).pathname)
+    const pathname = requestPathname(request)
+    const handler = resolveHandler(pathname)
     if (!handler) {
       return Response.json(
         { error: { code: 'not_found' } },
@@ -60,6 +80,6 @@ export default {
         },
       )
     }
-    return handler.fetch(request)
+    return handler.fetch(withEffectivePathname(request, pathname))
   },
 }
