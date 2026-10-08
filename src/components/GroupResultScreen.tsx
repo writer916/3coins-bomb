@@ -76,7 +76,9 @@ export function GroupResultScreen({
   if (detailPane.kind === 'error') {
     return (
       <section className="group-result-detail-error" role="alert">
-        <p className="group-result-detail-error__copy">{t.groupDetailError}</p>
+        <p className="group-result-detail-error__copy stable-message-slot stable-message-slot--detail-error">
+          {t.groupDetailError}
+        </p>
         <div className="group-result-detail-error__actions">
           <button
             type="button"

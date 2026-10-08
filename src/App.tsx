@@ -145,6 +145,10 @@ function App() {
   const soundOnRef = useRef(soundOn)
 
   useEffect(() => {
+    document.documentElement.lang = locale
+  }, [locale])
+
+  useEffect(() => {
     roundRef.current = round
   }, [round])
 

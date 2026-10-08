@@ -733,9 +733,16 @@ export function DuelPlayScreen({ matchId, t, onGoTop }: DuelPlayScreenProps) {
           </div>
         ) : null}
       </div>
-      {retryBag ? <p className="duel-play-error" role="alert">{t.duelOpenRetry}</p> : null}
-      {cashOutError ? <p className="duel-play-error" role="alert">{t.duelCashOutRetry}</p> : null}
-      {resultError ? <p className="duel-play-error" role="alert">{t.duelResultError}</p> : null}
+      {retryBag || cashOutError || resultError ? (
+        <div
+          className="duel-play-error stable-message-slot stable-message-slot--play-error"
+          role="alert"
+        >
+          {retryBag ? <p>{t.duelOpenRetry}</p> : null}
+          {cashOutError ? <p>{t.duelCashOutRetry}</p> : null}
+          {resultError ? <p>{t.duelResultError}</p> : null}
+        </div>
+      ) : null}
       <div className="group-session" aria-live="polite">
         <div className="score-stack">
           <div className="score-row">

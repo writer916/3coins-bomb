@@ -231,7 +231,9 @@ function DetailError({
 }) {
   return (
     <section className="duel-match-detail-error" role="alert">
-      <p className="duel-match-detail-error__copy">{t.duelMatchDetailError}</p>
+      <p className="duel-match-detail-error__copy stable-message-slot stable-message-slot--detail-error">
+        {t.duelMatchDetailError}
+      </p>
       <div className="duel-match-detail-error__actions">
         <button
           type="button"

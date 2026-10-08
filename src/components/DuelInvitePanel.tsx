@@ -352,7 +352,7 @@ export function DuelInvitePanel({
           )}
         </div>
         <p
-          className="duel-invite-feedback"
+          className="duel-invite-feedback stable-message-slot stable-message-slot--feedback"
           role={
             feedback === 'copied'
               ? 'status'

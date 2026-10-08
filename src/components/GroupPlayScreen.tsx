@@ -134,7 +134,14 @@ export function GroupPlayScreen({ initialReady, coordinator, t, onResult }: { in
       ) : null}
       {terminal && ready.currentPlacement.roundNumber < ready.state.totalRounds ? <button type="button" className="dev-btn end-action-btn standard-round-action-btn standard-round-action-btn--next-round" disabled={requestPending || !!fx} onClick={() => { void next() }}>{t.nextRound}</button> : null}
     </div>
-    {error ? <p className="duel-play-error" role="alert">{t.groupPlayError}</p> : null}
-    {cashOutError ? <p className="duel-play-error" role="alert">{t.duelCashOutRetry}</p> : null}
+    {error || cashOutError ? (
+      <div
+        className="duel-play-error stable-message-slot stable-message-slot--play-error"
+        role="alert"
+      >
+        {error ? <p>{t.groupPlayError}</p> : null}
+        {cashOutError ? <p>{t.duelCashOutRetry}</p> : null}
+      </div>
+    ) : null}
   </div>
 }

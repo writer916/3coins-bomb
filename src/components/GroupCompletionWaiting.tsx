@@ -156,13 +156,17 @@ export function GroupCompletionWaiting({
             </p>
           </>
         ) : null}
-        {error ? (
-          <p className="duel-lock-error" role="alert">
-            {initialClosed || progress?.status === 'closed'
+        <p
+          className="duel-lock-error stable-message-slot stable-message-slot--waiting-error"
+          role={error ? 'alert' : undefined}
+          aria-hidden={error ? undefined : 'true'}
+        >
+          {error
+            ? initialClosed || progress?.status === 'closed'
               ? t.groupResultError
-              : t.groupProgressError}
-          </p>
-        ) : null}
+              : t.groupProgressError
+            : '\u00a0'}
+        </p>
         {/*
           Host close is an exception — keep it under the waiting copy,
           not as the setup shell’s primary CTA.
