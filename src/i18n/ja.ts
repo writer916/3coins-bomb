@@ -76,6 +76,7 @@ export const ja: AppStrings = {
   groupReadyNicknameLabel: 'あなたのニックネーム',
   groupParticipantsProgress: (accepted, limit) => `参加人数 ${accepted} / ${limit}`,
   groupCompletedProgress: (completed, limit) => `完了人数 ${completed} / ${limit}`,
+  groupCompletedLabel: '完了人数',
   groupClose: '締め切る',
   groupCloseConfirm: 'まだ完了していない参加者は結果に含まれません。締め切りますか？',
   groupProgressError: '進行状況を取得できませんでした。もう一度お試しください。',

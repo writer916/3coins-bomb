@@ -75,6 +75,7 @@ export const en: AppStrings = {
   groupReadyNicknameLabel: 'YOUR NICKNAME',
   groupParticipantsProgress: (accepted, limit) => `PLAYERS ${accepted} / ${limit}`,
   groupCompletedProgress: (completed, limit) => `COMPLETE ${completed} / ${limit}`,
+  groupCompletedLabel: 'COMPLETE',
   groupClose: 'CLOSE GROUP',
   groupCloseConfirm: 'Players who have not finished will not be included. Close the group?',
   groupProgressError: 'Could not load progress. Please try again.',

@@ -527,12 +527,43 @@
   text-align: center;
 }
 
-.group-completion-waiting__line {
-  margin: 0;
+.group-completion-waiting__stats {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: max-content minmax(7ch, max-content);
+  column-gap: 0.55rem;
+  row-gap: 0.35rem;
+  justify-content: center;
+  align-items: baseline;
+  width: max-content;
+  max-width: 100%;
+  margin-inline: auto;
+  padding-inline: 0.25rem;
   color: #f2e6d0;
   font-size: 0.95rem;
   line-height: 1.4;
-  text-align: center;
+}
+
+.group-completion-waiting__label {
+  margin: 0;
+  text-align: end;
+  white-space: nowrap;
+}
+
+.group-completion-waiting__count {
+  box-sizing: border-box;
+  display: inline-flex;
+  justify-content: flex-end;
+  align-items: baseline;
+  min-width: 7ch;
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+  white-space: nowrap;
+}
+
+.group-completion-waiting__slash {
+  flex: 0 0 auto;
 }
 
 /* Locale-stable minimums for the shipped JA/EN copy; longer copy grows naturally. */

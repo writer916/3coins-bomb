@@ -48,6 +48,10 @@ for (const source of [duelPlay, groupPlay]) {
 }
 assert.match(groupWaiting, /stable-message-slot--waiting-error/)
 assert.match(groupWaiting, /aria-hidden=\{error \? undefined : 'true'\}/)
+assert.match(groupWaiting, /group-completion-waiting__stats/)
+assert.match(groupWaiting, /showPlayCompleteTitle/)
+assert.match(groupPlay, /initialProgress=\{completionSeed\}/)
+assert.match(appCss, /\.group-completion-waiting__count\s*{[^}]*min-width:\s*7ch/s)
 assert.match(duelResult, /duel-match-detail-error__copy stable-message-slot stable-message-slot--detail-error/)
 assert.match(groupResult, /group-result-detail-error__copy stable-message-slot stable-message-slot--detail-error/)
 

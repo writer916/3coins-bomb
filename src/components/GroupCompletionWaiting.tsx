@@ -9,20 +9,42 @@ import type {
 type Coordinator = ReturnType<typeof createGroupPlayBootstrapCoordinator>
 const POLL_MS = 5000
 
+function ProgressCount({
+  current,
+  limit,
+  ariaLabel,
+}: {
+  readonly current: number
+  readonly limit: number
+  readonly ariaLabel: string
+}) {
+  return (
+    <span className="group-completion-waiting__count" aria-label={ariaLabel}>
+      <span className="duel-num">{current}</span>
+      <span className="group-completion-waiting__slash" aria-hidden="true">
+        {' / '}
+      </span>
+      <span className="duel-num">{limit}</span>
+    </span>
+  )
+}
+
 export function GroupCompletionWaiting({
   groupId,
   coordinator,
   t,
   onResult,
   initialClosed = false,
+  initialProgress = null,
 }: {
   groupId: string
   coordinator: Coordinator
   t: AppStrings
   onResult: (result: GroupResult) => void
   initialClosed?: boolean
+  initialProgress?: GroupProgress | null
 }) {
-  const [progress, setProgress] = useState<GroupProgress | null>(null)
+  const [progress, setProgress] = useState<GroupProgress | null>(initialProgress)
   const [error, setError] = useState(false)
   const [resultPending, setResultPending] = useState(initialClosed)
   const mounted = useRef(false)
@@ -128,33 +150,55 @@ export function GroupCompletionWaiting({
 
   const loading =
     initialClosed || progress?.status === 'closed' || resultPending
+  const showOpenWaiting = progress?.status === 'open'
+  // Never paint title-only PLAY COMPLETE while progress is still unknown.
+  const showPlayCompleteTitle = showOpenWaiting || (error && !loading)
   const showHostClose =
     progress?.hostCloseAvailable === true &&
     coordinator.hasHostCapability(groupId)
+  const awaitingProgress = !loading && progress === null && !error
 
   return (
-    <div className="duel-flow duel-flow--setup group-completion-waiting" aria-live="polite">
+    <div
+      className="duel-flow duel-flow--setup group-completion-waiting"
+      aria-live="polite"
+      aria-busy={awaitingProgress ? true : undefined}
+    >
       <div className="duel-status-slot" aria-hidden="true" />
       <div className="duel-setup-spacer duel-setup-spacer--top" aria-hidden="true" />
       <div className="duel-setup-hero">
         <p className="duel-instruction">
-          {loading ? t.groupResultLoading : t.groupPlayComplete}
+          {loading
+            ? t.groupResultLoading
+            : showPlayCompleteTitle
+              ? t.groupPlayComplete
+              : '\u00a0'}
         </p>
         {progress?.status === 'open' ? (
-          <>
-            <p className="group-completion-waiting__line">
-              {t.groupParticipantsProgress(
+          <div className="group-completion-waiting__stats">
+            <span className="group-completion-waiting__label">
+              {t.groupReadyPlayersLabel}
+            </span>
+            <ProgressCount
+              current={progress.acceptedCount}
+              limit={progress.playerLimit}
+              ariaLabel={t.groupParticipantsProgress(
                 progress.acceptedCount,
                 progress.playerLimit,
               )}
-            </p>
-            <p className="group-completion-waiting__line">
-              {t.groupCompletedProgress(
+            />
+            <span className="group-completion-waiting__label">
+              {t.groupCompletedLabel}
+            </span>
+            <ProgressCount
+              current={progress.completedCount}
+              limit={progress.playerLimit}
+              ariaLabel={t.groupCompletedProgress(
                 progress.completedCount,
                 progress.playerLimit,
               )}
-            </p>
-          </>
+            />
+          </div>
         ) : null}
         <p
           className="duel-lock-error stable-message-slot stable-message-slot--waiting-error"

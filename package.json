@@ -35,6 +35,8 @@
     "verify:group-open": "tsx scripts/verify-group-open.ts",
     "verify:group-cash-out": "tsx scripts/verify-group-cash-out.ts",
     "verify:group-progress": "tsx scripts/verify-group-progress.ts",
+    "verify:group-completion-waiting": "tsx scripts/verify-group-completion-waiting.ts",
+    "verify:group-completion-waiting-browser": "node scripts/verify-group-completion-waiting-browser.mjs",
     "verify:group-result": "tsx scripts/verify-group-result.ts",
     "verify:group-result-client": "tsx scripts/verify-group-result-client.ts",
     "verify:group-result-detail": "tsx scripts/verify-group-result-detail.ts",

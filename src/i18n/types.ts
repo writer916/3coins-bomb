@@ -80,6 +80,8 @@ export type AppStrings = {
   groupReadyNicknameLabel: string
   groupParticipantsProgress: (accepted: number, limit: number) => string
   groupCompletedProgress: (completed: number, limit: number) => string
+  /** Label only; pairs with fixed-width count (`20/20`) on the waiting screen. */
+  groupCompletedLabel: string
   groupClose: string
   groupCloseConfirm: string
   groupProgressError: string

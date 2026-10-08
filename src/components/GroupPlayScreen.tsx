@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { AppStrings } from '../i18n'
 import type { BagId } from '../game/assets'
 import { playBagOpen, warmBagOpenAudio } from '../game/bagAudio'
@@ -14,7 +14,14 @@ import {
   isGroupCashOutButtonDisabled,
 } from '../group/groupCashOutUi'
 import type { GroupLocalOpenResult } from '../group/groupDomain'
-import type { GroupCashOutResult, GroupOpenResult, GroupPlayReady, GroupResult, createGroupPlayBootstrapCoordinator } from '../group/groupPlayClient'
+import type {
+  GroupCashOutResult,
+  GroupOpenResult,
+  GroupPlayReady,
+  GroupProgress,
+  GroupResult,
+  createGroupPlayBootstrapCoordinator,
+} from '../group/groupPlayClient'
 import { BagBoard } from './BagBoard'
 import { BombOpenFx } from './BombOpenFx'
 import { CoinOpenFx } from './CoinOpenFx'
@@ -38,9 +45,12 @@ export function GroupPlayScreen({ initialReady, coordinator, t, onResult }: { in
   const [cashOutError, setCashOutError] = useState(false)
   const [fx, setFx] = useState<ActiveFx | null>(null)
   const [coinFxSample, setCoinFxSample] = useState<CoinFxSample | null>(null)
+  const [completionSeed, setCompletionSeed] = useState<GroupProgress | null>(null)
+  const [completionReady, setCompletionReady] = useState(false)
   const lockRef = useRef(false)
   const gateRef = useRef<OptimisticOpenGate | null>(null)
   const runIdRef = useRef(0)
+  const completionFetchRef = useRef(false)
   const opened = useMemo(() => new Set(openedResults.map((entry) => bagNumberToBagId(entry.bagNumber))), [openedResults])
   const hidden = useMemo(() => {
     const visual = new Set(opened)
@@ -110,10 +120,48 @@ export function GroupPlayScreen({ initialReady, coordinator, t, onResult }: { in
     finally { setRequestPending(false) }
   }, [coordinator, ready, terminal, requestPending, fx])
 
+  const wantsCompletion =
+    terminal !== null &&
+    ready.currentPlacement.roundNumber === ready.state.totalRounds &&
+    !fx &&
+    !requestPending
+
+  useEffect(() => {
+    if (!wantsCompletion || completionFetchRef.current) return
+    completionFetchRef.current = true
+    let cancelled = false
+    void coordinator
+      .getProgress(ready.state.groupId)
+      .then((progress) => {
+        if (cancelled) return
+        setCompletionSeed(progress)
+        setCompletionReady(true)
+      })
+      .catch(() => {
+        if (cancelled) return
+        setCompletionSeed(null)
+        setCompletionReady(true)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [wantsCompletion, coordinator, ready.state.groupId])
+
   const soundEnabled = readSoundEnabled()
   const showCashOut = canShowGroupCashOutButton(provisionalCoins, terminal !== null)
   const cashOutDisabled = isGroupCashOutButtonDisabled(requestPending, fx !== null)
-  if (terminal && ready.currentPlacement.roundNumber === ready.state.totalRounds && !fx && !requestPending) return <GroupCompletionWaiting groupId={ready.state.groupId} coordinator={coordinator} t={t} onResult={onResult}/>
+  if (completionReady) {
+    return (
+      <GroupCompletionWaiting
+        groupId={ready.state.groupId}
+        coordinator={coordinator}
+        t={t}
+        onResult={onResult}
+        initialProgress={completionSeed}
+        initialClosed={completionSeed?.status === 'closed'}
+      />
+    )
+  }
   return <div className="duel-play">
     <p className="duel-round-index">{t.groupRoundLabel} <span className="duel-num">{ready.currentPlacement.roundNumber}</span>{' / '}<span className="duel-num">{ready.state.totalRounds}</span></p>
     <BagBoard bagCount={ready.currentPlacement.bagCount as BagCount} hiddenBagIds={hidden} onBagTap={tap} interactive={!requestPending && !terminal}>

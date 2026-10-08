@@ -14,6 +14,7 @@ import {
   createGroupPlayBootstrapCoordinator,
   createGroupPlayClient,
   type GroupPlayReady,
+  type GroupProgress,
   type GroupResult,
 } from '../group/groupPlayClient'
 import type { AppStrings } from '../i18n'
@@ -80,6 +81,9 @@ export function GroupEntryShell({
   > | null>(null)
   const [completionGroupId, setCompletionGroupId] = useState<string | null>(null)
   const [completionInitiallyClosed, setCompletionInitiallyClosed] = useState(false)
+  const [completionProgress, setCompletionProgress] = useState<GroupProgress | null>(
+    null,
+  )
   const [groupResult, setGroupResult] = useState<GroupResult | null>(null)
   const pendingRef = useRef(false)
   const coordinatorRef = useRef<ReturnType<typeof createGroupJoinCoordinator> | null>(null)
@@ -125,6 +129,7 @@ export function GroupEntryShell({
       setPlayCoordinator(playCoordinatorRef.current)
       if (result.status === 'closed') {
         setReadyVisible(false)
+        setCompletionProgress(null)
         setCompletionInitiallyClosed(true)
         setCompletionGroupId(result.participant.groupId)
         return
@@ -134,6 +139,7 @@ export function GroupEntryShell({
       )
       if (progress.status === 'closed' || progress.selfCompleted) {
         setReadyVisible(false)
+        setCompletionProgress(progress)
         setCompletionInitiallyClosed(progress.status === 'closed')
         setCompletionGroupId(result.participant.groupId)
         return
@@ -200,6 +206,7 @@ export function GroupEntryShell({
           coordinator={playCoordinator}
           t={t}
           initialClosed={completionInitiallyClosed}
+          initialProgress={completionProgress}
           onResult={setGroupResult}
         />
       ) : startedPlay && playCoordinator && playReady ? (

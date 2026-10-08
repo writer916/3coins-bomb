@@ -130,6 +130,12 @@ for (const part of [
   'groupPlayComplete',
   'groupParticipantsProgress',
   'groupCompletedProgress',
+  'groupCompletedLabel',
+  'groupReadyPlayersLabel',
+  'initialProgress',
+  'showPlayCompleteTitle',
+  'group-completion-waiting__stats',
+  'group-completion-waiting__count',
   'groupCloseConfirm',
   'window.confirm',
   'hasHostCapability',
@@ -146,5 +152,11 @@ assert.equal(waiting.includes('duel-btn--primary'), false)
 const waitingCss = readFileSync(resolve(root, 'src/App.css'), 'utf8')
 assert.match(waitingCss, /\.group-completion-waiting__close\s*\{/)
 assert.match(waitingCss, /\.group-completion-waiting__aux\s*\{/)
+assert.match(waitingCss, /\.group-completion-waiting__stats\s*\{/)
+assert.match(waitingCss, /\.group-completion-waiting__count\s*\{[^}]*min-width:\s*7ch/s)
+assert.match(
+  waitingCss,
+  /\.group-completion-waiting__count\s*\{[^}]*font-variant-numeric:\s*tabular-nums/s,
+)
 
 console.log('verify:group-progress OK')
