@@ -3,6 +3,13 @@
  */
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
+import { buildDuelMatchDetailView } from '../src/duel/duelMatchDetailPresentation'
+import type {
+  DuelFinalResult,
+  DuelMatchDetail,
+  DuelResultParticipantSummary,
+  DuelResultRole,
+} from '../src/duel/duelPlayClient'
 import { en } from '../src/i18n/en'
 import { ja } from '../src/i18n/ja'
 
@@ -47,6 +54,129 @@ const completionShell = resultScreen.slice(
     : resultScreen.indexOf('export function DuelResultScreen'),
 )
 
+function summary(role: DuelResultRole, totalRounds: number): DuelResultParticipantSummary {
+  const rounds = Array.from({ length: totalRounds }, (_, index) => {
+    const endReason = (index + (role === 'A' ? 0 : 1)) % 3 === 0
+      ? 'bombed' as const
+      : (index + (role === 'A' ? 0 : 1)) % 3 === 1
+        ? 'cashed_out' as const
+        : 'cleared' as const
+    return {
+      roundNumber: index + 1,
+      endReason,
+      capturedCoins: (endReason === 'bombed' ? 0 : endReason === 'cashed_out' ? 2 : 3) as 0 | 2 | 3,
+      openedBagCount: (index % 3) + 1,
+    }
+  })
+  return {
+    role,
+    totalCapturedCoins: rounds.reduce((sum, round) => sum + round.capturedCoins, 0),
+    threeCoinsComplete: rounds.filter((round) => round.endReason === 'cleared').length,
+    bombsHit: 0,
+    coinBagHits: 0,
+    totalOpens: rounds.reduce((sum, round) => sum + round.openedBagCount, 0),
+    hitRate: { numerator: 0, denominator: rounds.reduce((sum, round) => sum + round.openedBagCount, 0) },
+    rounds,
+  }
+}
+
+function completedResult(viewerRole: DuelResultRole, totalRounds: number) {
+  return {
+    matchId: '00000000-0000-4000-8000-000000000001',
+    status: 'completed',
+    viewerRole,
+    totalRounds,
+    winner: 'draw',
+    participants: { A: summary('A', totalRounds), B: summary('B', totalRounds) },
+  } satisfies Extract<DuelFinalResult, { status: 'completed' }>
+}
+
+function matchDetail(
+  result: Extract<DuelFinalResult, { status: 'completed' }>,
+): DuelMatchDetail {
+  const otherRole = result.viewerRole === 'A' ? 'B' : 'A'
+  const play = (role: DuelResultRole) => ({
+    rounds: result.participants[role].rounds.map((round) => ({
+      roundNumber: round.roundNumber,
+      bagCount: 8,
+      bombBagNumber: 8,
+      coinBagNumbers: [1, 2, 3],
+      opens: Array.from({ length: round.openedBagCount }, (_, index) => ({
+        openOrder: index + 1,
+        bagNumber: index + 1,
+      })),
+    })),
+  })
+  return {
+    matchId: result.matchId,
+    status: 'completed',
+    viewerRole: result.viewerRole,
+    totalRounds: result.totalRounds,
+    yourPlay: play(result.viewerRole),
+    opponentPlay: play(otherRole),
+  }
+}
+
+/* RESULT summaries join to the correct viewer side for 1 / 2 / 20 ROUNDS. */
+for (const totalRounds of [1, 2, 20]) {
+  for (const viewerRole of ['A', 'B'] as const) {
+    const result = completedResult(viewerRole, totalRounds)
+    const detail = matchDetail(result)
+    const view = buildDuelMatchDetailView(detail, result)
+    const otherRole = viewerRole === 'A' ? 'B' : 'A'
+    assert.equal(view.yourRounds.length, totalRounds)
+    assert.equal(view.opponentRounds.length, totalRounds)
+    assert.deepEqual(
+      view.yourRounds.map(({ roundNumber, endReason, capturedCoins, openedBagCount }) =>
+        ({ roundNumber, endReason, capturedCoins, openedBagCount })),
+      result.participants[viewerRole].rounds,
+    )
+    assert.deepEqual(
+      view.opponentRounds.map(({ roundNumber, endReason, capturedCoins, openedBagCount }) =>
+        ({ roundNumber, endReason, capturedCoins, openedBagCount })),
+      result.participants[otherRole].rounds,
+    )
+  }
+}
+
+const validResult = completedResult('A', 2)
+const validDetail = matchDetail(validResult)
+assert.throws(() => buildDuelMatchDetailView({ ...validDetail, matchId: 'other' }, validResult))
+assert.throws(() => buildDuelMatchDetailView({ ...validDetail, viewerRole: 'B' }, validResult))
+assert.throws(() => buildDuelMatchDetailView({ ...validDetail, totalRounds: 1 }, validResult))
+assert.throws(() => buildDuelMatchDetailView(validDetail, {
+  ...validResult,
+  participants: {
+    ...validResult.participants,
+    A: { ...validResult.participants.A, role: 'B' },
+  },
+}))
+assert.throws(() => buildDuelMatchDetailView({
+  ...validDetail,
+  yourPlay: { rounds: validDetail.yourPlay.rounds.slice(0, 1) },
+}, validResult))
+assert.throws(() => buildDuelMatchDetailView({
+  ...validDetail,
+  opponentPlay: {
+    rounds: validDetail.opponentPlay.rounds.map((round, index) =>
+      index === 0 ? { ...round, opens: [] } : round),
+  },
+}, validResult))
+assert.throws(() => buildDuelMatchDetailView({
+  ...validDetail,
+  yourPlay: {
+    rounds: validDetail.yourPlay.rounds.map((round, index) =>
+      index === 0 ? { ...round, roundNumber: 2 } : round),
+  },
+}, validResult))
+assert.throws(() => buildDuelMatchDetailView({
+  ...validDetail,
+  yourPlay: {
+    rounds: validDetail.yourPlay.rounds.map((round, index) =>
+      index === 0 ? { ...round, opens: [] } : round),
+  },
+}, validResult))
+
 /* ①④ final RESULT only; button order */
 assert.match(completedBlock, /t\.duelViewDetails/)
 assert.match(completedBlock, /duel-final-view-details/)
@@ -80,8 +210,8 @@ assert.match(playClient, /\/detail`/)
 
 /* ⑦⑧⑨⑩⑪ DETAIL maps yourPlay / opponentPlay + boards */
 assert.match(detailScreen, /export function DuelMatchDetailScreen/)
-assert.match(detailScreen, /detail\.yourPlay\.rounds\.map/)
-assert.match(detailScreen, /detail\.opponentPlay\.rounds\.map/)
+assert.match(detailScreen, /detail\.yourRounds\.map/)
+assert.match(detailScreen, /detail\.opponentRounds\.map/)
 assert.match(detailScreen, /data-duel-match-detail-side="you"/)
 assert.match(detailScreen, /data-duel-match-detail-side="opponent"/)
 assert.match(detailScreen, /t\.duelMatchDetailRound\(round\.roundNumber\)/)
@@ -90,7 +220,13 @@ assert.match(detailScreen, /bagCount=\{round\.bagCount\}/)
 assert.match(detailScreen, /bombBagNumber=\{round\.bombBagNumber\}/)
 assert.match(detailScreen, /coinBagNumbers=\{round\.coinBagNumbers\}/)
 assert.match(detailScreen, /opens=\{round\.opens\}/)
+assert.match(detailScreen, /round\.capturedCoins/)
+assert.match(detailScreen, /round\.openedBagCount/)
+assert.match(detailScreen, /groupRoundBombed/)
+assert.match(detailScreen, /groupRoundCashedOut/)
+assert.match(detailScreen, /duelThreeCoinsComplete/)
 assert.match(detailBoard, /export function DuelMatchDetailBoard/)
+assert.match(resultScreen, /buildDuelMatchDetailView\(detail, result\)/)
 
 /* ⑫⑬ one detail response; no per-ROUND fetch */
 assert.doesNotMatch(detailScreen, /fetch\(|getMatchDetail|getFinalResult|rounds\/.+\/reveal/)
@@ -144,6 +280,14 @@ assert.doesNotMatch(detailScreen, /virtual|VirtualList|accordion|pagination|lazy
 assert.match(appCss, /\.duel-match-detail\s*{[^}]*overflow-x:\s*hidden/s)
 assert.match(appCss, /\.duel-match-detail\s*{[^}]*max-width:\s*100%/s)
 assert.match(appCss, /width:\s*min\(100%,\s*20rem\)/)
+assert.match(
+  appCss,
+  /\.match-detail-round__head\s*\{[\s\S]*?justify-content:\s*space-between/,
+)
+assert.match(
+  appCss,
+  /\.match-detail-round__stats p\s*\{[\s\S]*?white-space:\s*nowrap/,
+)
 assert.doesNotMatch(
   appCss.match(/\.duel-match-detail\s*\{[^}]*\}/s)?.[0] ?? '',
   /overflow-y/,
@@ -172,6 +316,28 @@ assert.equal(ja.duelYou, 'あなた')
 assert.equal(en.duelYou, 'YOU')
 assert.equal(ja.duelOpponent, '相手')
 assert.equal(en.duelOpponent, 'OPPONENT')
+assert.equal(ja.detailCapturedCoins, 'COINS')
+assert.equal(en.detailCapturedCoins, 'COINS')
+assert.equal(ja.detailOpenedBags, 'OPEN')
+assert.equal(en.detailOpenedBags, 'OPEN')
+assert.equal(ja.groupRoundBombed, 'BOMB')
+assert.equal(en.groupRoundBombed, 'BOMB')
+assert.equal(ja.groupRoundCashedOut, 'CASH OUT')
+assert.equal(en.groupRoundCashedOut, 'CASH OUT')
+assert.equal(ja.duelThreeCoinsComplete, '3COINS COMPLETE')
+assert.equal(en.duelThreeCoinsComplete, '3COINS COMPLETE')
+
+/* ROUND 20 + longest end reason fit one header row at supported phone widths. */
+for (const viewportWidth of [320, 360, 375, 390]) {
+  const detailContentWidth = viewportWidth - 1.3 * 16
+  const estimatedRoundLabel = 5.8 * 16
+  const estimatedEndReason = 9.5 * 16
+  const headerGap = 0.75 * 16
+  assert.ok(
+    estimatedRoundLabel + estimatedEndReason + headerGap < detailContentWidth,
+    `${viewportWidth}px detail header must fit one row`,
+  )
+}
 
 /* Existing EN RESULT copy untouched */
 assert.equal(en.duelViewResult, 'VIEW RESULT')

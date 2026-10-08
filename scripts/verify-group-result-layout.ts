@@ -97,15 +97,15 @@ assert.doesNotMatch(
 assert.match(bagCss, /aspect-ratio:\s*4\s*\/\s*5/)
 assert.match(
   css,
-  /\.group-result-detail__round-stats\s*\{[\s\S]*?display:\s*flex[\s\S]*?justify-content:\s*center/,
+  /\.match-detail-round__stats\s*\{[\s\S]*?display:\s*flex[\s\S]*?justify-content:\s*center/,
 )
 assert.match(
   css,
-  /\.group-result-detail__round-stats p\s*\{[\s\S]*?flex-direction:\s*row[\s\S]*?white-space:\s*nowrap/,
+  /\.match-detail-round__stats p\s*\{[\s\S]*?flex-direction:\s*row[\s\S]*?white-space:\s*nowrap/,
 )
 assert.match(
   detailScreen,
-  /groupCapturedCoins[\s\S]*?round\.capturedCoins[\s\S]*?groupOpenedBags[\s\S]*?round\.openedBagCount/,
+  /detailCapturedCoins[\s\S]*?round\.capturedCoins[\s\S]*?detailOpenedBags[\s\S]*?round\.openedBagCount/,
 )
 
 assert.equal(ja.groupViewDetails, '詳細')

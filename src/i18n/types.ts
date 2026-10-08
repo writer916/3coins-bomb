@@ -21,6 +21,9 @@ export type AppStrings = {
   roundCleared: string
   roundBombed: string
   capturedCoins: (count: number) => string
+  /** Shared compact ROUND-detail labels. */
+  detailCapturedCoins: string
+  detailOpenedBags: string
   dash: string
   soundOn: string
   soundOff: string

@@ -1,10 +1,13 @@
-import type { DuelMatchDetail, DuelMatchDetailRound } from '../duel/duelPlayClient'
+import type {
+  DuelMatchDetailRoundView,
+  DuelMatchDetailView,
+} from '../duel/duelMatchDetailPresentation'
 import type { AppStrings } from '../i18n'
 import { withDuelNums } from '../ui/withDuelNums'
 import { DuelMatchDetailBoard } from './DuelMatchDetailBoard'
 
 type DuelMatchDetailScreenProps = {
-  readonly detail: DuelMatchDetail
+  readonly detail: DuelMatchDetailView
   readonly t: AppStrings
   readonly onBackToResult: () => void
 }
@@ -12,18 +15,38 @@ type DuelMatchDetailScreenProps = {
 function DetailRoundBlock({
   round,
   label,
+  t,
 }: {
-  readonly round: DuelMatchDetailRound
+  readonly round: DuelMatchDetailRoundView
   readonly label: string
+  readonly t: AppStrings
 }) {
+  const endReason = round.endReason === 'bombed'
+    ? t.groupRoundBombed
+    : round.endReason === 'cashed_out'
+      ? t.groupRoundCashedOut
+      : t.duelThreeCoinsComplete
   return (
     <div
       className="duel-match-detail__round"
       data-duel-match-detail-round={round.roundNumber}
     >
-      <p className="duel-match-detail__round-label">
-        {withDuelNums(label)}
-      </p>
+      <div className="match-detail-round__head">
+        <p className="duel-match-detail__round-label match-detail-round__label">
+          {withDuelNums(label)}
+        </p>
+        <p className="match-detail-round__end">{withDuelNums(endReason)}</p>
+      </div>
+      <div className="match-detail-round__stats">
+        <p>
+          <span>{t.detailCapturedCoins}</span>
+          <strong>{round.capturedCoins}</strong>
+        </p>
+        <p>
+          <span>{t.detailOpenedBags}</span>
+          <strong>{round.openedBagCount}</strong>
+        </p>
+      </div>
       <DuelMatchDetailBoard
         bagCount={round.bagCount}
         bombBagNumber={round.bombBagNumber}
@@ -56,11 +79,12 @@ export function DuelMatchDetailScreen({
         data-duel-match-detail-side="you"
       >
         <h2 className="duel-match-detail__side-title">{t.duelYou}</h2>
-        {detail.yourPlay.rounds.map((round) => (
+        {detail.yourRounds.map((round) => (
           <DetailRoundBlock
             key={`you-${round.roundNumber}`}
             round={round}
             label={t.duelMatchDetailRound(round.roundNumber)}
+            t={t}
           />
         ))}
       </section>
@@ -70,11 +94,12 @@ export function DuelMatchDetailScreen({
         data-duel-match-detail-side="opponent"
       >
         <h2 className="duel-match-detail__side-title">{t.duelOpponent}</h2>
-        {detail.opponentPlay.rounds.map((round) => (
+        {detail.opponentRounds.map((round) => (
           <DetailRoundBlock
             key={`opponent-${round.roundNumber}`}
             round={round}
             label={t.duelMatchDetailRound(round.roundNumber)}
+            t={t}
           />
         ))}
       </section>

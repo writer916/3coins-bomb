@@ -51,21 +51,21 @@ export function GroupResultDetailScreen({
             className="group-result-detail__round"
             data-group-result-round={round.roundNumber}
           >
-            <div className="group-result-detail__round-head">
-              <p className="group-result-detail__round-label">
+            <div className="group-result-detail__round-head match-detail-round__head">
+              <p className="group-result-detail__round-label match-detail-round__label">
                 {withDuelNums(`${t.groupRoundLabel} ${round.roundNumber}`)}
               </p>
-              <p className="group-result-detail__round-end">
+              <p className="group-result-detail__round-end match-detail-round__end">
                 {formatGroupRoundEndReason(round.endReason, t)}
               </p>
             </div>
-            <div className="group-result-detail__round-stats">
+            <div className="group-result-detail__round-stats match-detail-round__stats">
               <p>
-                <span>{t.groupCapturedCoins}</span>
+                <span>{t.detailCapturedCoins}</span>
                 <strong>{round.capturedCoins}</strong>
               </p>
               <p>
-                <span>{t.groupOpenedBags}</span>
+                <span>{t.detailOpenedBags}</span>
                 <strong>{round.openedBagCount}</strong>
               </p>
             </div>

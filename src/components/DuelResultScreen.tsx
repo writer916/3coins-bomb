@@ -4,6 +4,10 @@ import type {
   DuelMatchDetail,
   DuelResultParticipantSummary,
 } from '../duel/duelPlayClient'
+import {
+  buildDuelMatchDetailView,
+  type DuelMatchDetailView,
+} from '../duel/duelMatchDetailPresentation'
 import { resolveDuelResultPresentation } from '../duel/duelResultPresentation'
 import type { AppStrings } from '../i18n'
 import { ensureHomeInstallListening } from '../pwa/homeInstall'
@@ -35,7 +39,7 @@ type DuelResultScreenProps = {
 type DetailPane =
   | { readonly kind: 'closed' }
   | { readonly kind: 'loading' }
-  | { readonly kind: 'ready'; readonly detail: DuelMatchDetail }
+  | { readonly kind: 'ready'; readonly detail: DuelMatchDetailView }
   | { readonly kind: 'error' }
 
 function StatRow({
@@ -271,7 +275,7 @@ export function DuelResultScreen({
   const fetchDetailRef = useRef(fetchDetail)
   fetchDetailRef.current = fetchDetail
   const detailInFlightRef = useRef(false)
-  const cachedDetailRef = useRef<DuelMatchDetail | null>(null)
+  const cachedDetailRef = useRef<DuelMatchDetailView | null>(null)
 
   const phase = resolveDuelResultPresentation(matchId, result, revealed)
 
@@ -327,15 +331,17 @@ export function DuelResultScreen({
     setDetailPane({ kind: 'loading' })
     try {
       const detail = await fetchDetailRef.current()
-      cachedDetailRef.current = detail
-      setDetailPane({ kind: 'ready', detail })
+      if (result.status !== 'completed') throw new Error('DUEL result is incomplete.')
+      const view = buildDuelMatchDetailView(detail, result)
+      cachedDetailRef.current = view
+      setDetailPane({ kind: 'ready', detail: view })
     } catch {
       setDetailPane({ kind: 'error' })
     } finally {
       detailInFlightRef.current = false
       setDetailBusy(false)
     }
-  }, [])
+  }, [result])
 
   const openDetails = useCallback(() => {
     if (detailInFlightRef.current) return

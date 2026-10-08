@@ -19,6 +19,8 @@ export const en: AppStrings = {
   roundCleared: 'ROUND CLEAR',
   roundBombed: 'BOMB',
   capturedCoins: (count) => `${count} COINS`,
+  detailCapturedCoins: 'COINS',
+  detailOpenedBags: 'OPEN',
   dash: '—',
   soundOn: 'Sound on',
   soundOff: 'Sound off',

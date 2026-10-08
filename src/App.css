@@ -1636,8 +1636,7 @@
   flex: 0 0 auto;
 }
 
-.group-result-detail__summary p,
-.group-result-detail__round-stats p {
+.group-result-detail__summary p {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1646,8 +1645,7 @@
   text-align: center;
 }
 
-.group-result-detail__summary span,
-.group-result-detail__round-stats span {
+.group-result-detail__summary span {
   color: #c4b49a;
   font-family: Georgia, 'Times New Roman', serif;
   font-size: clamp(0.58rem, 2.5vw, 0.72rem);
@@ -1655,8 +1653,7 @@
   letter-spacing: 0.025em;
 }
 
-.group-result-detail__summary strong,
-.group-result-detail__round-stats strong {
+.group-result-detail__summary strong {
   color: #f2e6d0;
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
   font-size: clamp(0.95rem, 4vw, 1.15rem);
@@ -1695,7 +1692,7 @@
   margin: 0 auto;
 }
 
-.group-result-detail__round-head {
+.match-detail-round__head {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
@@ -1703,8 +1700,8 @@
   gap: 0.35rem 0.75rem;
 }
 
-.group-result-detail__round-label,
-.group-result-detail__round-end {
+.match-detail-round__label,
+.match-detail-round__end {
   margin: 0;
   color: #f2e6d0;
   font-family: Georgia, 'Times New Roman', serif;
@@ -1712,16 +1709,16 @@
   letter-spacing: 0.04em;
 }
 
-.group-result-detail__round-label {
+.match-detail-round__label {
   font-size: clamp(0.95rem, 3.6vw, 1.1rem);
 }
 
-.group-result-detail__round-end {
+.match-detail-round__end {
   color: #c4a574;
   font-size: clamp(0.82rem, 3.2vw, 0.95rem);
 }
 
-.group-result-detail__round-stats {
+.match-detail-round__stats {
   display: flex;
   align-items: baseline;
   justify-content: center;
@@ -1729,19 +1726,30 @@
   min-height: 1.15rem;
 }
 
-.group-result-detail__round-stats p {
+.match-detail-round__stats p {
+  display: flex;
   flex-direction: row;
+  align-items: center;
   gap: 0.3rem;
+  margin: 0;
+  text-align: center;
   white-space: nowrap;
 }
 
-.group-result-detail__round-stats span {
+.match-detail-round__stats span {
+  color: #c4b49a;
+  font-family: Georgia, 'Times New Roman', serif;
   font-size: clamp(0.52rem, 2.1vw, 0.64rem);
+  font-weight: 700;
+  letter-spacing: 0.025em;
   line-height: 1;
 }
 
-.group-result-detail__round-stats strong {
+.match-detail-round__stats strong {
+  color: #f2e6d0;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
   font-size: clamp(0.76rem, 3vw, 0.9rem);
+  font-variant-numeric: tabular-nums;
   line-height: 1;
 }
 
@@ -1955,7 +1963,7 @@
   font-size: 0.78rem;
   letter-spacing: 0.08em;
   color: #9a8468;
-  text-align: center;
+  text-align: left;
 }
 
 .duel-match-detail__actions {
