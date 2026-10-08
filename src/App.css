@@ -1702,7 +1702,7 @@
 
 .match-detail-round__head {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: baseline;
   justify-content: space-between;
   gap: 0.35rem 0.75rem;
@@ -1713,17 +1713,11 @@
   margin: 0;
   color: #f2e6d0;
   font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(0.95rem, 3.6vw, 1.1rem);
   font-weight: 700;
   letter-spacing: 0.04em;
-}
-
-.match-detail-round__label {
-  font-size: clamp(0.95rem, 3.6vw, 1.1rem);
-}
-
-.match-detail-round__end {
-  color: #c4a574;
-  font-size: clamp(0.82rem, 3.2vw, 0.95rem);
+  line-height: 1.1;
+  white-space: nowrap;
 }
 
 .match-detail-round__stats {
@@ -1968,15 +1962,6 @@
   flex-direction: column;
   gap: 0.2rem;
   width: 100%;
-}
-
-.duel-match-detail__round-label {
-  margin: 0;
-  font-family: Georgia, 'Times New Roman', serif;
-  font-size: 0.78rem;
-  letter-spacing: 0.08em;
-  color: #9a8468;
-  text-align: left;
 }
 
 .duel-match-detail__actions {

@@ -111,6 +111,10 @@ assert.match(
   css,
   /\.match-detail-round__stats strong\s*\{[\s\S]*?font-family:\s*system-ui[\s\S]*?font-weight:\s*700[\s\S]*?font-variant-numeric:\s*tabular-nums[\s\S]*?min-width:\s*1ch/,
 )
+assert.match(
+  css,
+  /\.match-detail-round__label,\s*\.match-detail-round__end\s*\{[\s\S]*?color:\s*#f2e6d0[\s\S]*?font-size:\s*clamp\(0\.95rem,\s*3\.6vw,\s*1\.1rem\)[\s\S]*?font-weight:\s*700[\s\S]*?white-space:\s*nowrap/,
+)
 
 /* Per-ROUND values stay one digit; completed totals have bounded 2/3-digit maxima. */
 assert.equal(String(3).length, 1)

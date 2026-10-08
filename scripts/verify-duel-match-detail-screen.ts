@@ -282,7 +282,15 @@ assert.match(appCss, /\.duel-match-detail\s*{[^}]*max-width:\s*100%/s)
 assert.match(appCss, /width:\s*min\(100%,\s*20rem\)/)
 assert.match(
   appCss,
-  /\.match-detail-round__head\s*\{[\s\S]*?justify-content:\s*space-between/,
+  /\.match-detail-round__head\s*\{[\s\S]*?flex-wrap:\s*nowrap[\s\S]*?align-items:\s*baseline[\s\S]*?justify-content:\s*space-between/,
+)
+assert.match(
+  appCss,
+  /\.match-detail-round__label,\s*\.match-detail-round__end\s*\{[\s\S]*?color:\s*#f2e6d0[\s\S]*?font-size:\s*clamp\(0\.95rem,\s*3\.6vw,\s*1\.1rem\)[\s\S]*?font-weight:\s*700[\s\S]*?line-height:\s*1\.1[\s\S]*?white-space:\s*nowrap/,
+)
+assert.doesNotMatch(
+  appCss,
+  /\.duel-match-detail__round-label\s*\{/,
 )
 assert.match(
   appCss,
@@ -332,15 +340,20 @@ assert.equal(ja.duelThreeCoinsComplete, '3COINS COMPLETE')
 assert.equal(en.duelThreeCoinsComplete, '3COINS COMPLETE')
 
 /* ROUND 20 + longest end reason fit one header row at supported phone widths. */
-for (const viewportWidth of [320, 360, 375, 390]) {
+for (const viewportWidth of [320, 360, 375, 390, 768, 1280]) {
   const detailContentWidth = viewportWidth - 1.3 * 16
-  const estimatedRoundLabel = 5.8 * 16
-  const estimatedEndReason = 9.5 * 16
+  const estimatedRoundLabel = 5.2 * 17.6
+  const estimatedEndReason = 8.2 * 17.6
   const headerGap = 0.75 * 16
   assert.ok(
     estimatedRoundLabel + estimatedEndReason + headerGap < detailContentWidth,
     `${viewportWidth}px detail header must fit one row`,
   )
+}
+
+for (const roundNumber of [1, 9, 10, 20]) {
+  assert.equal(ja.duelMatchDetailRound(roundNumber), `ROUND ${roundNumber}`)
+  assert.equal(en.duelMatchDetailRound(roundNumber), `ROUND ${roundNumber}`)
 }
 
 /* Existing EN RESULT copy untouched */
