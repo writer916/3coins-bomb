@@ -1,7 +1,17 @@
-import { validateGroupNickname } from './groupDomain'
-import { parseGroupInvitationUrl } from './groupInvitation'
+import {
+  GROUP_FORMATION_VERSION,
+  GROUP_RULE_VERSION,
+  GROUP_SCORING_VERSION,
+  validateGroupNickname,
+} from './groupDomain'
+import {
+  classifyGroupUrlFragment,
+  parseGroupHostUrl,
+  parseGroupInvitationUrl,
+} from './groupInvitation'
 import {
   readGroupHost,
+  saveGroupHost,
   saveGroupParticipant,
   type GroupParticipantRecord,
   type GroupStorageAdapter,
@@ -100,8 +110,39 @@ function parseResponse(
   }
 }
 
+interface ResolvedJoinUrl {
+  readonly groupId: string
+  readonly invitationToken: string
+  readonly hostToken: string | null
+}
+
+function resolveJoinUrl(
+  entryUrl: string,
+  storage: GroupStorageAdapter,
+): ResolvedJoinUrl {
+  const kind = classifyGroupUrlFragment(entryUrl)
+  if (kind === 'host') {
+    const parsed = parseGroupHostUrl(entryUrl)
+    return {
+      groupId: parsed.groupId,
+      invitationToken: parsed.invitationToken,
+      hostToken: parsed.hostToken,
+    }
+  }
+  if (kind === 'invite') {
+    const invitation = parseGroupInvitationUrl(entryUrl)
+    const host = readGroupHost(storage, invitation.groupId)
+    return {
+      groupId: invitation.groupId,
+      invitationToken: invitation.invitationToken,
+      hostToken: host?.hostToken ?? null,
+    }
+  }
+  return unavailable()
+}
+
 async function executeJoin(
-  invitationUrl: string,
+  entryUrl: string,
   nicknameValue: string,
   dependencies: GroupJoinClientDependencies,
 ): Promise<GroupJoinClientResult> {
@@ -112,15 +153,14 @@ async function executeJoin(
     throw new GroupJoinClientError('INVALID_NICKNAME')
   }
   try {
-    const invitation = parseGroupInvitationUrl(invitationUrl)
-    const host = readGroupHost(dependencies.storage, invitation.groupId)
+    const resolved = resolveJoinUrl(entryUrl, dependencies.storage)
     const body: Record<string, string> = {
-      invitationToken: invitation.invitationToken,
+      invitationToken: resolved.invitationToken,
       nickname,
     }
-    if (host) body.hostToken = host.hostToken
+    if (resolved.hostToken !== null) body.hostToken = resolved.hostToken
     const response = await dependencies.fetch(
-      `/api/group/matches/${encodeURIComponent(invitation.groupId)}/join`,
+      `/api/group/matches/${encodeURIComponent(resolved.groupId)}/join`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -134,8 +174,21 @@ async function executeJoin(
     } catch {
       return unavailable()
     }
-    const result = parseResponse(json, invitation.groupId)
+    const result = parseResponse(json, resolved.groupId)
     saveGroupParticipant(dependencies.storage, result.participant)
+    if (result.hostAuthenticated && resolved.hostToken !== null) {
+      saveGroupHost(dependencies.storage, {
+        version: 1,
+        groupId: resolved.groupId,
+        invitationToken: resolved.invitationToken,
+        hostToken: resolved.hostToken,
+        totalRounds: result.totalRounds,
+        playerLimit: result.playerLimit,
+        formationVersion: GROUP_FORMATION_VERSION,
+        ruleVersion: GROUP_RULE_VERSION,
+        scoringVersion: GROUP_SCORING_VERSION,
+      })
+    }
     return { ...result, newlyJoined: response.status === 201 }
   } catch (error: unknown) {
     if (error instanceof GroupJoinClientError) throw error
@@ -145,12 +198,12 @@ async function executeJoin(
 
 export function createGroupJoinCoordinator(
   dependencies: GroupJoinClientDependencies,
-): { run(invitationUrl: string, nickname: string): Promise<GroupJoinClientResult> } {
+): { run(entryUrl: string, nickname: string): Promise<GroupJoinClientResult> } {
   let inFlight: Promise<GroupJoinClientResult> | null = null
   return {
-    run(invitationUrl, nickname) {
+    run(entryUrl, nickname) {
       if (inFlight) return inFlight
-      inFlight = executeJoin(invitationUrl, nickname, dependencies).finally(() => {
+      inFlight = executeJoin(entryUrl, nickname, dependencies).finally(() => {
         inFlight = null
       })
       return inFlight

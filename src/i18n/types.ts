@@ -52,6 +52,13 @@ export type AppStrings = {
   groupCreateError: string
   groupEntryReady: string
   groupEntryError: string
+  groupInvitePlayersLabel: string
+  groupInvitePlayersIntro: string
+  groupInviteHostLabel: string
+  groupInviteHostIntro: string
+  groupInviteHostKeepPrivate: string
+  groupInviteEnterNickname: string
+  groupNicknameLead: string
   groupNicknameLabel: string
   groupNicknamePlaceholder: string
   groupNicknameError: string
@@ -61,9 +68,13 @@ export type AppStrings = {
   groupParticipantReady: string
   groupPlayPreparing: string
   groupPlayReady: string
+  groupPlayStart: string
   groupPlayError: string
   groupPlayComplete: string
   groupResultReady: string
+  groupReadyRoundsLabel: string
+  groupReadyPlayersLabel: string
+  groupReadyNicknameLabel: string
   groupParticipantsProgress: (accepted: number, limit: number) => string
   groupCompletedProgress: (completed: number, limit: number) => string
   groupClose: string

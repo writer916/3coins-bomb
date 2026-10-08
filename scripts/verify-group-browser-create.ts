@@ -6,9 +6,12 @@ import {
   GroupCreateClientError,
 } from '../src/group/groupCreateClient'
 import {
+  createGroupHostUrl,
   createGroupInvitationUrl,
+  classifyGroupUrlFragment,
   GroupInvitationUrlError,
   isGroupRouteUrl,
+  parseGroupHostUrl,
   parseGroupInvitationUrl,
 } from '../src/group/groupInvitation'
 import {
@@ -90,15 +93,30 @@ pendingStorage.values.set(GROUP_PENDING_CREATE_KEY, '{broken')
 expectSafeError(() => readPendingGroupCreate(pendingStorage))
 
 const expectedUrl = `${ORIGIN}/group/${GROUP_ID}#invite=${INVITE}`
+const expectedHostUrl = `${ORIGIN}/group/${GROUP_ID}#host=${HOST}&invite=${INVITE}`
 assert.equal(createGroupInvitationUrl(ORIGIN, GROUP_ID, INVITE), expectedUrl)
+assert.equal(createGroupHostUrl(ORIGIN, GROUP_ID, HOST, INVITE), expectedHostUrl)
 assert.deepEqual(parseGroupInvitationUrl(expectedUrl), {
   groupId: GROUP_ID,
   invitationToken: INVITE,
   cleanPath: `/group/${GROUP_ID}`,
 })
+assert.deepEqual(parseGroupHostUrl(expectedHostUrl), {
+  groupId: GROUP_ID,
+  hostToken: HOST,
+  invitationToken: INVITE,
+  cleanPath: `/group/${GROUP_ID}`,
+})
+assert.equal(classifyGroupUrlFragment(expectedUrl), 'invite')
+assert.equal(classifyGroupUrlFragment(expectedHostUrl), 'host')
 assert.equal(isGroupRouteUrl(expectedUrl), true)
 assert.equal(new URL(expectedUrl).search, '')
+assert.equal(new URL(expectedHostUrl).search, '')
 assert(!expectedUrl.includes(HOST))
+assert(!expectedUrl.includes('3cb_gh1_'))
+assert(expectedHostUrl.includes(HOST))
+assert(expectedHostUrl.includes(INVITE))
+assert.notEqual(expectedUrl, expectedHostUrl)
 for (const invalid of [
   `${ORIGIN}/group/${GROUP_ID}`,
   `${ORIGIN}/group/not-a-uuid#invite=${INVITE}`,
@@ -106,7 +124,15 @@ for (const invalid of [
   `${ORIGIN}/group/${GROUP_ID}#invite=bad`,
   `${ORIGIN}/group/${GROUP_ID}#invite=${INVITE}&extra=1`,
 ]) expectSafeError(() => parseGroupInvitationUrl(invalid))
+for (const invalid of [
+  expectedUrl,
+  `${ORIGIN}/group/${GROUP_ID}#host=${HOST}`,
+  `${ORIGIN}/group/${GROUP_ID}#host=${HOST}&invite=${INVITE}&extra=1`,
+  `${ORIGIN}/group/${GROUP_ID}?host=${HOST}&invite=${INVITE}`,
+  `${ORIGIN}/group/${GROUP_ID}#host=bad&invite=${INVITE}`,
+]) expectSafeError(() => parseGroupHostUrl(invalid))
 assert.throws(() => createGroupInvitationUrl(`${ORIGIN}/path`, GROUP_ID, INVITE), GroupInvitationUrlError)
+assert.throws(() => createGroupHostUrl(`${ORIGIN}/path`, GROUP_ID, HOST, INVITE), GroupInvitationUrlError)
 
 const storage = new MemoryStorage()
 const calls: Array<{ url: string; init?: RequestInit }> = []
@@ -121,7 +147,17 @@ const client = createGroupCreateCoordinator({
   },
 })
 const created = await client.run({ totalRounds: 3, playerLimit: 8 })
-assert.deepEqual(created, { groupId: GROUP_ID, invitationUrl: expectedUrl })
+assert.deepEqual(created, {
+  groupId: GROUP_ID,
+  invitationUrl: expectedUrl,
+  hostUrl: expectedHostUrl,
+})
+assert.notEqual(created.invitationUrl, created.hostUrl)
+assert(!created.invitationUrl.includes(HOST))
+assert(created.hostUrl.includes(HOST))
+assert(created.hostUrl.includes(INVITE))
+assert(!created.invitationUrl.includes('host_token_hash'))
+assert(!created.hostUrl.includes('host_token_hash'))
 assert.equal(calls.length, 1)
 assert.equal(calls[0]!.url, '/api/group/matches')
 assert.equal(calls[0]!.init?.method, 'POST')
@@ -281,7 +317,8 @@ assert(flow.includes('GROUP_ROUNDS_MIN'))
 assert(flow.includes('GROUP_ROUNDS_MAX'))
 assert(flow.includes('GROUP_PLAYERS_MIN'))
 assert(flow.includes('GROUP_PLAYERS_MAX'))
-assert(shell.includes('parseGroupInvitationUrl'))
+assert(shell.includes('parseGroupInvitationUrl') || shell.includes('classifyGroupUrlFragment'))
+assert(shell.includes('hostUrlFromGroupHost') || shell.includes('createGroupHostUrl') || shell.includes('GroupInviteShareScreen'))
 for (const source of [clientSource, persistenceSource, invitationSource]) {
   assert(!source.includes('../server/'))
   assert(!source.includes('node:crypto'))
@@ -290,6 +327,9 @@ for (const source of [clientSource, persistenceSource, invitationSource]) {
 assert(!clientSource.includes('localStorage'))
 assert(persistenceSource.includes('3cb:group:v1:'))
 assert(!persistenceSource.includes('3cb:duel:v1:'))
-assert(!invitationSource.includes('hostToken'))
+assert(invitationSource.includes('createGroupHostUrl'))
+assert(invitationSource.includes('createGroupInvitationUrl'))
+assert(!invitationSource.includes('host_token_hash'))
+assert(!invitationSource.includes('hostTokenHash'))
 
 console.log('verify:group-browser-create OK')

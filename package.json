@@ -28,6 +28,8 @@
     "verify:group-db": "tsx scripts/verify-group-db.ts",
     "verify:group-create": "tsx scripts/verify-group-create.ts",
     "verify:group-browser-create": "tsx scripts/verify-group-browser-create.ts",
+    "verify:random-uuid": "tsx scripts/verify-random-uuid.ts",
+    "verify:group-invite-share": "tsx scripts/verify-group-invite-share.ts",
     "verify:group-join": "tsx scripts/verify-group-join.ts",
     "verify:group-play-bootstrap": "tsx scripts/verify-group-play-bootstrap.ts",
     "verify:group-open": "tsx scripts/verify-group-open.ts",

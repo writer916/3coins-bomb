@@ -1,3 +1,4 @@
+import { randomUuid, type RandomUuidCrypto } from '../browser/randomUuid'
 import {
   GROUP_FORMATION_VERSION,
   GROUP_ROUNDS_MAX,
@@ -229,19 +230,19 @@ async function json(fetcher: typeof fetch, url: string, init: RequestInit): Prom
   try { return await response.json() as unknown } catch { return fail() }
 }
 
-export function createGroupPlayClient(dependencies: { readonly storage: GroupStorageAdapter; readonly fetch: typeof fetch; readonly crypto: Pick<Crypto, 'randomUUID'> }) {
+export function createGroupPlayClient(dependencies: { readonly storage: GroupStorageAdapter; readonly fetch: typeof fetch; readonly crypto: RandomUuidCrypto }) {
   function access(groupId: string) {
     const participant = readGroupParticipant(dependencies.storage, groupId); if (!participant) return fail()
     return { Authorization: `Bearer ${participant.token}` }
   }
   return {
-    createRequestId() { return dependencies.crypto.randomUUID() },
+    createRequestId() { return randomUuid(dependencies.crypto) },
     async getState(groupId: string) { return parseGroupPlayState(await json(dependencies.fetch, `/api/group/matches/${encodeURIComponent(groupId)}/play`, { method: 'GET', headers: access(groupId) }), groupId) },
     async getPlacements(groupId: string) { return parseGroupPlacementSet(await json(dependencies.fetch, `/api/group/matches/${encodeURIComponent(groupId)}/placements`, { method: 'GET', headers: access(groupId) }), groupId) },
-    async startRound(groupId: string, requestId: string = dependencies.crypto.randomUUID()) { return parseGroupPlayState(await json(dependencies.fetch, `/api/group/matches/${encodeURIComponent(groupId)}/rounds/start`, { method: 'POST', headers: { ...access(groupId), 'Idempotency-Key': requestId } }), groupId) },
-    async resume(groupId: string, requestId: string = dependencies.crypto.randomUUID()) { return parseGroupPlayState(await json(dependencies.fetch, `/api/group/matches/${encodeURIComponent(groupId)}/play/resume`, { method: 'POST', headers: { ...access(groupId), 'Idempotency-Key': requestId } }), groupId) },
+    async startRound(groupId: string, requestId: string = randomUuid(dependencies.crypto)) { return parseGroupPlayState(await json(dependencies.fetch, `/api/group/matches/${encodeURIComponent(groupId)}/rounds/start`, { method: 'POST', headers: { ...access(groupId), 'Idempotency-Key': requestId } }), groupId) },
+    async resume(groupId: string, requestId: string = randomUuid(dependencies.crypto)) { return parseGroupPlayState(await json(dependencies.fetch, `/api/group/matches/${encodeURIComponent(groupId)}/play/resume`, { method: 'POST', headers: { ...access(groupId), 'Idempotency-Key': requestId } }), groupId) },
     createOpenCommand(groupId: string, bagNumber: number): GroupOpenCommand {
-      return { groupId: uuid(groupId), bagNumber: integer(bagNumber, 1, 8), requestId: dependencies.crypto.randomUUID() }
+      return { groupId: uuid(groupId), bagNumber: integer(bagNumber, 1, 8), requestId: randomUuid(dependencies.crypto) }
     },
     async openBag(command: GroupOpenCommand): Promise<GroupOpenResult> {
       const response = await dependencies.fetch(`/api/group/matches/${encodeURIComponent(command.groupId)}/open`, {
@@ -254,7 +255,7 @@ export function createGroupPlayClient(dependencies: { readonly storage: GroupSto
       try { value = await response.json() as unknown } catch { return fail() }
       return parseGroupOpenResult(value, command)
     },
-    createCashOutCommand(groupId: string): GroupCashOutCommand { return { groupId: uuid(groupId), requestId: dependencies.crypto.randomUUID() } },
+    createCashOutCommand(groupId: string): GroupCashOutCommand { return { groupId: uuid(groupId), requestId: randomUuid(dependencies.crypto) } },
     async cashOut(command: GroupCashOutCommand): Promise<GroupCashOutResult> {
       return parseGroupCashOutResult(await json(dependencies.fetch, `/api/group/matches/${encodeURIComponent(command.groupId)}/cash-out`, { method:'POST', headers:{ ...access(command.groupId), 'Idempotency-Key':command.requestId } }), command)
     },

@@ -1,9 +1,10 @@
+import type { RandomUuidCrypto } from '../browser/randomUuid'
 import {
   GROUP_FORMATION_VERSION,
   GROUP_RULE_VERSION,
   GROUP_SCORING_VERSION,
 } from './groupDomain'
-import { createGroupInvitationUrl } from './groupInvitation'
+import { createGroupHostUrl, createGroupInvitationUrl } from './groupInvitation'
 import {
   completeGroupCreate,
   createPendingGroupCreate,
@@ -28,7 +29,7 @@ export class GroupCreateClientError extends Error {
 export interface GroupCreateClientDependencies {
   readonly storage: GroupStorageAdapter
   readonly fetch: typeof fetch
-  readonly crypto: Pick<Crypto, 'randomUUID'>
+  readonly crypto: RandomUuidCrypto
   readonly origin: string
 }
 
@@ -40,6 +41,7 @@ export interface GroupCreateClientInput {
 export interface GroupCreateClientResult {
   readonly groupId: string
   readonly invitationUrl: string
+  readonly hostUrl: string
 }
 
 function invalid(): never {
@@ -130,6 +132,12 @@ async function executeCreate(
       invitationUrl: createGroupInvitationUrl(
         dependencies.origin,
         host.groupId,
+        host.invitationToken,
+      ),
+      hostUrl: createGroupHostUrl(
+        dependencies.origin,
+        host.groupId,
+        host.hostToken,
         host.invitationToken,
       ),
     }

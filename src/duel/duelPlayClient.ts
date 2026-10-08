@@ -1,3 +1,4 @@
+import { randomUuid, type RandomUuidCrypto } from '../browser/randomUuid'
 import type { BagId } from '../game/assets'
 import {
   readParticipant,
@@ -194,7 +195,7 @@ export interface DuelMatchDetail {
 export interface DuelPlayClientDependencies {
   readonly storage: StorageAdapter
   readonly fetch: typeof fetch
-  readonly crypto: Pick<Crypto, 'randomUUID'>
+  readonly crypto: RandomUuidCrypto
 }
 
 function fail(kind: DuelPlayClientErrorKind): never {
@@ -763,7 +764,7 @@ export function bagIdToBagNumber(bagId: BagId): number {
 
 export function createDuelPlayClient(dependencies: DuelPlayClientDependencies) {
   const normalizedMatchId = (value: unknown) => matchId(value, 'invalid-request')
-  const createRequestId = () => requestId(dependencies.crypto.randomUUID())
+  const createRequestId = () => requestId(randomUuid(dependencies.crypto))
 
   return {
     createOpenCommand(input: {

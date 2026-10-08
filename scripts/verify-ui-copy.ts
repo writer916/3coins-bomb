@@ -51,10 +51,10 @@ assert.equal(ja.modeDuelDesc, '互いにコインを隠して当てる2人対戦
 assert.equal(ja.modeGroupDesc, '同じ出題をそれぞれ解いてスコアを競う')
 assert.equal(ja.duelPlaceCoins, '袋をタップして\n3枚のコインを置いてください')
 
-assert.equal(ja.duelRoundsLabel, 'ROUNDS（1–20）')
-assert.equal(en.duelRoundsLabel, 'ROUNDS（1–20）')
-assert.equal(ja.duelBagsLabel, 'BAGS（3–8）')
-assert.equal(en.duelBagsLabel, 'BAGS（3–8）')
+assert.equal(ja.duelRoundsLabel, 'ROUNDS（1-20）')
+assert.equal(en.duelRoundsLabel, 'ROUNDS（1-20）')
+assert.equal(ja.duelBagsLabel, 'BAGS（3-8）')
+assert.equal(en.duelBagsLabel, 'BAGS（3-8）')
 
 // Confirmed EN copy and intentionally unchanged command labels.
 assert.equal(en.modeSoloDesc, 'Find the 3 hidden coins')

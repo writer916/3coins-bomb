@@ -1,3 +1,4 @@
+import { randomUuid, type RandomUuidCrypto } from '../browser/randomUuid'
 import {
   DUEL_ROUNDS_MAX,
   DUEL_ROUNDS_MIN,
@@ -287,9 +288,9 @@ export function toCanonicalDuelPlacements(
 }
 
 export function generateCreateRequestId(
-  cryptoSource: Pick<Crypto, 'randomUUID'> = globalThis.crypto,
+  cryptoSource: RandomUuidCrypto = globalThis.crypto,
 ): string {
-  return validateUuid(cryptoSource.randomUUID())
+  return validateUuid(randomUuid(cryptoSource))
 }
 
 function encodeBase64Url(bytes: Uint8Array): string {
@@ -350,13 +351,18 @@ export function createPendingClaimRecord(
 export function createPendingCreateRecord(
   placements: readonly DuelRoundPlacement[],
   totalRounds: number,
-  cryptoSource: Pick<Crypto, 'randomUUID' | 'getRandomValues'> = globalThis.crypto,
+  cryptoSource: RandomUuidCrypto = globalThis.crypto,
 ): PendingCreateRecord {
+  if (typeof cryptoSource.getRandomValues !== 'function') {
+    throw new DuelStorageError('INVALID_DATA')
+  }
   return {
     version: DUEL_STORAGE_VERSION,
     phase: 'pending-create',
     createRequestId: generateCreateRequestId(cryptoSource),
-    createRecoverySecret: generateCreateRecoverySecret(cryptoSource),
+    createRecoverySecret: generateCreateRecoverySecret({
+      getRandomValues: cryptoSource.getRandomValues.bind(cryptoSource),
+    }),
     totalRounds: validateTotalRounds(totalRounds),
     placements: toCanonicalDuelPlacements(placements, totalRounds),
   }

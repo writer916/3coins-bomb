@@ -36,11 +36,13 @@ function ConfigShell({
   stepper,
   primary,
   secondary,
+  error,
 }: {
   readonly hint: string
   readonly stepper: React.ReactNode
   readonly primary: React.ReactNode
   readonly secondary: React.ReactNode
+  readonly error?: string | null
 }) {
   return (
     <div className="duel-flow duel-flow--setup group-create-flow">
@@ -52,6 +54,15 @@ function ConfigShell({
       </div>
       <div className="duel-setup-spacer duel-setup-spacer--mid" aria-hidden="true" />
       <div className="duel-btn-area duel-button-field">
+        {/*
+          Overlay only: must not occupy btn-stack flow, or PLAYERS Y drifts
+          vs ROUNDS (shared 3-button field pins first-button top).
+        */}
+        {error ? (
+          <p className="duel-lock-error duel-lock-error--slot" role="alert">
+            {error}
+          </p>
+        ) : null}
         <div className="duel-btn-stack">
           {primary}
           {secondary}
@@ -136,13 +147,11 @@ export function GroupCreateFlow({ t, onGoTop, onCreated }: GroupCreateFlowProps)
           disabled={pending}
         />
       }
+      error={failed ? t.groupCreateError : null}
       primary={
-        <>
-          {failed ? <p className="duel-lock-error" role="alert">{t.groupCreateError}</p> : null}
-          <button type="button" className="duel-btn duel-btn--primary" onClick={create} disabled={pending}>
-            {pending ? t.groupCreating : t.groupCreate}
-          </button>
-        </>
+        <button type="button" className="duel-btn duel-btn--primary" onClick={create} disabled={pending}>
+          {pending ? t.groupCreating : t.groupCreate}
+        </button>
       }
       secondary={
         <button type="button" className="duel-btn" onClick={() => setPhase('rounds')} disabled={pending}>

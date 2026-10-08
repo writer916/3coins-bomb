@@ -1,3 +1,4 @@
+import { randomUuid, type RandomUuidCrypto } from '../browser/randomUuid'
 import {
   GROUP_FORMATION_VERSION,
   GROUP_PLAYERS_MAX,
@@ -207,12 +208,12 @@ function writeVerified<T>(
 export function createPendingGroupCreate(
   totalRounds: number,
   playerLimit: number,
-  cryptoSource: Pick<Crypto, 'randomUUID'> = globalThis.crypto,
+  cryptoSource: RandomUuidCrypto = globalThis.crypto,
 ): PendingGroupCreateRecord {
   return validatePendingGroupCreate({
     version: GROUP_STORAGE_VERSION,
     phase: 'pending-create',
-    createRequestId: cryptoSource.randomUUID(),
+    createRequestId: randomUuid(cryptoSource),
     totalRounds,
     playerLimit,
   })
@@ -263,13 +264,21 @@ export function saveGroupParticipant(
   return record
 }
 
-/** Host/invite are durable before pending-create is removed. */
-export function completeGroupCreate(
+export function saveGroupHost(
   storage: GroupStorageAdapter,
   value: GroupHostRecord,
 ): GroupHostRecord {
   const record = validateGroupHostRecord(value)
   writeVerified(storage, groupHostStorageKey(record.groupId), record, validateGroupHostRecord)
+  return record
+}
+
+/** Host/invite are durable before pending-create is removed. */
+export function completeGroupCreate(
+  storage: GroupStorageAdapter,
+  value: GroupHostRecord,
+): GroupHostRecord {
+  const record = saveGroupHost(storage, value)
   try {
     storage.removeItem(GROUP_PENDING_CREATE_KEY)
   } catch {

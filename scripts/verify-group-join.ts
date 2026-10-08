@@ -18,9 +18,11 @@ import {
   createGroupJoinCoordinator,
   GroupJoinClientError,
 } from '../src/group/groupJoinClient.ts'
+import { createGroupHostUrl } from '../src/group/groupInvitation.ts'
 import {
   groupHostStorageKey,
   groupParticipantStorageKey,
+  readGroupHost,
   readGroupParticipant,
   type GroupStorageAdapter,
 } from '../src/group/groupPersistence.ts'
@@ -221,6 +223,65 @@ await assert.rejects(
   }).run(invitationUrl, '桃3'),
   (error: unknown) => error instanceof GroupJoinClientError && error.code === 'JOIN_UNAVAILABLE',
 )
+
+/** Host personal URL on a clean device (no prior localStorage host). */
+const coldHostStorage = new MemoryStorage()
+const hostPersonalUrl = createGroupHostUrl(
+  'https://example.test',
+  groupId,
+  creation.hostToken,
+  creation.invitationToken,
+)
+assert.match(hostPersonalUrl, /#host=/)
+assert.notEqual(hostPersonalUrl, invitationUrl)
+let coldHostBody: Record<string, unknown> | null = null
+const hostJoinResponse = {
+  ...first.response,
+  hostAuthenticated: true,
+}
+const coldHostResult = await createGroupJoinCoordinator({
+  storage: coldHostStorage,
+  fetch: async (_input, init) => {
+    coldHostBody = JSON.parse(String(init?.body)) as Record<string, unknown>
+    return Response.json(hostJoinResponse, { status: 201 })
+  },
+}).run(hostPersonalUrl, '桃3')
+assert.equal(coldHostBody?.hostToken, creation.hostToken)
+assert.equal(coldHostBody?.invitationToken, creation.invitationToken)
+assert.equal(coldHostResult.hostAuthenticated, true)
+assert.deepEqual(readGroupHost(coldHostStorage, groupId), {
+  version: 1,
+  groupId,
+  invitationToken: creation.invitationToken,
+  hostToken: creation.hostToken,
+  totalRounds: 3,
+  playerLimit: 8,
+  formationVersion: 1,
+  ruleVersion: 1,
+  scoringVersion: 1,
+})
+assert.deepEqual(readGroupParticipant(coldHostStorage, groupId), coldHostResult.participant)
+
+/** Invite URL alone must not restore host authority from nickname. */
+const nicknameOnlyStorage = new MemoryStorage()
+let nicknameOnlyBody: Record<string, unknown> | null = null
+await createGroupJoinCoordinator({
+  storage: nicknameOnlyStorage,
+  fetch: async (_input, init) => {
+    nicknameOnlyBody = JSON.parse(String(init?.body)) as Record<string, unknown>
+    return Response.json(first.response, { status: 200 })
+  },
+}).run(invitationUrl, '桃3')
+assert.equal('hostToken' in (nicknameOnlyBody ?? {}), false)
+assert.equal(readGroupHost(nicknameOnlyStorage, groupId), null)
+
+/** Host URL with failed host auth must not persist host capability. */
+const badHostStorage = new MemoryStorage()
+await createGroupJoinCoordinator({
+  storage: badHostStorage,
+  fetch: async () => Response.json(first.response, { status: 200 }),
+}).run(hostPersonalUrl, '桃3')
+assert.equal(readGroupHost(badHostStorage, groupId), null)
 
 const dbSource = readFileSync(resolve(root, 'server/db/joinGroupParticipant.ts'), 'utf8')
 assert.match(dbSource, /accepted_count = match\.accepted_count \+ case/)

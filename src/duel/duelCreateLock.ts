@@ -1,3 +1,4 @@
+import type { RandomUuidCrypto } from '../browser/randomUuid'
 import type { DuelRoundPlacement } from '../game/duelPlacement'
 import {
   completePendingLock,
@@ -39,7 +40,7 @@ export interface DuelCreateLockResult {
 export interface DuelCreateLockDependencies {
   readonly storage: StorageAdapter
   readonly fetch: typeof fetch
-  readonly crypto: Pick<Crypto, 'randomUUID' | 'getRandomValues'>
+  readonly crypto: RandomUuidCrypto
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
