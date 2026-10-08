@@ -20,6 +20,10 @@ const screen = readFileSync(
   resolve(root, 'src/components/GroupResultScreen.tsx'),
   'utf8',
 )
+const detailScreen = readFileSync(
+  resolve(root, 'src/components/GroupResultDetailScreen.tsx'),
+  'utf8',
+)
 
 assert.match(screen, /group-result__table/)
 assert.match(screen, /group-result__header/)
@@ -54,6 +58,10 @@ assert.match(
   css,
   /\.group-result \.group-result__details\.duel-btn--quiet-top\s*\{[\s\S]*?min-width:\s*0/,
 )
+assert.match(
+  css,
+  /\.group-result \.group-result__details\.duel-btn--quiet-top\s*\{[\s\S]*?width:\s*85%[\s\S]*?height:\s*1\.32rem[\s\S]*?justify-self:\s*center/,
+)
 assert.match(css, /\.group-result__nickname[\s\S]*?text-overflow:\s*ellipsis/)
 assert.match(css, /\.group-result__top\s*\{[\s\S]*?flex:\s*0 0 auto/)
 assert.match(
@@ -81,6 +89,18 @@ assert.doesNotMatch(
 assert.match(bagCss, /aspect-ratio:\s*4\s*\/\s*5/)
 assert.doesNotMatch(boardCss, /aspect-ratio/)
 assert.match(boardCss, /\.duel-match-detail-board \.bag-board\s*\{[\s\S]*?max-height:\s*none/)
+assert.match(
+  css,
+  /\.group-result-detail__round-stats\s*\{[\s\S]*?display:\s*flex[\s\S]*?justify-content:\s*center/,
+)
+assert.match(
+  css,
+  /\.group-result-detail__round-stats p\s*\{[\s\S]*?flex-direction:\s*row[\s\S]*?white-space:\s*nowrap/,
+)
+assert.match(
+  detailScreen,
+  /groupCapturedCoins[\s\S]*?round\.capturedCoins[\s\S]*?groupOpenedBags[\s\S]*?round\.openedBagCount/,
+)
 
 assert.equal(ja.groupViewDetails, '詳細')
 assert.equal(en.groupViewDetails, 'VIEW DETAILS')
@@ -106,6 +126,13 @@ assert.ok(
 for (const w of [360, 375, 390]) {
   const rem = w - shellPad - rowPad - fixed - gaps
   assert.ok(rem > remaining - 1, `${w}px should not be tighter than 320`)
+}
+
+/* The 85% action leaves visible inline clearance inside its grid track. */
+for (const actionTrackRem of [2.55, 2.85]) {
+  const actionTrack = actionTrackRem * rootPx
+  const button = actionTrack * 0.85
+  assert.ok((actionTrack - button) / 2 >= 3, 'details button edge clearance')
 }
 
 /*
