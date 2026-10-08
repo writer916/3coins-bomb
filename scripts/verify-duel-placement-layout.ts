@@ -31,6 +31,19 @@ assert(
 // Shared button field class on both setup and place docks.
 assert.match(flowSource, /duel-btn-area duel-button-field/)
 assert.match(flowSource, /duel-slot-buttons duel-button-field/)
+assert.equal(
+  (flowSource.match(/duel-flow--duel-config/g) ?? []).length,
+  2,
+  'DUEL setup and placement roots must share the scoped width class',
+)
+assert.match(
+  appCss,
+  /\.duel-flow--duel-config \.duel-btn-stack\s*\{[\s\S]*?width:\s*min\(100%,\s*9rem\)[\s\S]*?min-width:\s*min\(100%,\s*9rem\)/,
+)
+assert.doesNotMatch(
+  await readFile('src/components/GroupCreateFlow.tsx', 'utf8'),
+  /duel-flow--duel-config/,
+)
 
 // Japanese place copy: shared intentional break to avoid mid-phrase wrap.
 assert.equal(ja.duelPlaceBomb, '袋をタップして\n爆弾を置いてください')
@@ -58,6 +71,25 @@ assert.equal(en.duelPlaceBomb, 'Tap to place the bomb.')
 assert.equal(en.duelPlaceCoins, 'Tap to place 3 coins.')
 assert.ok(!en.duelPlaceBomb.includes('\n'))
 assert.ok(!en.duelPlaceCoins.includes('\n'))
+
+const configButtonLabels = [
+  ja.duelContinue,
+  ja.duelTop,
+  ja.duelSet,
+  ja.duelNextRound,
+  ja.duelComplete,
+  ja.duelResetRound,
+  ja.duelBack,
+  en.duelContinue,
+  en.duelTop,
+  en.duelSet,
+  en.duelNextRound,
+  en.duelComplete,
+  en.duelResetRound,
+  en.duelBack,
+]
+assert.equal(Math.max(...configButtonLabels.map((label) => label.length)), 10)
+assert.ok(configButtonLabels.includes('NEXT ROUND'))
 
 assert.match(numsSource, /duel-instruction-line/)
 assert.match(
@@ -159,8 +191,10 @@ const rem = 16
 const buttonFieldH = 9.35 * rem
 const btnH = 2.75 * rem
 const btnGap = 0.55 * rem
+const configButtonW = 9 * rem
 
 for (const viewport of viewports) {
+  assert(configButtonW <= viewport.width, `button width fits ${viewport.width}px`)
   const short = viewport.height <= 600
   const roomy = viewport.width >= 768 && viewport.height >= 700
   const boardHeight = short

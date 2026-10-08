@@ -96,7 +96,7 @@ function DuelConfigShell({
 }) {
   const showRound = roundCurrent != null && roundTotal != null
   return (
-    <div className="duel-flow duel-flow--setup">
+    <div className="duel-flow duel-flow--setup duel-flow--duel-config">
       <div
         className="duel-status-slot"
         aria-hidden={showRound ? undefined : true}
@@ -480,7 +480,7 @@ export function DuelFlow({
   const advanceEnabled = isFinalRound ? canComplete(session) : canNextRound(session)
 
   return (
-    <div className="duel-flow duel-flow--place">
+    <div className="duel-flow duel-flow--place duel-flow--duel-config">
       <div className="duel-slot duel-slot-round" data-duel-slot="round">
         <DuelRoundIndex
           current={draft.roundNumber}

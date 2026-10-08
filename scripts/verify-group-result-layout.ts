@@ -97,7 +97,7 @@ assert.doesNotMatch(
 assert.match(bagCss, /aspect-ratio:\s*4\s*\/\s*5/)
 assert.match(
   css,
-  /\.match-detail-round__stats\s*\{[\s\S]*?display:\s*flex[\s\S]*?justify-content:\s*center/,
+  /\.match-detail-round__stats\s*\{[\s\S]*?display:\s*flex[\s\S]*?justify-content:\s*flex-end[\s\S]*?width:\s*100%/,
 )
 assert.match(
   css,
@@ -107,6 +107,16 @@ assert.match(
   detailScreen,
   /detailCapturedCoins[\s\S]*?round\.capturedCoins[\s\S]*?detailOpenedBags[\s\S]*?round\.openedBagCount/,
 )
+assert.match(
+  css,
+  /\.match-detail-round__stats strong\s*\{[\s\S]*?font-family:\s*system-ui[\s\S]*?font-weight:\s*700[\s\S]*?font-variant-numeric:\s*tabular-nums[\s\S]*?min-width:\s*1ch/,
+)
+
+/* Per-ROUND values stay one digit; completed totals have bounded 2/3-digit maxima. */
+assert.equal(String(3).length, 1)
+assert.equal(String(8).length, 1)
+assert.equal(String(20 * 3).length, 2)
+assert.equal(String(20 * 8).length, 3)
 
 assert.equal(ja.groupViewDetails, '詳細')
 assert.equal(en.groupViewDetails, 'VIEW DETAILS')

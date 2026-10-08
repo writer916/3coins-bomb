@@ -288,6 +288,10 @@ assert.match(
   appCss,
   /\.match-detail-round__stats p\s*\{[\s\S]*?white-space:\s*nowrap/,
 )
+assert.match(
+  appCss,
+  /\.match-detail-round__stats\s*\{[\s\S]*?justify-content:\s*flex-end[\s\S]*?width:\s*100%/,
+)
 assert.doesNotMatch(
   appCss.match(/\.duel-match-detail\s*\{[^}]*\}/s)?.[0] ?? '',
   /overflow-y/,
