@@ -5,11 +5,12 @@ interface Row extends Record<string,unknown>{group_id:string;player_limit:number
 export async function getGroupProgress(groupId:string,participantTokenHash:string):Promise<GroupProgressView|null>{const result=await getDatabase().execute<Row>(sql`
  select match.id group_id,match.player_limit,match.accepted_count,match.status,
  count(other.id) filter(where other.completed_at is not null and other.excluded_at is null)::int completed_count,
- (self.completed_at is not null) self_completed,(match.host_participant_id=self.id) self_is_host
+ (self.completed_at is not null) self_completed,
+ coalesce(match.host_participant_id=self.id,false) self_is_host
  from group_matches match join group_participants self on self.group_id=match.id and self.auth_token_hash=${participantTokenHash}
  left join group_participants other on other.group_id=match.id
  where match.id=${groupId}::uuid and self.excluded_at is null
- group by match.id,self.id,self.completed_at`);const row=result.rows[0];return row?{groupId:row.group_id,playerLimit:row.player_limit,acceptedCount:row.accepted_count,completedCount:row.completed_count,status:row.status,selfCompleted:row.self_completed,selfIsHostParticipant:row.self_is_host,hostCloseAvailable:row.status==='open'&&row.self_completed&&row.self_is_host}:null}
+ group by match.id,self.id,self.completed_at`);const row=result.rows[0];if(!row)return null;const selfCompleted=row.self_completed===true;const selfIsHostParticipant=row.self_is_host===true;return{groupId:row.group_id,playerLimit:row.player_limit,acceptedCount:row.accepted_count,completedCount:row.completed_count,status:row.status,selfCompleted,selfIsHostParticipant,hostCloseAvailable:row.status==='open'&&selfCompleted&&selfIsHostParticipant}}
 export async function closeGroupByHost(input:{groupId:string;hostTokenHash:string;requestId:string}):Promise<GroupProgressView|null>{const result=await getDatabase().execute<Row>(sql`
  with candidate as materialized(
   select match.*,host.completed_at host_completed from group_matches match
