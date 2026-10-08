@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { createClaimParticipantHandler } from '../api/duel/matches/[matchId]/claim.ts'
+import { createClaimParticipantHandler } from '../api/_duel/matches/[matchId]/claim.ts'
 import {
   ClaimParticipantError,
   DUEL_CLAIM_BODY_MAX_BYTES,

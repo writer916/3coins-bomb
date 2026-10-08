@@ -2,10 +2,10 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { createGroupPlayHandler } from '../api/group/matches/[groupId]/play.ts'
-import { createGroupPlacementsHandler } from '../api/group/matches/[groupId]/placements.ts'
-import { createStartGroupRoundHandler } from '../api/group/matches/[groupId]/rounds/start.ts'
-import { createResumeGroupPlayHandler } from '../api/group/matches/[groupId]/play/resume.ts'
+import { createGroupPlayHandler } from '../api/_group/matches/[groupId]/play.ts'
+import { createGroupPlacementsHandler } from '../api/_group/matches/[groupId]/placements.ts'
+import { createStartGroupRoundHandler } from '../api/_group/matches/[groupId]/rounds/start.ts'
+import { createResumeGroupPlayHandler } from '../api/_group/matches/[groupId]/play/resume.ts'
 import {
   GROUP_PARTICIPANT_TOKEN_PREFIX,
   hashGroupCapability,

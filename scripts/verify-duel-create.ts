@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { createDuelMatchesHandler } from '../api/duel/matches.ts'
+import { createDuelMatchesHandler } from '../api/_duel/matches.ts'
 import {
   CreateDuelMatchError,
   DUEL_CREATE_BODY_MAX_BYTES,

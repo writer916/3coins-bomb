@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { createGroupMatchesHandler } from '../api/group/matches.ts'
+import { createGroupMatchesHandler } from '../api/_group/matches.ts'
 import {
   GROUP_HOST_TOKEN_PREFIX,
   GROUP_INVITATION_TOKEN_PREFIX,

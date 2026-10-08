@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { createGroupOpenHandler } from '../api/group/matches/[groupId]/open.ts'
+import { createGroupOpenHandler } from '../api/_group/matches/[groupId]/open.ts'
 import { validateGroupOpenRequest, openGroupBag, GroupOpenError } from '../server/group/openBag.ts'
 import { createGroupPlayBootstrapCoordinator, createGroupPlayClient, parseGroupOpenResult } from '../src/group/groupPlayClient.ts'
 import { groupParticipantStorageKey } from '../src/group/groupPersistence.ts'

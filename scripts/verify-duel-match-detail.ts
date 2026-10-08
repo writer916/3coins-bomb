@@ -1,8 +1,8 @@
 /** Completed-only DUEL match detail: domain mapping, HTTP gate, client parser. */
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
-import { createGetDuelMatchDetailHandler } from '../api/duel/matches/[matchId]/detail'
-import { createGetDuelResultHandler } from '../api/duel/matches/[matchId]/result'
+import { createGetDuelMatchDetailHandler } from '../api/_duel/matches/[matchId]/detail'
+import { createGetDuelResultHandler } from '../api/_duel/matches/[matchId]/result'
 import { buildDuelMatchDetail } from '../server/duel/duelMatchDetail'
 import {
   DuelResultDataError,
@@ -461,7 +461,7 @@ const [
   readFile(new URL('../server/db/getDuelResult.ts', import.meta.url), 'utf8'),
   readFile(new URL('../server/db/getDuelMatchDetail.ts', import.meta.url), 'utf8'),
   readFile(new URL('../server/duel/duelMatchDetail.ts', import.meta.url), 'utf8'),
-  readFile(new URL('../api/duel/matches/[matchId]/detail.ts', import.meta.url), 'utf8'),
+  readFile(new URL('../api/_duel/matches/[matchId]/detail.ts', import.meta.url), 'utf8'),
   readFile(new URL('../src/duel/duelPlayClient.ts', import.meta.url), 'utf8'),
   readFile(new URL('../src/duel/duelClaim.ts', import.meta.url), 'utf8'),
   readFile(new URL('../src/duel/duelParticipantCapability.ts', import.meta.url), 'utf8'),

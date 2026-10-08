@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { createLockPlacementsHandler } from '../api/duel/matches/[matchId]/placements/lock.ts'
+import { createLockPlacementsHandler } from '../api/_duel/matches/[matchId]/placements/lock.ts'
 import {
   LockPlacementsError,
   lockPlacements,

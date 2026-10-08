@@ -17,9 +17,10 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  "files": [],
-  "references": [
-    { "path": "./tsconfig.app.json" },
-    { "path": "./tsconfig.node.json" }
+  "include": [
+    "./**/*.ts",
+    "../server/**/*.ts",
+    "../src/group/groupDomain.ts",
+    "../src/group/groupResultDetail.ts"
   ]
 }

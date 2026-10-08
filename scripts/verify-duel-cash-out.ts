@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { createCashOutRoundHandler } from '../api/duel/matches/[matchId]/rounds/[roundNumber]/cash-out.ts'
+import { createCashOutRoundHandler } from '../api/_duel/matches/[matchId]/rounds/[roundNumber]/cash-out.ts'
 import {
   CashOutRoundError,
   cashOutRound,
@@ -500,7 +500,7 @@ assert.equal(
 
 /* Handler source must not use the old strict body!==null reject. */
 const handlerSource = readFileSync(
-  resolve(root, 'api/duel/matches/[matchId]/rounds/[roundNumber]/cash-out.ts'),
+  resolve(root, 'api/_duel/matches/[matchId]/rounds/[roundNumber]/cash-out.ts'),
   'utf8',
 )
 assert.match(handlerSource, /assertCashOutHasNoPayload/)

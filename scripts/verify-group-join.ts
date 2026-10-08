@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { createJoinGroupParticipantHandler } from '../api/group/matches/[groupId]/join.ts'
+import { createJoinGroupParticipantHandler } from '../api/_group/matches/[groupId]/join.ts'
 import {
   GROUP_PARTICIPANT_TOKEN_PREFIX,
   deriveGroupCreationCapabilities,

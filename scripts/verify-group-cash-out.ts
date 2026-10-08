@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { createGroupCashOutHandler } from '../api/group/matches/[groupId]/cash-out.ts'
+import { createGroupCashOutHandler } from '../api/_group/matches/[groupId]/cash-out.ts'
 import { cashOutGroupRound, GroupCashOutError, validateGroupCashOutRequest } from '../server/group/cashOutRound.ts'
 import { createGroupPlayBootstrapCoordinator, createGroupPlayClient, parseGroupCashOutResult } from '../src/group/groupPlayClient.ts'
 import { groupParticipantStorageKey } from '../src/group/groupPersistence.ts'

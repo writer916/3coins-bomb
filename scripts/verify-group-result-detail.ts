@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { createGetGroupResultDetailHandler } from '../api/group/matches/[groupId]/result/[entryKey].ts'
+import { createGetGroupResultDetailHandler } from '../api/_group/matches/[groupId]/result/[entryKey].ts'
 import {
   deriveGroupCreationCapabilities,
   deriveGroupParticipantCapability,
@@ -269,7 +269,7 @@ for (const fragment of [
   assert.ok(db.includes(fragment), fragment)
 }
 assert.doesNotMatch(
-  readFileSync(resolve(root, 'api/group/matches/[groupId]/result/[entryKey].ts'), 'utf8'),
+  readFileSync(resolve(root, 'api/_group/matches/[groupId]/result/[entryKey].ts'), 'utf8'),
   /hostToken|invitationToken|displayNickname/,
 )
 assert.notEqual(tokenA, tokenB)

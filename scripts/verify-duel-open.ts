@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { createOpenBagHandler } from '../api/duel/matches/[matchId]/rounds/[roundNumber]/open.ts'
+import { createOpenBagHandler } from '../api/_duel/matches/[matchId]/rounds/[roundNumber]/open.ts'
 import {
   OpenBagError,
   openBag,

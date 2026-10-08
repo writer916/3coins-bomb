@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { createGetRoundRevealHandler } from '../api/duel/matches/[matchId]/rounds/[roundNumber]/reveal.ts'
+import { createGetRoundRevealHandler } from '../api/_duel/matches/[matchId]/rounds/[roundNumber]/reveal.ts'
 import {
   toPersistedDuelRoundReveal,
   type PersistedDuelRoundReveal,
@@ -269,7 +269,7 @@ const playDbSource = readFileSync(
   'utf8',
 )
 const playRouteSource = readFileSync(
-  resolve(root, 'api/duel/matches/[matchId]/play.ts'),
+  resolve(root, 'api/_duel/matches/[matchId]/play.ts'),
   'utf8',
 )
 for (const source of [playDbSource, playRouteSource]) {

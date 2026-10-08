@@ -1,7 +1,7 @@
 /** Server-only DUEL final result, secrecy boundary and HTTP checks. */
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
-import { createGetDuelResultHandler } from '../api/duel/matches/[matchId]/result'
+import { createGetDuelResultHandler } from '../api/_duel/matches/[matchId]/result'
 import {
   aggregateDuelParticipantResult,
   compareDuelParticipantResults,

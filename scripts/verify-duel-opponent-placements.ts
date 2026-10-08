@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { createGetOpponentPlacementsHandler } from '../api/duel/matches/[matchId]/opponent-placements.ts'
+import { createGetOpponentPlacementsHandler } from '../api/_duel/matches/[matchId]/opponent-placements.ts'
 import {
   toPersistedDuelOpponentPlacements,
   type DuelOpponentPlacementRecord,

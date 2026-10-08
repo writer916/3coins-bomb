@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { createGetGroupResultHandler } from '../api/group/matches/[groupId]/result'
+import { createGetGroupResultHandler } from '../api/_group/matches/[groupId]/result'
 import {
   aggregateGroupParticipantResult,
   compareGroupParticipantScores,
@@ -69,6 +69,6 @@ const db=readFileSync(resolve(root,'server/db/getGroupResult.ts'),'utf8')
 for(const fragment of ["candidate.status = 'closed'","participant.completed_at is not null","participant.excluded_at is null",'group_round_placements','group_round_attempts','group_round_opens','openedBagCount','rankGroupParticipants','aggregateGroupParticipantResult','createGroupResultEntryKey','entryKey']) assert.ok(db.includes(fragment),fragment)
 assert.match(db,/participant\.accepted_at, participant\.id/)
 assert.doesNotMatch(JSON.stringify(view),/token|hash|participantId|acceptedAt|placement/i)
-assert.doesNotMatch(readFileSync(resolve(root,'api/group/matches/[groupId]/result.ts'),'utf8'),/hostToken|invitationToken|displayNickname/)
+assert.doesNotMatch(readFileSync(resolve(root,'api/_group/matches/[groupId]/result.ts'),'utf8'),/hostToken|invitationToken|displayNickname/)
 assert.notEqual(GROUP_ID,OTHER_ID)
 console.log('verify:group-result OK')
