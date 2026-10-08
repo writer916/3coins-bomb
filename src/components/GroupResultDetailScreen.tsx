@@ -2,10 +2,10 @@ import type { AppStrings } from '../i18n'
 import type { GroupResultDetail } from '../group/groupPlayClient'
 import {
   formatGroupHitRate,
-  formatGroupOpenReveal,
   formatGroupRoundEndReason,
 } from '../group/groupResultPresentation'
 import { withDuelNums } from '../ui/withDuelNums'
+import { DuelMatchDetailBoard } from './DuelMatchDetailBoard'
 
 export function GroupResultDetailScreen({
   detail,
@@ -69,20 +69,15 @@ export function GroupResultDetailScreen({
                 <strong>{round.openedBagCount}</strong>
               </p>
             </div>
-            {round.opens.length > 0 ? (
-              <ol className="group-result-detail__opens">
-                {round.opens.map((opened) => (
-                  <li key={opened.order}>
-                    <span className="group-result-detail__open-order">
-                      {withDuelNums(String(opened.order))}
-                    </span>
-                    <span className="group-result-detail__open-result">
-                      {formatGroupOpenReveal(opened, t)}
-                    </span>
-                  </li>
-                ))}
-              </ol>
-            ) : null}
+            <DuelMatchDetailBoard
+              bagCount={round.bagCount}
+              bombBagNumber={round.bombBagNumber}
+              coinBagNumbers={round.coinBagNumbers}
+              opens={round.opens.map((opened) => ({
+                openOrder: opened.order,
+                bagNumber: opened.bagNumber,
+              }))}
+            />
           </li>
         ))}
       </ol>

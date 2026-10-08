@@ -9,6 +9,10 @@ import type { BagCount } from '../game/formations'
 import { readSoundEnabled } from '../game/sound'
 import { bagIdToBagNumber, bagNumberToBagId } from '../duel/duelPlayClient'
 import { createOptimisticOpenGate, markOptimisticFailed, markOptimisticFxDone, markOptimisticServerDone, type OptimisticOpenGate } from '../duel/duelOptimisticOpen'
+import {
+  canShowGroupCashOutButton,
+  isGroupCashOutButtonDisabled,
+} from '../group/groupCashOutUi'
 import type { GroupLocalOpenResult } from '../group/groupDomain'
 import type { GroupCashOutResult, GroupOpenResult, GroupPlayReady, GroupResult, createGroupPlayBootstrapCoordinator } from '../group/groupPlayClient'
 import { BagBoard } from './BagBoard'
@@ -107,6 +111,8 @@ export function GroupPlayScreen({ initialReady, coordinator, t, onResult }: { in
   }, [coordinator, ready, terminal, requestPending, fx])
 
   const soundEnabled = readSoundEnabled()
+  const showCashOut = canShowGroupCashOutButton(provisionalCoins, terminal !== null)
+  const cashOutDisabled = isGroupCashOutButtonDisabled(requestPending, fx !== null)
   if (terminal && ready.currentPlacement.roundNumber === ready.state.totalRounds && !fx && !requestPending) return <GroupCompletionWaiting groupId={ready.state.groupId} coordinator={coordinator} t={t} onResult={onResult}/>
   return <div className="duel-play">
     <p className="duel-round-index">{t.groupRoundLabel} <span className="duel-num">{ready.currentPlacement.roundNumber}</span>{' / '}<span className="duel-num">{ready.state.totalRounds}</span></p>
@@ -116,7 +122,16 @@ export function GroupPlayScreen({ initialReady, coordinator, t, onResult }: { in
       {fx?.kind === 'bomb' ? <BombOpenFx key={fx.runId} bagId={fx.bagId} bagCount={ready.currentPlacement.bagCount as BagCount} hiddenBagIds={hidden} soundEnabled={soundEnabled} onComplete={fxComplete} /> : null}
     </BagBoard>
     <div className="field-action" aria-live="polite">
-      {!terminal && (provisionalCoins === 1 || provisionalCoins === 2) && !requestPending && !fx ? <button type="button" className="dev-btn cash-out-btn" onClick={() => { void cashOut() }}>{t.cashOut}</button> : null}
+      {showCashOut ? (
+        <button
+          type="button"
+          className="dev-btn cash-out-btn"
+          disabled={cashOutDisabled}
+          onClick={() => { void cashOut() }}
+        >
+          {t.cashOut}
+        </button>
+      ) : null}
       {terminal && ready.currentPlacement.roundNumber < ready.state.totalRounds ? <button type="button" className="dev-btn end-action-btn" disabled={requestPending || !!fx} onClick={() => { void next() }}>{t.nextRound}</button> : null}
     </div>
     {error ? <p className="duel-play-error" role="alert">{t.groupPlayError}</p> : null}

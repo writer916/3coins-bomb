@@ -10,6 +10,7 @@ export type GroupResultOpenKind = GroupOpenOutcome
 
 export interface GroupResultDetailOpen {
   readonly order: number
+  readonly bagNumber: number
   readonly kind: GroupResultOpenKind
   readonly coinCount: 0 | 1 | 2 | 3
 }
@@ -19,10 +20,16 @@ export interface GroupResultDetailRound {
   readonly endReason: GroupRoundEndReason
   readonly capturedCoins: 0 | 1 | 2 | 3
   readonly openedBagCount: number
+  readonly bagCount: number
+  readonly bombBagNumber: number
+  readonly coinBagNumbers: readonly [number, number, number]
   readonly opens: readonly GroupResultDetailOpen[]
 }
 
-/** Authoritative OPEN history for one ROUND — reveals opened bags only. */
+/**
+ * Closed-GROUP detail OPEN history: outcome plus bagNumber for board markers.
+ * Only assembled after match status is closed (caller responsibility).
+ */
 export function revealGroupRoundOpens(
   placement: GroupRoundPlacement,
   opens: readonly GroupRoundOpenInput[],
@@ -31,6 +38,7 @@ export function revealGroupRoundOpens(
     const judged = judgeGroupBag(placement, opened.bagNumber)
     return {
       order: opened.openOrder,
+      bagNumber: opened.bagNumber,
       kind: judged.outcome,
       coinCount: judged.coinsFound,
     }

@@ -106,14 +106,18 @@ const detailPayload = {
             : 'interrupted',
     capturedCoins: index === 0 ? 3 : index === 1 ? 2 : 0,
     openedBagCount: index === 3 ? 0 : 1,
+    bagCount: 4,
+    bombBagNumber: 4,
+    coinBagNumbers: [1, 1, 2] as const,
     opens:
       index === 3
         ? []
         : [
             {
               order: 1,
+              bagNumber: index === 2 ? 4 : index === 0 ? 1 : 3,
               kind: index === 2 ? 'bomb' : index === 0 ? 'coins' : 'empty',
-              coinCount: index === 0 ? 3 : 0,
+              coinCount: index === 0 ? 2 : 0,
             },
           ],
   })),
@@ -121,17 +125,29 @@ const detailPayload = {
 const detail = parseGroupResultDetail(detailPayload, GROUP_ID, keyAt(0))
 assert.equal(detail.rounds.length, 20)
 assert.equal(detail.rounds[0]?.endReason, 'cleared')
+assert.equal(detail.rounds[0]?.bagCount, 4)
+assert.equal(detail.rounds[0]?.opens[0]?.bagNumber, 1)
 assert.equal(detail.rounds[1]?.endReason, 'cashed_out')
 assert.equal(detail.rounds[2]?.endReason, 'bombed')
+assert.equal(detail.rounds[2]?.opens[0]?.bagNumber, 4)
 assert.equal(detail.rounds[3]?.endReason, 'interrupted')
 assert.equal(formatGroupRoundEndReason('cleared', ja), '3COINS COMPLETE')
 assert.equal(formatGroupRoundEndReason('cashed_out', ja), 'CASH OUT')
 assert.equal(formatGroupRoundEndReason('bombed', ja), 'BOMB')
 assert.equal(formatGroupRoundEndReason('interrupted', ja), '離脱')
 assert.equal(formatGroupRoundEndReason('interrupted', en), 'WITHDRAWN')
-assert.equal(formatGroupOpenReveal({ order: 1, kind: 'empty', coinCount: 0 }, ja), 'EMPTY')
-assert.equal(formatGroupOpenReveal({ order: 1, kind: 'bomb', coinCount: 0 }, ja), 'BOMB')
-assert.equal(formatGroupOpenReveal({ order: 1, kind: 'coins', coinCount: 2 }, ja), 'COIN ×2')
+assert.equal(
+  formatGroupOpenReveal({ order: 1, bagNumber: 3, kind: 'empty', coinCount: 0 }, ja),
+  'EMPTY',
+)
+assert.equal(
+  formatGroupOpenReveal({ order: 1, bagNumber: 4, kind: 'bomb', coinCount: 0 }, ja),
+  'BOMB',
+)
+assert.equal(
+  formatGroupOpenReveal({ order: 1, bagNumber: 1, kind: 'coins', coinCount: 2 }, ja),
+  'COIN ×2',
+)
 
 const participant = {
   version: 1,
@@ -194,7 +210,10 @@ for (const fragment of [
 }
 assert.match(detailScreen, /detail\.rounds\.map/)
 assert.match(detailScreen, /formatGroupRoundEndReason/)
-assert.match(detailScreen, /formatGroupOpenReveal/)
+assert.match(detailScreen, /DuelMatchDetailBoard/)
+assert.match(detailScreen, /openOrder: opened\.order/)
+assert.match(detailScreen, /bagNumber: opened\.bagNumber/)
+assert.doesNotMatch(detailScreen, /formatGroupOpenReveal/)
 assert.match(detailScreen, /group-result-detail__nickname/)
 assert.match(detailScreen, /t\.groupBackToResult/)
 assert.match(waiting, /POLL_MS = 5000/)
@@ -210,7 +229,14 @@ assert.match(entryShell, /getResultDetail/)
 assert.match(entryShell, /GroupReadyScreen/)
 assert.match(entryShell, /startedPlay/)
 assert.match(play, /onResult=/)
+assert.match(screen, /group-result__header/)
+assert.match(screen, /group-result__table/)
+assert.match(screen, /title=\{entry\.nickname\}/)
+assert.doesNotMatch(screen, /group-result__stats/)
 assert.match(css, /\.group-result__ranking[\s\S]*overflow-y: auto/)
+assert.match(css, /--group-result-cols/)
+assert.match(css, /\.group-result__cols[\s\S]*grid-template-columns: var\(--group-result-cols\)/)
+assert.match(css, /\.group-result__nickname[\s\S]*text-overflow: ellipsis/)
 assert.match(css, /\.group-result-detail__rounds[\s\S]*overflow-y: auto/)
 assert.match(css, /\.group-result__nickname[\s\S]*font-family: system-ui/)
 assert.match(css, /\.group-result-detail__nickname[\s\S]*font-family: system-ui/)

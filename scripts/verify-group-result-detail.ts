@@ -62,16 +62,16 @@ const opens = revealGroupRoundOpens(placement(1, [1, 1, 2]), [
   { openOrder: 3, bagNumber: 2 },
 ])
 assert.deepEqual(opens, [
-  { order: 1, kind: 'empty', coinCount: 0 },
-  { order: 2, kind: 'coins', coinCount: 2 },
-  { order: 3, kind: 'coins', coinCount: 1 },
+  { order: 1, bagNumber: 3, kind: 'empty', coinCount: 0 },
+  { order: 2, bagNumber: 1, kind: 'coins', coinCount: 2 },
+  { order: 3, bagNumber: 2, kind: 'coins', coinCount: 1 },
 ])
 assert.deepEqual(revealGroupRoundOpens(placement(1), [{ openOrder: 1, bagNumber: 4 }]), [
-  { order: 1, kind: 'bomb', coinCount: 0 },
+  { order: 1, bagNumber: 4, kind: 'bomb', coinCount: 0 },
 ])
 assert.deepEqual(
   revealGroupRoundOpens(placement(1, [2, 2, 2]), [{ openOrder: 1, bagNumber: 2 }]),
-  [{ order: 1, kind: 'coins', coinCount: 3 }],
+  [{ order: 1, bagNumber: 2, kind: 'coins', coinCount: 3 }],
 )
 
 const bombSummary = aggregateGroupParticipantResult({
@@ -131,9 +131,12 @@ const detailView = {
       endReason: 'cleared' as const,
       capturedCoins: 3 as const,
       openedBagCount: 2,
+      bagCount: 4,
+      bombBagNumber: 4,
+      coinBagNumbers: [1, 2, 3] as const,
       opens: [
-        { order: 1, kind: 'coins' as const, coinCount: 1 as const },
-        { order: 2, kind: 'coins' as const, coinCount: 2 as const },
+        { order: 1, bagNumber: 1, kind: 'coins' as const, coinCount: 1 as const },
+        { order: 2, bagNumber: 2, kind: 'coins' as const, coinCount: 2 as const },
       ],
     },
     {
@@ -141,9 +144,12 @@ const detailView = {
       endReason: 'cashed_out' as const,
       capturedCoins: 2 as const,
       openedBagCount: 2,
+      bagCount: 4,
+      bombBagNumber: 4,
+      coinBagNumbers: [1, 1, 2] as const,
       opens: [
-        { order: 1, kind: 'empty' as const, coinCount: 0 as const },
-        { order: 2, kind: 'coins' as const, coinCount: 2 as const },
+        { order: 1, bagNumber: 3, kind: 'empty' as const, coinCount: 0 as const },
+        { order: 2, bagNumber: 1, kind: 'coins' as const, coinCount: 2 as const },
       ],
     },
     {
@@ -151,14 +157,24 @@ const detailView = {
       endReason: 'bombed' as const,
       capturedCoins: 0 as const,
       openedBagCount: 1,
-      opens: [{ order: 1, kind: 'bomb' as const, coinCount: 0 as const }],
+      bagCount: 4,
+      bombBagNumber: 4,
+      coinBagNumbers: [1, 2, 3] as const,
+      opens: [
+        { order: 1, bagNumber: 4, kind: 'bomb' as const, coinCount: 0 as const },
+      ],
     },
     {
       roundNumber: 4,
       endReason: 'interrupted' as const,
       capturedCoins: 0 as const,
       openedBagCount: 1,
-      opens: [{ order: 1, kind: 'empty' as const, coinCount: 0 as const }],
+      bagCount: 4,
+      bombBagNumber: 4,
+      coinBagNumbers: [1, 2, 3] as const,
+      opens: [
+        { order: 1, bagNumber: 3, kind: 'empty' as const, coinCount: 0 as const },
+      ],
     },
   ],
 }
@@ -228,7 +244,12 @@ const ok = await handler(
 assert.equal(ok.status, 200)
 assert.equal(ok.headers.get('cache-control'), 'no-store')
 assert.deepEqual(await ok.json(), detailView)
-assert.doesNotMatch(JSON.stringify(detailView), /token|hash|participantId|acceptedAt|placement|bagNumber/i)
+assert.doesNotMatch(JSON.stringify(detailView), /token|hash|participantId|acceptedAt/i)
+assert.match(JSON.stringify(detailView), /"bagCount"/)
+assert.match(JSON.stringify(detailView), /"bombBagNumber"/)
+assert.match(JSON.stringify(detailView), /"coinBagNumbers"/)
+assert.match(JSON.stringify(detailView), /"bagNumber"/)
+assert.doesNotMatch(JSON.stringify(detailView), /"placement"/)
 
 const unavailable = createGetGroupResultDetailHandler(async () => {
   throw new GetGroupResultDetailError()
@@ -261,13 +282,18 @@ for (const fragment of [
   'getGroupResultDetailForParticipant',
   'createGroupResultEntryKey',
   'revealGroupRoundOpens',
+  'bagCount: placement.bagCount',
+  'bombBagNumber: placement.bombBagNumber',
+  'coinBagNumbers: placement.coinBagNumbers',
   "participant.completed_at is not null",
   "participant.excluded_at is null",
   "candidate.status = 'closed'",
   'kind: \'missing\'',
+  "kind: 'open'",
 ]) {
   assert.ok(db.includes(fragment), fragment)
 }
+assert.match(db, /if \(row\.status === 'open'\) return \{ kind: 'open' \}/)
 assert.doesNotMatch(
   readFileSync(resolve(root, 'api/_group/matches/[groupId]/result/[entryKey].ts'), 'utf8'),
   /hostToken|invitationToken|displayNickname/,

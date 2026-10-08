@@ -131,11 +131,20 @@ for (const part of [
   'groupParticipantsProgress',
   'groupCompletedProgress',
   'groupCloseConfirm',
+  'window.confirm',
   'hasHostCapability',
+  'hostCloseAvailable',
+  'group-completion-waiting__close',
+  'duel-btn--quiet-top',
 ]) {
   assert.ok(waiting.includes(part), part)
 }
 assert.equal(waiting.includes('displayNickname'), false)
 assert.equal(waiting.includes('participantId'), false)
+assert.equal(waiting.includes('duel-btn--primary'), false)
+
+const waitingCss = readFileSync(resolve(root, 'src/App.css'), 'utf8')
+assert.match(waitingCss, /\.group-completion-waiting__close\s*\{/)
+assert.match(waitingCss, /\.group-completion-waiting__aux\s*\{/)
 
 console.log('verify:group-progress OK')

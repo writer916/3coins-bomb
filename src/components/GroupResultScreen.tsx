@@ -115,50 +115,66 @@ export function GroupResultScreen({
       <h2 id="group-result-title" className="group-result__title">
         {t.groupResultTitle}
       </h2>
-      <ol className="group-result__ranking">
-        {result.ranking.map((entry, index) => (
-          <li
-            key={entry.entryKey}
-            className={`group-result__entry${entry.isSelf ? ' group-result__entry--self' : ''}`}
-            aria-current={entry.isSelf ? 'true' : undefined}
-          >
-            <div className="group-result__identity">
+      <div className="group-result__table">
+        <div className="group-result__cols group-result__header" aria-hidden="true">
+          <span className="group-result__h-rank" />
+          <span className="group-result__h-nick" />
+          <span className="group-result__h-metric">
+            {withDuelNums(t.groupTotalCoins)}
+          </span>
+          <span className="group-result__h-metric">
+            {withDuelNums(t.groupThreeCoinsComplete)}
+          </span>
+          <span className="group-result__h-metric">{t.groupCoinBagHitRate}</span>
+          <span className="group-result__h-action" />
+        </div>
+        <ol className="group-result__ranking">
+          {result.ranking.map((entry, index) => (
+            <li
+              key={entry.entryKey}
+              className={`group-result__cols group-result__entry${entry.isSelf ? ' group-result__entry--self' : ''}`}
+              aria-current={entry.isSelf ? 'true' : undefined}
+            >
               <span
                 className="group-result__rank"
                 aria-label={`${t.groupRank} ${entry.rank}`}
               >
                 {entry.rank}
               </span>
-              <span className="group-result__nickname">{entry.nickname}</span>
-            </div>
-            <div className="group-result__stats">
-              <p>
-                <span>{withDuelNums(t.groupTotalCoins)}</span>
-                <strong>{entry.totalCoins}</strong>
-              </p>
-              <p>
-                <span>{withDuelNums(t.groupThreeCoinsComplete)}</span>
-                <strong>{entry.threeCoinsComplete}</strong>
-              </p>
-              <p>
-                <span>{t.groupCoinBagHitRate}</span>
-                <strong>
-                  {formatGroupHitRate(entry.coinBagHits, entry.totalOpens)}
-                </strong>
-              </p>
-            </div>
-            <button
-              type="button"
-              className="duel-btn duel-btn--quiet-top group-result__details"
-              disabled={detailBusy}
-              onClick={() => openDetails(entry.entryKey)}
-              data-group-result-detail-index={index}
-            >
-              {t.groupViewDetails}
-            </button>
-          </li>
-        ))}
-      </ol>
+              <span className="group-result__nickname" title={entry.nickname}>
+                {entry.nickname}
+              </span>
+              <strong
+                className="group-result__metric"
+                aria-label={`${t.groupTotalCoins} ${entry.totalCoins}`}
+              >
+                {entry.totalCoins}
+              </strong>
+              <strong
+                className="group-result__metric"
+                aria-label={`${t.groupThreeCoinsComplete} ${entry.threeCoinsComplete}`}
+              >
+                {entry.threeCoinsComplete}
+              </strong>
+              <strong
+                className="group-result__metric"
+                aria-label={`${t.groupCoinBagHitRate} ${formatGroupHitRate(entry.coinBagHits, entry.totalOpens)}`}
+              >
+                {formatGroupHitRate(entry.coinBagHits, entry.totalOpens)}
+              </strong>
+              <button
+                type="button"
+                className="duel-btn duel-btn--quiet-top group-result__details"
+                disabled={detailBusy}
+                onClick={() => openDetails(entry.entryKey)}
+                data-group-result-detail-index={index}
+              >
+                {t.groupViewDetails}
+              </button>
+            </li>
+          ))}
+        </ol>
+      </div>
       <button
         type="button"
         className="duel-btn duel-btn--quiet-top group-result__top"

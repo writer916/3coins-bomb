@@ -163,14 +163,15 @@ export function GroupCompletionWaiting({
               : t.groupProgressError}
           </p>
         ) : null}
-      </div>
-      <div className="duel-setup-spacer duel-setup-spacer--mid" aria-hidden="true" />
-      <div className="duel-btn-area duel-button-field">
-        <div className="duel-btn-stack">
-          {showHostClose ? (
+        {/*
+          Host close is an exception — keep it under the waiting copy,
+          not as the setup shell’s primary CTA.
+        */}
+        {showHostClose ? (
+          <div className="group-completion-waiting__aux">
             <button
               type="button"
-              className="duel-btn duel-btn--primary"
+              className="duel-btn duel-btn--quiet-top group-completion-waiting__close"
               disabled={resultPending}
               onClick={() => {
                 void close()
@@ -178,19 +179,21 @@ export function GroupCompletionWaiting({
             >
               {t.groupClose}
             </button>
-          ) : null}
-          {error ? (
+          </div>
+        ) : null}
+      </div>
+      <div className="duel-setup-spacer duel-setup-spacer--mid" aria-hidden="true" />
+      {error ? (
+        <div className="duel-btn-area duel-button-field">
+          <div className="duel-btn-stack">
             <button type="button" className="duel-btn" onClick={retry}>
               {t.groupResultRetry}
             </button>
-          ) : null}
-          {!showHostClose && !error ? (
-            <span className="duel-btn duel-btn-ghost" aria-hidden="true">
-              &nbsp;
-            </span>
-          ) : null}
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="duel-btn-area duel-button-field" aria-hidden="true" />
+      )}
       <div className="duel-setup-spacer duel-setup-spacer--bottom" aria-hidden="true" />
     </div>
   )

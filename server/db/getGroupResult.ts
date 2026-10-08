@@ -231,6 +231,9 @@ function buildDetailRounds(input: LoadedParticipant): readonly GroupResultDetail
       endReason: round.endReason,
       capturedCoins: round.capturedCoins as 0 | 1 | 2 | 3,
       openedBagCount: round.opens.length,
+      bagCount: placement.bagCount,
+      bombBagNumber: placement.bombBagNumber,
+      coinBagNumbers: placement.coinBagNumbers,
       opens: revealGroupRoundOpens(placement, round.opens),
     }
   })

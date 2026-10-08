@@ -53,8 +53,22 @@ export interface GroupCashOutCommand { readonly groupId: string; readonly reques
 export interface GroupProgress { readonly groupId:string;readonly playerLimit:number;readonly acceptedCount:number;readonly completedCount:number;readonly status:'open'|'closed';readonly selfCompleted:boolean;readonly selfIsHostParticipant:boolean;readonly hostCloseAvailable:boolean }
 export interface GroupResultEntry { readonly rank:number;readonly entryKey:string;readonly nickname:string;readonly isSelf:boolean;readonly totalCoins:number;readonly threeCoinsComplete:number;readonly coinBagHits:number;readonly totalOpens:number;readonly coinBagHitRate:{readonly numerator:number;readonly denominator:number} }
 export interface GroupResult { readonly groupId:string;readonly totalRounds:number;readonly playerLimit:number;readonly acceptedCount:number;readonly completedCount:number;readonly status:'closed';readonly ranking:readonly GroupResultEntry[] }
-export interface GroupResultDetailOpen { readonly order:number;readonly kind:'empty'|'coins'|'bomb';readonly coinCount:0|1|2|3 }
-export interface GroupResultDetailRound { readonly roundNumber:number;readonly endReason:'bombed'|'cashed_out'|'cleared'|'interrupted';readonly capturedCoins:0|1|2|3;readonly openedBagCount:number;readonly opens:readonly GroupResultDetailOpen[] }
+export interface GroupResultDetailOpen {
+  readonly order: number
+  readonly bagNumber: number
+  readonly kind: 'empty' | 'coins' | 'bomb'
+  readonly coinCount: 0 | 1 | 2 | 3
+}
+export interface GroupResultDetailRound {
+  readonly roundNumber: number
+  readonly endReason: 'bombed' | 'cashed_out' | 'cleared' | 'interrupted'
+  readonly capturedCoins: 0 | 1 | 2 | 3
+  readonly openedBagCount: number
+  readonly bagCount: number
+  readonly bombBagNumber: number
+  readonly coinBagNumbers: readonly [number, number, number]
+  readonly opens: readonly GroupResultDetailOpen[]
+}
 export interface GroupResultDetail { readonly groupId:string;readonly entryKey:string;readonly nickname:string;readonly isSelf:boolean;readonly totalCoins:number;readonly threeCoinsComplete:number;readonly coinBagHits:number;readonly totalOpens:number;readonly coinBagHitRate:{readonly numerator:number;readonly denominator:number};readonly rounds:readonly GroupResultDetailRound[] }
 const ENTRY_KEY=/^[A-Za-z0-9_-]{22}$/
 export class GroupPlayClientError extends Error {
@@ -178,9 +192,20 @@ export function parseGroupResultDetail(
   if (numerator !== coinBagHits || denominator !== totalOpens) return fail()
   const rounds: GroupResultDetailRound[] = r.rounds.map((roundValue, index) => {
     const round = record(roundValue)
-    exact(round, ['roundNumber', 'endReason', 'capturedCoins', 'openedBagCount', 'opens'])
+    exact(round, [
+      'roundNumber',
+      'endReason',
+      'capturedCoins',
+      'openedBagCount',
+      'bagCount',
+      'bombBagNumber',
+      'coinBagNumbers',
+      'opens',
+    ])
     if (
       !Array.isArray(round.opens) ||
+      !Array.isArray(round.coinBagNumbers) ||
+      round.coinBagNumbers.length !== 3 ||
       (round.endReason !== 'bombed' &&
         round.endReason !== 'cashed_out' &&
         round.endReason !== 'cleared' &&
@@ -191,25 +216,44 @@ export function parseGroupResultDetail(
     const endReason = round.endReason
     const roundNumber = integer(round.roundNumber, 1, roundCount)
     if (roundNumber !== index + 1) return fail()
-    const openedBagCount = integer(round.openedBagCount, 0, 8)
+    const bagCount = integer(round.bagCount, 3, 8)
+    const bombBagNumber = integer(round.bombBagNumber, 1, bagCount)
+    const coinBagNumbers = round.coinBagNumbers.map((bag) =>
+      integer(bag, 1, bagCount),
+    ) as [number, number, number]
+    if (coinBagNumbers.some((bag) => bag === bombBagNumber)) return fail()
+    const openedBagCount = integer(round.openedBagCount, 0, bagCount)
     if (openedBagCount !== round.opens.length) return fail()
     const capturedCoins = integer(round.capturedCoins, 0, 3) as 0 | 1 | 2 | 3
+    const seenBags = new Set<number>()
     const opens: GroupResultDetailOpen[] = round.opens.map((openValue, openIndex) => {
       const opened = record(openValue)
-      exact(opened, ['order', 'kind', 'coinCount'])
+      exact(opened, ['order', 'bagNumber', 'kind', 'coinCount'])
       if (opened.kind !== 'empty' && opened.kind !== 'coins' && opened.kind !== 'bomb') {
         return fail()
       }
       const kind = opened.kind
-      const order = integer(opened.order, 1, 8)
-      if (order !== openIndex + 1) return fail()
+      const order = integer(opened.order, 1, bagCount)
+      const bagNumber = integer(opened.bagNumber, 1, bagCount)
+      if (order !== openIndex + 1 || seenBags.has(bagNumber)) return fail()
+      seenBags.add(bagNumber)
       const coinCount = integer(opened.coinCount, 0, 3) as 0 | 1 | 2 | 3
       if (kind === 'empty' && coinCount !== 0) return fail()
-      if (kind === 'bomb' && coinCount !== 0) return fail()
+      if (kind === 'bomb' && (coinCount !== 0 || bagNumber !== bombBagNumber)) return fail()
       if (kind === 'coins' && coinCount < 1) return fail()
-      return { order, kind, coinCount }
+      if (kind !== 'bomb' && bagNumber === bombBagNumber) return fail()
+      return { order, bagNumber, kind, coinCount }
     })
-    return { roundNumber, endReason, capturedCoins, openedBagCount, opens }
+    return {
+      roundNumber,
+      endReason,
+      capturedCoins,
+      openedBagCount,
+      bagCount,
+      bombBagNumber,
+      coinBagNumbers,
+      opens,
+    }
   })
   return {
     groupId: expectedGroupId,

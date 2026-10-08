@@ -27,6 +27,36 @@ const coordinator=createGroupPlayBootstrapCoordinator(client); await assert.reje
 const db=readFileSync(resolve(root,'server/db/cashOutGroupRound.ts'),'utf8')
 for(const fragment of ['for update of match, participant',"attempt.status = 'active'",'unnest(target.coin_bag_numbers)','summary.provisional_coins in (1, 2)',"status = 'cashed_out'",'terminal_request_id','completed_at = statement_timestamp()']) assert.ok(db.includes(fragment),fragment)
 assert.match(db,/input: \{ groupId: string; participantTokenHash: string; requestId: string \}/)
-const ui=readFileSync(resolve(root,'src/components/GroupPlayScreen.tsx'),'utf8'); assert.match(ui,/provisionalCoins === 1 \|\| provisionalCoins === 2/); assert.match(ui,/getPendingOpen/); assert.match(ui,/t\.cashOut/); assert.match(ui,/t\.duelCashOutRetry/)
+const ui=readFileSync(resolve(root,'src/components/GroupPlayScreen.tsx'),'utf8')
+assert.match(ui,/canShowGroupCashOutButton/)
+assert.match(ui,/isGroupCashOutButtonDisabled/)
+assert.match(ui,/disabled=\{cashOutDisabled\}/)
+assert.match(ui,/getPendingOpen/)
+assert.match(ui,/t\.cashOut/)
+assert.match(ui,/t\.duelCashOutRetry/)
+assert.doesNotMatch(
+  ui,
+  /!terminal && \(provisionalCoins === 1 \|\| provisionalCoins === 2\) && !requestPending && !fx/,
+)
+
+const {
+  canShowGroupCashOutButton,
+  isGroupCashOutButtonDisabled,
+} = await import('../src/group/groupCashOutUi.ts')
+assert.equal(canShowGroupCashOutButton(0, false), false)
+assert.equal(canShowGroupCashOutButton(1, false), true)
+assert.equal(canShowGroupCashOutButton(2, false), true)
+assert.equal(canShowGroupCashOutButton(3, false), false)
+assert.equal(canShowGroupCashOutButton(1, true), false)
+assert.equal(canShowGroupCashOutButton(2, true), false)
+assert.equal(isGroupCashOutButtonDisabled(false, false), false)
+assert.equal(isGroupCashOutButtonDisabled(true, false), true)
+assert.equal(isGroupCashOutButtonDisabled(false, true), true)
+assert.equal(isGroupCashOutButtonDisabled(true, true), true)
+
+const duelPlay=readFileSync(resolve(root,'src/components/DuelPlayScreen.tsx'),'utf8')
+assert.match(duelPlay,/showCashOut \?/)
+assert.match(duelPlay,/!openFxActive/)
+
 const duel=readFileSync(resolve(root,'server/db/cashOutDuelRound.ts'),'utf8'); assert.match(duel,/provisional_coins in \(1, 2\)/)
 console.log('verify:group-cash-out OK')
