@@ -1402,7 +1402,7 @@
 /*
   GROUP RESULT table:
   - One shared grid for header + rows (no independent horizontal scroll).
-  - Vertical scroll lives on .group-result__table so sticky bottom TOP stays put.
+  - Fixed shell height + flex table scroll; TOP sits in a bottom action band.
   - Nickname capped ~8ch; metric/action columns use minmax(0, …) to fit ≥320px.
 */
 .group-result {
@@ -1414,16 +1414,19 @@
     minmax(0, 1.15fr)
     2.85rem;
   --group-result-col-gap: 0.2rem;
+  --group-result-row-inline-pad: 0.28rem;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 0.65rem;
+  gap: 0.55rem;
   width: min(100%, 30rem);
   max-width: 100%;
+  /* Definite height so flex:1 table absorbs free space and TOP stays at bottom. */
+  height: calc(100dvh - 5.5rem);
   max-height: calc(100dvh - 5.5rem);
   margin: 0 auto;
-  padding: 0.25rem 0.35rem max(0.8rem, env(safe-area-inset-bottom, 0px));
+  padding: 0.25rem 0.35rem 0;
 }
 
 .group-result__title {
@@ -1458,6 +1461,8 @@
   width: 100%;
   min-width: 0;
   max-width: 100%;
+  /* Shared inline pad keeps header/row tracks aligned and clears the details edge. */
+  padding-inline: var(--group-result-row-inline-pad);
 }
 
 .group-result__cols > * {
@@ -1546,10 +1551,14 @@
   text-align: center;
 }
 
+/* Bottom action band — outside the ranking scroller; safe-area kept here. */
 .group-result__top {
   flex: 0 0 auto;
+  box-sizing: border-box;
   width: min(100%, 16.5rem);
-  margin: 0 auto;
+  margin-left: auto;
+  margin-right: auto;
+  padding-bottom: max(0.9rem, calc(0.45rem + env(safe-area-inset-bottom, 0px)));
 }
 
 /* Beat .duel-btn--quiet-top { min-width: 8.5rem } which forced table overflow. */
@@ -1572,6 +1581,12 @@
   letter-spacing: 0.01em;
   line-height: 1.12;
   white-space: normal;
+}
+
+/* Override quiet-top margin-top:auto — shell height + flex table already pins TOP. */
+.group-result .group-result__top.duel-btn--quiet-top {
+  margin-top: 0.7rem;
+  margin-bottom: 0;
 }
 
 .group-result-detail,
@@ -1650,6 +1665,7 @@
 .group-result-detail__rounds {
   box-sizing: border-box;
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
   gap: 0.65rem;
   min-height: 0;
@@ -1664,16 +1680,30 @@
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  gap: 0.45rem;
-  padding: 0.65rem 0.55rem 0.75rem;
+  gap: 0.32rem;
+  padding: 0.65rem 0.55rem 0.7rem;
   border: 1px solid rgb(242 230 208 / 24%);
   border-radius: 0.65rem;
   background: rgb(0 0 0 / 10%);
+  overflow: visible;
 }
 
 .group-result-detail__round .duel-match-detail-board {
   width: 100%;
-  margin: 0.1rem 0 0;
+  max-width: 20rem;
+  margin: 0 auto;
+}
+
+/*
+  GROUP-only bag field: PLAY/DUEL keep aspect-ratio 4/5.
+  Formation Y sits ~34–55%; shorten the empty upper band while leaving room for
+  OPEN markers (offset ≈ 0.62×bag-size) via overflow:visible — no formation edits.
+*/
+.group-result-detail .duel-match-detail-board .bag-board {
+  width: 100%;
+  aspect-ratio: 7 / 6;
+  max-height: min(52vw, 17rem);
+  overflow: visible;
 }
 
 .group-result-detail__round-head {
@@ -1735,12 +1765,17 @@
       minmax(0, 1.1fr)
       2.55rem;
     --group-result-col-gap: 0.14rem;
+    --group-result-row-inline-pad: 0.22rem;
     padding-left: 0.28rem;
     padding-right: 0.28rem;
   }
   .group-result__entry { min-height: 1.95rem; padding: 0.2rem 0; }
   .group-result-detail__round { padding: 0.65rem 0.6rem; }
   .group-result-detail__summary { gap: 0.3rem; }
+  .group-result-detail .duel-match-detail-board .bag-board {
+    aspect-ratio: 8 / 7;
+    max-height: min(56vw, 15.5rem);
+  }
 }
 
 .duel-final {

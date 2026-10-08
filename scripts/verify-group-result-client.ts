@@ -248,7 +248,13 @@ assert.match(css, /\.group-result__cols > \*\s*\{[\s\S]*?min-width:\s*0/)
 assert.match(css, /\.group-result \.group-result__details\.duel-btn--quiet-top/)
 assert.match(css, /\.group-result__nickname[\s\S]*text-overflow: ellipsis/)
 assert.match(css, /\.group-result__top\s*\{[\s\S]*?flex:\s*0 0 auto/)
+assert.match(css, /\.group-result\s*\{[\s\S]*?height:\s*calc\(100dvh - 5\.5rem\)/)
+assert.match(css, /\.group-result__cols[\s\S]*padding-inline:\s*var\(--group-result-row-inline-pad\)/)
 assert.match(css, /\.group-result-detail__rounds[\s\S]*overflow-y: auto/)
+assert.match(
+  css,
+  /\.group-result-detail \.duel-match-detail-board \.bag-board[\s\S]*aspect-ratio:\s*7\s*\/\s*6/,
+)
 assert.match(css, /\.group-result__nickname[\s\S]*font-family: system-ui/)
 assert.match(css, /\.group-result-detail__nickname[\s\S]*font-family: system-ui/)
 assert.doesNotMatch(css, /\.group-result__nickname[^}]*Georgia/)
