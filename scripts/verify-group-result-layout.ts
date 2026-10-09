@@ -90,6 +90,8 @@ assert.match(
   css,
   /\.group-result-detail__rounds\s*\{[\s\S]*?overflow-y:\s*auto/,
 )
+assert.doesNotMatch(detailScreen, /BrandTitle|group-result-detail__title/)
+assert.match(detailScreen, /aria-label=\{t\.groupParticipantDetails\}/)
 assert.doesNotMatch(
   css,
   /\.group-result-detail__round\s*\{[^}]*overflow-y:\s*auto/,

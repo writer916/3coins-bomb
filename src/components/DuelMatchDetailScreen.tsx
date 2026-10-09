@@ -3,7 +3,6 @@ import type {
   DuelMatchDetailView,
 } from '../duel/duelMatchDetailPresentation'
 import type { AppStrings } from '../i18n'
-import { BrandTitle } from '../ui/BrandTitle'
 import { withDuelNums } from '../ui/withDuelNums'
 import { DuelMatchDetailBoard } from './DuelMatchDetailBoard'
 
@@ -77,38 +76,37 @@ export function DuelMatchDetailScreen({
       data-duel-match-detail=""
       aria-label={t.duelMatchDetails}
     >
-      <BrandTitle title={t.brandTitle} className="brand-title duel-final-brand" />
-      <p className="duel-match-detail__title">{t.duelMatchDetails}</p>
+      <div className="duel-match-detail__rounds">
+        <section
+          className="duel-match-detail__side"
+          data-duel-match-detail-side="you"
+        >
+          <h2 className="duel-match-detail__side-title">{t.duelYou}</h2>
+          {detail.yourRounds.map((round) => (
+            <DetailRoundBlock
+              key={`you-${round.roundNumber}`}
+              round={round}
+              label={t.duelMatchDetailRound(round.roundNumber)}
+              t={t}
+            />
+          ))}
+        </section>
 
-      <section
-        className="duel-match-detail__side"
-        data-duel-match-detail-side="you"
-      >
-        <h2 className="duel-match-detail__side-title">{t.duelYou}</h2>
-        {detail.yourRounds.map((round) => (
-          <DetailRoundBlock
-            key={`you-${round.roundNumber}`}
-            round={round}
-            label={t.duelMatchDetailRound(round.roundNumber)}
-            t={t}
-          />
-        ))}
-      </section>
-
-      <section
-        className="duel-match-detail__side duel-match-detail__side--opponent"
-        data-duel-match-detail-side="opponent"
-      >
-        <h2 className="duel-match-detail__side-title">{t.duelOpponent}</h2>
-        {detail.opponentRounds.map((round) => (
-          <DetailRoundBlock
-            key={`opponent-${round.roundNumber}`}
-            round={round}
-            label={t.duelMatchDetailRound(round.roundNumber)}
-            t={t}
-          />
-        ))}
-      </section>
+        <section
+          className="duel-match-detail__side duel-match-detail__side--opponent"
+          data-duel-match-detail-side="opponent"
+        >
+          <h2 className="duel-match-detail__side-title">{t.duelOpponent}</h2>
+          {detail.opponentRounds.map((round) => (
+            <DetailRoundBlock
+              key={`opponent-${round.roundNumber}`}
+              round={round}
+              label={t.duelMatchDetailRound(round.roundNumber)}
+              t={t}
+            />
+          ))}
+        </section>
+      </div>
 
       <div className="duel-match-detail__actions">
         <button

@@ -277,8 +277,14 @@ assert.match(resultScreen, /duelBombsHit/)
 /* ㉔ 40 ROUND capable structure (map both sides; no virtualization) */
 assert.match(detailScreen, /\.map\(/)
 assert.doesNotMatch(detailScreen, /virtual|VirtualList|accordion|pagination|lazy\(/i)
+assert.match(detailScreen, /className="duel-match-detail__rounds"/)
+assert.doesNotMatch(detailScreen, /BrandTitle|duel-match-detail__title/)
 assert.match(appCss, /\.duel-match-detail\s*{[^}]*overflow-x:\s*hidden/s)
 assert.match(appCss, /\.duel-match-detail\s*{[^}]*max-width:\s*100%/s)
+assert.match(
+  appCss,
+  /\.duel-match-detail\s*{[^}]*max-height:\s*calc\(100dvh\s*-\s*5\.5rem\)/s,
+)
 assert.match(appCss, /width:\s*min\(100%,\s*20rem\)/)
 assert.match(
   appCss,
@@ -303,6 +309,10 @@ assert.match(
 assert.doesNotMatch(
   appCss.match(/\.duel-match-detail\s*\{[^}]*\}/s)?.[0] ?? '',
   /overflow-y/,
+)
+assert.match(
+  appCss,
+  /\.duel-match-detail__rounds\s*\{[\s\S]*?flex:\s*1\s+1\s+auto[\s\S]*?min-height:\s*0[\s\S]*?overflow-y:\s*auto/,
 )
 assert.match(
   appCss,

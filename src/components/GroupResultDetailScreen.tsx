@@ -4,7 +4,6 @@ import {
   formatGroupHitRate,
   formatGroupRoundEndReason,
 } from '../group/groupResultPresentation'
-import { BrandTitle } from '../ui/BrandTitle'
 import { withDuelNums } from '../ui/withDuelNums'
 import { DuelMatchDetailBoard } from './DuelMatchDetailBoard'
 
@@ -20,13 +19,9 @@ export function GroupResultDetailScreen({
   return (
     <section
       className="group-result-detail"
-      aria-labelledby="group-result-detail-title"
+      aria-label={t.groupParticipantDetails}
       data-group-result-detail=""
     >
-      <BrandTitle title={t.brandTitle} className="brand-title duel-final-brand" />
-      <h2 id="group-result-detail-title" className="group-result-detail__title">
-        {t.groupParticipantDetails}
-      </h2>
       <p
         className={`group-result-detail__nickname${detail.isSelf ? ' group-result-detail__nickname--self' : ''}`}
       >
