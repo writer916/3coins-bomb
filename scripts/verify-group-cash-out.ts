@@ -56,7 +56,9 @@ assert.equal(isGroupCashOutButtonDisabled(true, true), true)
 
 const duelPlay=readFileSync(resolve(root,'src/components/DuelPlayScreen.tsx'),'utf8')
 assert.match(duelPlay,/showCashOut \?/)
-assert.match(duelPlay,/!openFxActive/)
+assert.doesNotMatch(duelPlay,/canOfferDuelCashOut\(round\)[^\n]*!requestPending/)
+assert.doesNotMatch(duelPlay,/canOfferDuelCashOut\(round\)[^\n]*!openFxActive/)
+assert.match(duelPlay,/disabled=\{requestPending \|\| openFxActive\}/)
 
 const duel=readFileSync(resolve(root,'server/db/cashOutDuelRound.ts'),'utf8'); assert.match(duel,/provisional_coins in \(1, 2\)/)
 console.log('verify:group-cash-out OK')

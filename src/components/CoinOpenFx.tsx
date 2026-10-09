@@ -42,6 +42,7 @@ type CoinOpenFxProps = {
   /** Presentation generation from `beginScreenPresentation`. */
   presentationGen: number
   onSample?: (sample: CoinFxSample) => void
+  onVisualComplete?: () => void
   onComplete: () => void
 }
 
@@ -75,6 +76,7 @@ export function CoinOpenFx({
   soundEnabled,
   presentationGen,
   onSample,
+  onVisualComplete,
   onComplete,
 }: CoinOpenFxProps) {
   const plan = useMemo(() => planCoinFx(bagId, coinCount), [bagId, coinCount])
@@ -92,12 +94,14 @@ export function CoinOpenFx({
   const soundEnabledRef = useRef(soundEnabled)
   const onCompleteRef = useRef(onComplete)
   const onSampleRef = useRef(onSample)
+  const onVisualCompleteRef = useRef(onVisualComplete)
   const presentationGenRef = useRef(presentationGen)
 
   useEffect(() => {
     onCompleteRef.current = onComplete
     onSampleRef.current = onSample
-  }, [onComplete, onSample])
+    onVisualCompleteRef.current = onVisualComplete
+  }, [onComplete, onSample, onVisualComplete])
 
   useEffect(() => {
     soundEnabledRef.current = soundEnabled
@@ -134,6 +138,7 @@ export function CoinOpenFx({
       publish(final, plan.totalMs)
       const gen = presentationGenRef.current
       markScreenPresentationVisualDone(gen)
+      onVisualCompleteRef.current?.()
       void waitScreenPresentationSettled(gen).then(() => {
         if (cancelled) return
         onCompleteRef.current()

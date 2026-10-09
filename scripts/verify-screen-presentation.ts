@@ -47,6 +47,26 @@ __resetScreenPresentationForTests()
 
 {
   __resetScreenPresentationForTests()
+  const oldGen = beginScreenPresentation()
+  let resolveOldAudio!: () => void
+  noteScreenPresentationAudio(
+    oldGen,
+    new Promise<void>((resolve) => {
+      resolveOldAudio = resolve
+    }),
+  )
+  markScreenPresentationVisualDone(oldGen)
+  const newGen = beginScreenPresentation()
+  resolveOldAudio()
+  await Promise.resolve()
+  assert.equal(isScreenPresentationBlocking(), true, 'old audio must not unlock the new visual')
+  markScreenPresentationVisualDone(newGen)
+  assert.equal(isScreenPresentationBlocking(), false)
+  console.log('OK: a new OPEN supersedes old audio without inheriting its lock')
+}
+
+{
+  __resetScreenPresentationForTests()
   const gen = beginScreenPresentation()
   noteScreenPresentationAudio(
     gen,
@@ -107,17 +127,24 @@ assert.match(startOpen, /beginScreenPresentation/)
 assert.match(startOpen, /playBagOpen/)
 assert.match(bombFx, /waitScreenPresentationSettled/)
 assert.match(bombFx, /noteScreenPresentationAudio/)
+assert.match(bombFx, /onVisualCompleteRef\.current\?\.\(\)/)
 assert.match(coinFx, /waitScreenPresentationSettled/)
 assert.match(coinFx, /playCoinChime/)
+assert.match(coinFx, /onVisualCompleteRef\.current\?\.\(\)/)
 assert.match(emptyFx, /waitScreenPresentationSettled/)
+assert.match(emptyFx, /onVisualCompleteRef\.current\?\.\(\)/)
 assert.match(app, /startOpenPresentation/)
 assert.match(app, /isScreenPresentationBlocking/)
 assert.match(app, /presentationGen=\{coinFx\.presentationGen\}/)
+assert.match(app, /onVisualComplete=\{coinFx\.clearsRound \? undefined : clearContinuingOpenFx\}/)
+assert.match(app, /onVisualComplete=\{clearContinuingOpenFx\}/)
 assert.match(duelPlay, /startOpenPresentation/)
 assert.match(duelPlay, /if \(fx !== null \|\| interactionLockedRef\.current\) return/)
+assert.match(duelPlay, /onVisualComplete=\{fx\.clearsRound \? undefined : clearFx\}/)
 assert.match(groupPlay, /startOpenPresentation/)
 assert.match(groupPlay, /!fx/)
 assert.match(groupPlay, /wantsCompletion/)
+assert.match(groupPlay, /onVisualComplete=\{fx\.clearsRound \? undefined : fxComplete\}/)
 
-console.log('OK: SOLO / DUEL / GROUP wire presentationGen + settle before unlock')
+console.log('OK: continuing OPENs release on visual completion; terminal OPENs keep presentation settle')
 console.log('verify:screen-presentation OK')

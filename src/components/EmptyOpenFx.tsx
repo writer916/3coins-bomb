@@ -19,6 +19,7 @@ type EmptyOpenFxProps = {
   /** Presentation generation from `beginScreenPresentation`. */
   presentationGen: number
   onSample?: (sample: EmptyFxSample) => void
+  onVisualComplete?: () => void
   onComplete: () => void
 }
 
@@ -32,6 +33,7 @@ export function EmptyOpenFx({
   bagCount,
   presentationGen,
   onSample,
+  onVisualComplete,
   onComplete,
 }: EmptyOpenFxProps) {
   const plan = useMemo(() => planEmptyFx(bagId), [bagId])
@@ -39,12 +41,14 @@ export function EmptyOpenFx({
   const completedRef = useRef(false)
   const onCompleteRef = useRef(onComplete)
   const onSampleRef = useRef(onSample)
+  const onVisualCompleteRef = useRef(onVisualComplete)
   const presentationGenRef = useRef(presentationGen)
 
   useEffect(() => {
     onCompleteRef.current = onComplete
     onSampleRef.current = onSample
-  }, [onComplete, onSample])
+    onVisualCompleteRef.current = onVisualComplete
+  }, [onComplete, onSample, onVisualComplete])
 
   useEffect(() => {
     presentationGenRef.current = presentationGen
@@ -74,6 +78,7 @@ export function EmptyOpenFx({
       onSampleRef.current?.(final)
       const gen = presentationGenRef.current
       markScreenPresentationVisualDone(gen)
+      onVisualCompleteRef.current?.()
       void waitScreenPresentationSettled(gen).then(() => {
         if (cancelled) return
         onCompleteRef.current()

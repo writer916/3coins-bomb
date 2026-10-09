@@ -36,6 +36,12 @@ export function isScreenPresentationBlocking(): boolean {
  * Invalidates any prior generation so late cues cannot keep the lock forever.
  */
 export function beginScreenPresentation(): number {
+  // A continuing OPEN may start after the previous visual ends while a short
+  // owned audio tail is still playing. Supersede that tail before the new
+  // generation so sounds cannot overlap and old promises cannot affect it.
+  if (state.pendingAudio > 0) {
+    invalidatePendingMediaPlays()
+  }
   state = {
     generation: state.generation + 1,
     visualActive: true,

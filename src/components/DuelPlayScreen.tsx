@@ -475,6 +475,8 @@ export function DuelPlayScreen({ matchId, t, onGoTop }: DuelPlayScreenProps) {
     ) return
     if (!canOfferDuelCashOut(view.round) || !coordinator) return
 
+    // CASH OUT supersedes a short audio tail from the preceding visual.
+    abandonScreenPresentation()
     interactionLockedRef.current = true
     setRequestPending(true)
     setCashOutError(false)
@@ -640,7 +642,7 @@ export function DuelPlayScreen({ matchId, t, onGoTop }: DuelPlayScreenProps) {
   const showEndActions =
     round.terminal && canShowEndActions(terminalPhase, openFxActive || revealPending)
   const showCashOut =
-    canOfferDuelCashOut(round) && !showEndActions && !requestPending && !openFxActive && !revealed
+    canOfferDuelCashOut(round) && !showEndActions && !revealed
   const showRevealBtn =
     showEndActions &&
     canRequestReveal(terminalPhase, openFxActive || revealPending, revealed)
@@ -670,6 +672,7 @@ export function DuelPlayScreen({ matchId, t, onGoTop }: DuelPlayScreenProps) {
               soundEnabled={soundEnabled}
               presentationGen={fx.presentationGen}
               onSample={setCoinFxSample}
+              onVisualComplete={fx.clearsRound ? undefined : clearFx}
               onComplete={clearFx}
             />
           ) : null}
@@ -690,6 +693,7 @@ export function DuelPlayScreen({ matchId, t, onGoTop }: DuelPlayScreenProps) {
               bagId={fx.bagId}
               bagCount={round.bagCount as BagCount}
               presentationGen={fx.presentationGen}
+              onVisualComplete={clearFx}
               onComplete={clearFx}
             />
           ) : null}
@@ -701,7 +705,7 @@ export function DuelPlayScreen({ matchId, t, onGoTop }: DuelPlayScreenProps) {
             type="button"
             className="dev-btn cash-out-btn"
             onClick={() => { void handleCashOut() }}
-            disabled={requestPending}
+            disabled={requestPending || openFxActive}
           >
             {t.cashOut}
           </button>

@@ -5,6 +5,7 @@ import { warmBagOpenAudio } from '../game/bagAudio'
 import { unlockCoinAudio } from '../game/coinAudio'
 import { visualHiddenBagIds, type CoinFxSample, type FxCoinCount } from '../game/coinFx'
 import type { BagCount } from '../game/formations'
+import { abandonScreenPresentation } from '../game/screenPresentation'
 import { startOpenPresentation } from '../game/startOpenPresentation'
 import { readSoundEnabled } from '../game/sound'
 import { bagIdToBagNumber, bagNumberToBagId } from '../duel/duelPlayClient'
@@ -121,6 +122,7 @@ export function GroupPlayScreen({ initialReady, coordinator, t, onResult }: { in
   const cashOut = useCallback(async () => {
     if (lockRef.current || requestPending || fx || terminal || (provisionalCoins !== 1 && provisionalCoins !== 2)) return
     if (coordinator.getPendingOpen()) { setError(true); return }
+    abandonScreenPresentation()
     lockRef.current = true; setRequestPending(true); setCashOutError(false); setError(false)
     try {
       const result = await coordinator.cashOut(ready.state.groupId)
@@ -183,8 +185,8 @@ export function GroupPlayScreen({ initialReady, coordinator, t, onResult }: { in
   return <div className="duel-play">
     <p className="duel-round-index">{t.groupRoundLabel} <span className="duel-num">{ready.currentPlacement.roundNumber}</span>{' / '}<span className="duel-num">{ready.state.totalRounds}</span></p>
     <BagBoard bagCount={ready.currentPlacement.bagCount as BagCount} hiddenBagIds={hidden} onBagTap={tap} interactive={!requestPending && !terminal}>
-      {fx?.kind === 'coins' ? <CoinOpenFx key={fx.runId} bagId={fx.bagId} bagCount={ready.currentPlacement.bagCount as BagCount} coinCount={fx.count} clearsRound={fx.clearsRound} soundEnabled={soundEnabled} presentationGen={fx.presentationGen} onSample={setCoinFxSample} onComplete={fxComplete} /> : null}
-      {fx?.kind === 'empty' ? <EmptyOpenFx key={fx.runId} bagId={fx.bagId} bagCount={ready.currentPlacement.bagCount as BagCount} presentationGen={fx.presentationGen} onComplete={fxComplete} /> : null}
+      {fx?.kind === 'coins' ? <CoinOpenFx key={fx.runId} bagId={fx.bagId} bagCount={ready.currentPlacement.bagCount as BagCount} coinCount={fx.count} clearsRound={fx.clearsRound} soundEnabled={soundEnabled} presentationGen={fx.presentationGen} onSample={setCoinFxSample} onVisualComplete={fx.clearsRound ? undefined : fxComplete} onComplete={fxComplete} /> : null}
+      {fx?.kind === 'empty' ? <EmptyOpenFx key={fx.runId} bagId={fx.bagId} bagCount={ready.currentPlacement.bagCount as BagCount} presentationGen={fx.presentationGen} onVisualComplete={fxComplete} onComplete={fxComplete} /> : null}
       {fx?.kind === 'bomb' ? <BombOpenFx key={fx.runId} bagId={fx.bagId} bagCount={ready.currentPlacement.bagCount as BagCount} hiddenBagIds={hidden} soundEnabled={soundEnabled} presentationGen={fx.presentationGen} onComplete={fxComplete} /> : null}
     </BagBoard>
     <div className="field-action" aria-live="polite">

@@ -191,6 +191,14 @@ function App() {
     setFxSample(null)
   }, [])
 
+  const clearContinuingOpenFx = useCallback(() => {
+    fxLockRef.current = false
+    setCoinFx(null)
+    setBombFx(null)
+    setEmptyFx(null)
+    setFxSample(null)
+  }, [])
+
   const persistSoloStats = useCallback((next: SoloStats) => {
     soloStatsRef.current = next
     writeSoloStats(next)
@@ -355,10 +363,11 @@ function App() {
   )
 
   const handleCashOut = useCallback(() => {
-    if (fxLockRef.current || isScreenPresentationBlocking()) return
+    if (fxLockRef.current) return
     const prev = roundRef.current
     const result = tryCashOut(prev)
     if (!result.ok) return
+    abandonScreenPresentation()
     setRound(result.state)
     commitEndedRoundOnce(result.state)
   }, [commitEndedRoundOnce])
@@ -487,7 +496,7 @@ function App() {
 
   // ROUND already ended on bomb; also block while any open FX / owned SFX runs.
   const canTapBags = isRoundActive(round) && !coinFx && !bombFx && !emptyFx
-  const showCashOut = canCashOut(round) && !showEndActions && !openFxActive
+  const showCashOut = canCashOut(round) && !showEndActions
 
   const topControls = (
     <div className="app-topbar">
@@ -617,6 +626,7 @@ function App() {
                 soundEnabled={soundOn}
                 presentationGen={coinFx.presentationGen}
                 onSample={handleCoinFxSample}
+                onVisualComplete={coinFx.clearsRound ? undefined : clearContinuingOpenFx}
                 onComplete={handleCoinFxComplete}
               />
             ) : null}
@@ -637,6 +647,7 @@ function App() {
                 bagId={emptyFx.bagId}
                 bagCount={round.hand.bagCount}
                 presentationGen={emptyFx.presentationGen}
+                onVisualComplete={clearContinuingOpenFx}
                 onComplete={handleEmptyFxComplete}
               />
             ) : null}
@@ -646,7 +657,7 @@ function App() {
         {/* Fixed height: empty / CASH OUT / REVEAL+NEXT */}
         <div className="field-action" aria-live="polite">
           {showCashOut ? (
-            <button type="button" className="dev-btn cash-out-btn" onClick={handleCashOut}>
+            <button type="button" className="dev-btn cash-out-btn" disabled={openFxActive} onClick={handleCashOut}>
               {t.cashOut}
             </button>
           ) : null}
