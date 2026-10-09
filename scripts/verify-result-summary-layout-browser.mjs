@@ -55,7 +55,7 @@ for (const [width, height] of viewports) {
         document.querySelector('#mode-title').textContent = isDuel ? t.modeDuelName : t.modeGroupName
         const duelSummary = { totalCapturedCoins: 30, threeCoinsComplete: 10, bombsHit: 2, coinBagHits: 20, totalOpens: 40, hitRate: { numerator: 20, denominator: 40 }, rounds: [{ roundNumber: 1, endReason: 'cleared', capturedCoins: 3, openedBagCount: 3 }] }
         const duelResult = { matchId: '11111111-1111-4111-8111-111111111111', status: 'completed', viewerRole: 'A', totalRounds: 1, winner: 'A', participants: { A: { role: 'A', ...duelSummary }, B: { role: 'B', ...duelSummary, totalCapturedCoins: 27 } } }
-        const ranking = Array.from({ length: 20 }, (_, index) => ({ rank: index + 1, entryKey: 'entry-' + index, nickname: 'PLAYER' + (index + 1), isSelf: index === 4, totalCoins: 60 - index, threeCoinsComplete: 20 - Math.min(index, 20), coinBagHits: 40, totalOpens: 80, coinBagHitRate: { numerator: 40, denominator: 80 } }))
+        const ranking = Array.from({ length: 20 }, (_, index) => ({ rank: index + 1, entryKey: 'entry-' + index, nickname: index === 0 ? 'VERY-LONG-NICKNAME-PLAYER-01' : 'PLAYER' + (index + 1), isSelf: index === 4, totalCoins: 60 - index, threeCoinsComplete: 20 - Math.min(index, 20), coinBagHits: 40, totalOpens: 80, coinBagHitRate: { numerator: 40, denominator: 80 } }))
         const groupResult = { groupId: 'verify', totalRounds: 20, playerLimit: 20, acceptedCount: 20, completedCount: 20, status: 'closed', ranking }
         const props = isDuel
           ? { matchId: duelResult.matchId, initialResult: duelResult, fetchResult: async () => duelResult, fetchDetail: async () => ({}), t, initialRevealed: true, onGoTop() {} }
@@ -77,21 +77,32 @@ for (const [width, height] of viewports) {
           buttonWidth: buttonRect.width,
         }
         if (!isDuel) {
-          const heading = document.querySelector('.group-result__h-metric--hit-rate')
-          const firstMetric = document.querySelector('.group-result__entry .group-result__metric:nth-of-type(3)')
+          const headings = [...document.querySelectorAll('.group-result__h-metric')]
+          const firstMetrics = [...document.querySelectorAll('.group-result__entry:first-child .group-result__metric')]
+          const firstRowCells = [...document.querySelectorAll('.group-result__entry:first-child > *')]
+          const nickname = document.querySelector('.group-result__entry:first-child .group-result__nickname')
           const rankingNode = document.querySelector('.group-result__ranking')
           const tableNode = document.querySelector('.group-result__table')
-          const headingRect = heading.getBoundingClientRect()
-          const metricRect = firstMetric.getBoundingClientRect()
           const background = getComputedStyle(document.querySelector('.group-result__header')).backgroundColor
           tableNode.scrollTop = tableNode.scrollHeight
           await new Promise(resolve => requestAnimationFrame(resolve))
           const lastRect = rankingNode.lastElementChild.getBoundingClientRect()
           const tableRect = tableNode.getBoundingClientRect()
           Object.assign(output, {
-            headingLines: [...heading.children].map(node => node.textContent),
+            headingLines: headings.map(heading => [...heading.children].map(node => node.textContent)),
+            headingWidths: headings.map(heading => heading.getBoundingClientRect().width),
+            headingLineWidths: headings.map(heading => [...heading.children].map(line => line.scrollWidth)),
+            headingLinesFit: headings.every(heading => [...heading.children].every(line => line.getBoundingClientRect().width <= heading.getBoundingClientRect().width + 0.5)),
             headingBackground: background,
-            columnCenterDelta: Math.abs((headingRect.left + headingRect.width / 2) - (metricRect.left + metricRect.width / 2)),
+            columnCenterDeltas: headings.map((heading, index) => {
+              const headingRect = heading.getBoundingClientRect()
+              const metricRect = firstMetrics[index].getBoundingClientRect()
+              return Math.abs((headingRect.left + headingRect.width / 2) - (metricRect.left + metricRect.width / 2))
+            }),
+            rowCellsOverlap: firstRowCells.some((cell, index) => index > 0 && cell.getBoundingClientRect().left < firstRowCells[index - 1].getBoundingClientRect().right - 0.5),
+            nicknameWidth: nickname.getBoundingClientRect().width,
+            nicknameEllipsized: nickname.scrollWidth > nickname.clientWidth && getComputedStyle(nickname).textOverflow === 'ellipsis',
+            gridColumns: getComputedStyle(document.querySelector('.group-result__header')).gridTemplateColumns,
             rankingScrolls: tableNode.scrollHeight > tableNode.clientHeight,
             lastVisible: lastRect.bottom <= tableRect.bottom + 1,
             buttonVisible: button.getBoundingClientRect().bottom <= innerHeight,
@@ -104,9 +115,12 @@ for (const [width, height] of viewports) {
       assert.equal(result.horizontalOverflow, false)
       assert.ok(result.modeTitle.length > 0)
       if (mode === 'group') {
-        assert.deepEqual(result.headingLines, ['COIN-BAG', 'HIT RATE'])
+        assert.deepEqual(result.headingLines, [['TOTAL', 'COINS'], ['3COINS', 'COMPLETE'], ['COIN-BAG', 'HIT RATE']])
+        assert.equal(result.headingLinesFit, true, `${width}x${height} ${locale}: grid ${result.gridColumns}; heading widths ${result.headingWidths}; line widths ${JSON.stringify(result.headingLineWidths)}`)
         assert.equal(result.headingBackground, 'rgba(0, 0, 0, 0)')
-        assert.ok(result.columnCenterDelta <= 1, `${width}x${height} ${locale}: metric center delta ${result.columnCenterDelta}`)
+        assert.ok(result.columnCenterDeltas.every(delta => delta <= 1), `${width}x${height} ${locale}: metric center deltas ${result.columnCenterDeltas}`)
+        assert.equal(result.rowCellsOverlap, false)
+        assert.equal(result.nicknameEllipsized, true)
         if (width <= 390) assert.equal(result.rankingScrolls, true)
         assert.equal(result.lastVisible, true)
         assert.equal(result.buttonVisible, true)

@@ -48,7 +48,11 @@ assert.ok(headerBlock, 'missing .group-result__header block')
 assert.match(headerBlock!, /background:\s*transparent/)
 assert.doesNotMatch(headerBlock!, /position:\s*sticky/)
 assert.doesNotMatch(screen, /BrandTitle/)
+assert.match(screen, /group-result__h-metric--stacked/)
 assert.match(screen, /group-result__h-metric--hit-rate/)
+assert.match(screen, /totalHeading/)
+assert.match(screen, /threeCoinsHeading/)
+assert.match(screen, /completeHeading/)
 assert.match(screen, /coinBagHeading/)
 assert.match(screen, /hitRateHeading/)
 assert.equal(ja.groupResultTitle, 'RESULT')
@@ -59,7 +63,14 @@ assert.ok(shellBlock, 'missing .group-result block')
 assert.match(shellBlock!, /height:\s*calc\(100dvh - 5\.5rem\)/)
 assert.match(shellBlock!, /--group-result-row-inline-pad/)
 
-assert.match(css, /--group-result-cols:[\s\S]*?8em/)
+assert.match(
+  css,
+  /--group-result-cols:[\s\S]*?6em[\s\S]*?1\.65rem, 0\.85fr[\s\S]*?2\.6rem, 1\.4fr[\s\S]*?2\.5rem, 1\.2fr/,
+)
+assert.match(
+  css,
+  /@media \(max-width:\s*360px\)[\s\S]*?--group-result-cols:[\s\S]*?5em[\s\S]*?1\.45fr[\s\S]*?1\.2fr/,
+)
 assert.match(css, /\.group-result__cols > \*\s*\{[\s\S]*?min-width:\s*0/)
 assert.match(
   css,
@@ -74,6 +85,10 @@ assert.match(
   /\.group-result \.group-result__details\.duel-btn--quiet-top\s*\{[\s\S]*?width:\s*85%[\s\S]*?height:\s*1\.32rem[\s\S]*?justify-self:\s*center/,
 )
 assert.match(css, /\.group-result__nickname[\s\S]*?text-overflow:\s*ellipsis/)
+const detailNicknameBlock = css.match(/\.group-result-detail__nickname\s*\{[^}]*\}/)?.[0]
+assert.ok(detailNicknameBlock, 'missing .group-result-detail__nickname block')
+assert.doesNotMatch(detailNicknameBlock!, /overflow:\s*hidden|text-overflow:\s*ellipsis/)
+assert.match(detailScreen, /\{detail\.nickname\}/)
 assert.match(css, /\.group-result__top\s*\{[\s\S]*?flex:\s*0 0 auto/)
 assert.match(
   css,

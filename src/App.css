@@ -1510,10 +1510,10 @@
 .group-result {
   --group-result-cols:
     1.15rem
-    8em
-    minmax(0, 1fr)
-    minmax(0, 1fr)
-    minmax(0, 1.15fr)
+    6em
+    minmax(1.65rem, 0.85fr)
+    minmax(2.6rem, 1.4fr)
+    minmax(2.5rem, 1.2fr)
     2.85rem;
   --group-result-col-gap: 0.2rem;
   --group-result-row-inline-pad: 0.28rem;
@@ -1593,7 +1593,7 @@
   hyphens: manual;
 }
 
-.group-result__h-metric--hit-rate {
+.group-result__h-metric--stacked {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1888,10 +1888,10 @@
   .group-result {
     --group-result-cols:
       1.05rem
-      7em
+      5em
       minmax(0, 1fr)
-      minmax(0, 1fr)
-      minmax(0, 1.1fr)
+      minmax(0, 1.45fr)
+      minmax(0, 1.2fr)
       2.55rem;
     --group-result-col-gap: 0.14rem;
     --group-result-row-inline-pad: 0.22rem;

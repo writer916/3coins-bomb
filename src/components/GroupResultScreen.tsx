@@ -112,6 +112,10 @@ export function GroupResultScreen({
     )
   }
 
+  const [totalHeading = t.groupTotalCoins, coinsHeading = ''] =
+    t.groupTotalCoins.split(/\s+(?=COINS$)/)
+  const [threeCoinsHeading = t.groupThreeCoinsComplete, completeHeading = ''] =
+    t.groupThreeCoinsComplete.split(/\s+(?=COMPLETE$)/)
   const [coinBagHeading = t.groupCoinBagHitRate, hitRateHeading = ''] =
     t.groupCoinBagHitRate.split(/\s+(?=HIT RATE$)/)
 
@@ -124,14 +128,22 @@ export function GroupResultScreen({
         <div className="group-result__cols group-result__header" aria-hidden="true">
           <span className="group-result__h-rank" />
           <span className="group-result__h-nick" />
-          <span className="group-result__h-metric">
-            {withDuelNums(t.groupTotalCoins)}
-          </span>
-          <span className="group-result__h-metric">
-            {withDuelNums(t.groupThreeCoinsComplete)}
+          <span
+            className="group-result__h-metric group-result__h-metric--stacked"
+            aria-label={t.groupTotalCoins}
+          >
+            <span>{totalHeading}</span>
+            <span>{coinsHeading}</span>
           </span>
           <span
-            className="group-result__h-metric group-result__h-metric--hit-rate"
+            className="group-result__h-metric group-result__h-metric--stacked"
+            aria-label={t.groupThreeCoinsComplete}
+          >
+            <span>{withDuelNums(threeCoinsHeading)}</span>
+            <span>{completeHeading}</span>
+          </span>
+          <span
+            className="group-result__h-metric group-result__h-metric--stacked group-result__h-metric--hit-rate"
             aria-label={t.groupCoinBagHitRate}
           >
             <span>{coinBagHeading}</span>
