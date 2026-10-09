@@ -12,7 +12,6 @@ import { resolveDuelResultPresentation } from '../duel/duelResultPresentation'
 import type { AppStrings } from '../i18n'
 import { ensureHomeInstallListening } from '../pwa/homeInstall'
 import { useHomeInstallCta } from '../pwa/useHomeInstallCta'
-import { BrandTitle } from '../ui/BrandTitle'
 import { withDuelNums } from '../ui/withDuelNums'
 import { DuelMatchDetailScreen } from './DuelMatchDetailScreen'
 
@@ -111,7 +110,6 @@ function CompletedResult({
   return (
     <section className="duel-final duel-final--completed">
       <div className="duel-final-body">
-        <BrandTitle title={t.brandTitle} className="brand-title duel-final-brand" />
         <p className="duel-final-kicker">{t.duelResult}</p>
         <h2 className="duel-final-verdict">{verdict}</h2>
         <div className="duel-final-scores">

@@ -31,17 +31,28 @@ assert.match(screen, /group-result__ranking/)
 assert.match(screen, /group-result__top/)
 assert.match(screen, /title=\{entry\.nickname\}/)
 
-/* Single vertical scroller wraps header + rows. */
+/* Header and rows share one scroller so every grid track stays aligned. */
 const tableBlock = css.match(/\.group-result__table\s*\{[^}]*\}/)?.[0]
 assert.ok(tableBlock, 'missing .group-result__table block')
-assert.match(tableBlock!, /overflow-y:\s*auto/)
 assert.match(tableBlock!, /flex:\s*1 1 auto/)
+assert.match(tableBlock!, /overflow-y:\s*auto/)
 assert.doesNotMatch(tableBlock!, /overflow-x:\s*auto/)
 
 const rankingBlock = css.match(/\.group-result__ranking\s*\{[^}]*\}/)?.[0]
 assert.ok(rankingBlock, 'missing .group-result__ranking block')
 assert.doesNotMatch(rankingBlock!, /overflow-y:\s*auto/)
 assert.doesNotMatch(rankingBlock!, /scrollbar-gutter/)
+
+const headerBlock = css.match(/\.group-result__header\s*\{[^}]*\}/)?.[0]
+assert.ok(headerBlock, 'missing .group-result__header block')
+assert.match(headerBlock!, /background:\s*transparent/)
+assert.doesNotMatch(headerBlock!, /position:\s*sticky/)
+assert.doesNotMatch(screen, /BrandTitle/)
+assert.match(screen, /group-result__h-metric--hit-rate/)
+assert.match(screen, /coinBagHeading/)
+assert.match(screen, /hitRateHeading/)
+assert.equal(ja.groupResultTitle, 'RESULT')
+assert.equal(en.groupResultTitle, 'RESULT')
 
 const shellBlock = css.match(/\.group-result\s*\{[^}]*\}/)?.[0]
 assert.ok(shellBlock, 'missing .group-result block')

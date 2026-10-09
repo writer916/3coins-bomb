@@ -81,7 +81,7 @@ export const ja: AppStrings = {
   groupCloseConfirm: 'まだ完了していない参加者は結果に含まれません。締め切りますか？',
   groupProgressError: '進行状況を取得できませんでした。もう一度お試しください。',
   groupRoundLabel: 'ROUND',
-  groupResultTitle: 'GROUP RESULT',
+  groupResultTitle: 'RESULT',
   groupResultLoading: '結果を読み込んでいます…',
   groupResultError: '結果を取得できませんでした。もう一度お試しください。',
   groupResultRetry: 'もう一度試す',

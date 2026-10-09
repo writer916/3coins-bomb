@@ -80,7 +80,7 @@ export const en: AppStrings = {
   groupCloseConfirm: 'Players who have not finished will not be included. Close the group?',
   groupProgressError: 'Could not load progress. Please try again.',
   groupRoundLabel: 'ROUND',
-  groupResultTitle: 'GROUP RESULT',
+  groupResultTitle: 'RESULT',
   groupResultLoading: 'Loading result…',
   groupResultError: 'Could not load the result. Please try again.',
   groupResultRetry: 'TRY AGAIN',

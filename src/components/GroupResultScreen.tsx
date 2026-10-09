@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { AppStrings } from '../i18n'
 import type { GroupResult, GroupResultDetail } from '../group/groupPlayClient'
 import { formatGroupHitRate } from '../group/groupResultPresentation'
-import { BrandTitle } from '../ui/BrandTitle'
 import { withDuelNums } from '../ui/withDuelNums'
 import { GroupResultDetailScreen } from './GroupResultDetailScreen'
 
@@ -113,9 +112,11 @@ export function GroupResultScreen({
     )
   }
 
+  const [coinBagHeading = t.groupCoinBagHitRate, hitRateHeading = ''] =
+    t.groupCoinBagHitRate.split(/\s+(?=HIT RATE$)/)
+
   return (
     <section className="group-result" aria-labelledby="group-result-title">
-      <BrandTitle title={t.brandTitle} className="brand-title duel-final-brand" />
       <h2 id="group-result-title" className="group-result__title">
         {t.groupResultTitle}
       </h2>
@@ -129,7 +130,13 @@ export function GroupResultScreen({
           <span className="group-result__h-metric">
             {withDuelNums(t.groupThreeCoinsComplete)}
           </span>
-          <span className="group-result__h-metric">{t.groupCoinBagHitRate}</span>
+          <span
+            className="group-result__h-metric group-result__h-metric--hit-rate"
+            aria-label={t.groupCoinBagHitRate}
+          >
+            <span>{coinBagHeading}</span>
+            <span>{hitRateHeading}</span>
+          </span>
           <span className="group-result__h-action" />
         </div>
         <ol className="group-result__ranking">
