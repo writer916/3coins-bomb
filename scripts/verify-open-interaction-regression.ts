@@ -24,11 +24,24 @@ assert.match(duel, /markOptimisticServerDone\(gate\)/)
 assert.match(duel, /onVisualComplete=\{fx\.clearsRound \? undefined : clearFx\}/)
 assert.match(duel, /kind === 'empty'[\s\S]*onVisualComplete=\{clearFx\}/)
 
-// GROUP keeps its established visibility/disabled split and gains only visual unlock wiring.
+// GROUP keeps CASH OUT visible while disabled, but NEXT ROUND only mounts once actionable.
 assert.match(group, /canShowGroupCashOutButton/)
 assert.match(group, /isGroupCashOutButtonDisabled/)
 assert.match(group, /disabled=\{cashOutDisabled\}/)
 assert.match(group, /onVisualComplete=\{fx\.clearsRound \? undefined : fxComplete\}/)
 assert.match(group, /kind === 'empty'[\s\S]*onVisualComplete=\{fxComplete\}/)
+assert.match(
+  group,
+  /const canShowNextRound =[\s\S]*terminal !== null[\s\S]*!requestPending[\s\S]*fx === null[\s\S]*roundNumber < ready\.state\.totalRounds/,
+)
+assert.match(group, /if \(!canShowNextRound \|\| lockRef\.current\) return/)
+assert.match(group, /lockRef\.current = true\s+setRequestPending\(true\)/)
+assert.match(group, /finally \{ lockRef\.current = false; setRequestPending\(false\) \}/)
+assert.match(group, /\{canShowNextRound \? <button/)
+assert.match(group, /className="[^"]*standard-round-action-btn--next-round"/)
+assert.doesNotMatch(
+  group,
+  /standard-action-btn--next-round" disabled=/,
+)
 
 console.log('verify:open-interaction-regression OK')

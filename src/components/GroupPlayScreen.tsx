@@ -132,13 +132,20 @@ export function GroupPlayScreen({ initialReady, coordinator, t, onResult }: { in
     finally { lockRef.current = false; setRequestPending(false) }
   }, [coordinator, ready, provisionalCoins, openedResults.length, requestPending, fx, terminal])
 
+  const canShowNextRound =
+    terminal !== null &&
+    !requestPending &&
+    fx === null &&
+    ready.currentPlacement.roundNumber < ready.state.totalRounds
+
   const next = useCallback(async () => {
-    if (!terminal || requestPending || fx || lockRef.current || ready.currentPlacement.roundNumber >= ready.state.totalRounds) return
+    if (!canShowNextRound || lockRef.current) return
+    lockRef.current = true
     setRequestPending(true); setError(false)
     try { const nextReady = await coordinator.startNext(ready.state.groupId); setReady(nextReady); setOpenedResults([]); setProvisionalCoins(0); setTerminal(null); setRetryBag(null) }
     catch { setError(true) }
-    finally { setRequestPending(false) }
-  }, [coordinator, ready, terminal, requestPending, fx])
+    finally { lockRef.current = false; setRequestPending(false) }
+  }, [canShowNextRound, coordinator, ready.state.groupId])
 
   const wantsCompletion =
     terminal !== null &&
@@ -200,7 +207,7 @@ export function GroupPlayScreen({ initialReady, coordinator, t, onResult }: { in
           {t.cashOut}
         </button>
       ) : null}
-      {terminal && ready.currentPlacement.roundNumber < ready.state.totalRounds ? <button type="button" className="dev-btn end-action-btn standard-round-action-btn standard-round-action-btn--next-round" disabled={requestPending || !!fx} onClick={() => { void next() }}>{t.nextRound}</button> : null}
+      {canShowNextRound ? <button type="button" className="dev-btn end-action-btn standard-round-action-btn standard-round-action-btn--next-round" onClick={() => { void next() }}>{t.nextRound}</button> : null}
     </div>
     {error || cashOutError ? (
       <div
