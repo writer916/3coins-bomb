@@ -1,10 +1,9 @@
 import { randomBytes } from 'node:crypto'
 import {
-  GROUP_BAG_COUNT_MAX,
-  GROUP_BAG_COUNT_MIN,
   validateGroupPlacementSet,
   type GroupPlacementCandidate,
 } from '../../src/group/groupDomain.js'
+import { generateUniqueQuestionSet } from '../../src/game/questionGeneration.js'
 
 export interface GroupRandomSource {
   readonly next: () => number
@@ -30,44 +29,23 @@ export function createServerCryptoRandomSource(): GroupRandomSource {
   }
 }
 
-function pickInteger(random: GroupRandomSource, min: number, max: number): number {
-  const sample = random.next()
-  if (!(sample >= 0 && sample < 1)) {
-    throw new Error('GROUP random source returned an invalid sample.')
-  }
-  return min + Math.floor(sample * (max - min + 1))
-}
-
 export function createGeneratedGroupPlacementProvider(
   random: GroupRandomSource = createServerCryptoRandomSource(),
 ): GroupPlacementProvider {
   return {
     provide(totalRounds) {
-      const placements: GroupPlacementCandidate[] = []
-      for (let roundNumber = 1; roundNumber <= totalRounds; roundNumber += 1) {
-        const bagCount = pickInteger(
-          random,
-          GROUP_BAG_COUNT_MIN,
-          GROUP_BAG_COUNT_MAX,
-        )
-        const bombBagNumber = pickInteger(random, 1, bagCount)
-        const coinCandidates = Array.from(
-          { length: bagCount },
-          (_, index) => index + 1,
-        ).filter((bagNumber) => bagNumber !== bombBagNumber)
-        const coinBagNumbers = Array.from({ length: 3 }, () =>
-          coinCandidates[pickInteger(random, 0, coinCandidates.length - 1)]!,
-        ).sort((a, b) => a - b)
-        placements.push({
-          origin: 'generated',
-          placement: {
-            roundNumber,
-            bagCount,
-            bombBagNumber,
-            coinBagNumbers: coinBagNumbers as [number, number, number],
-          },
-        })
-      }
+      const placements: GroupPlacementCandidate[] = generateUniqueQuestionSet(
+        totalRounds,
+        random,
+      ).map((question, index) => ({
+        origin: 'generated',
+        placement: {
+          roundNumber: index + 1,
+          bagCount: question.bagCount,
+          bombBagNumber: question.bombBagNumber,
+          coinBagNumbers: question.coinBagNumbers,
+        },
+      }))
       return validateGroupPlacementSet({ totalRounds, placements }).placements
     },
   }

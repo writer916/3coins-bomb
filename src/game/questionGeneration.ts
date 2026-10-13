@@ -1,8 +1,19 @@
-import { BAG_COUNTS, isBagCount, type BagCount } from './formations'
-import { defaultRandom, type RandomSource } from './random'
+export type QuestionBagCount = 3 | 4 | 5 | 6 | 7 | 8
+
+export interface QuestionRandomSource {
+  readonly next: () => number
+}
+
+export const QUESTION_BAG_COUNTS = [
+  3, 4, 5, 6, 7, 8,
+] as const satisfies readonly QuestionBagCount[]
+
+const defaultQuestionRandom: QuestionRandomSource = {
+  next: () => Math.random(),
+}
 
 export type QuestionPlacement = {
-  readonly bagCount: BagCount
+  readonly bagCount: QuestionBagCount
   readonly bombBagNumber: number
   readonly coinBagNumbers: readonly [number, number, number]
 }
@@ -14,7 +25,7 @@ export const QUESTION_BAG_WEIGHTS = {
   6: 25,
   7: 25,
   8: 20,
-} as const satisfies Record<BagCount, number>
+} as const satisfies Record<QuestionBagCount, number>
 
 export const QUESTION_PLACEMENT_COUNTS = {
   3: 12,
@@ -23,16 +34,20 @@ export const QUESTION_PLACEMENT_COUNTS = {
   6: 210,
   7: 392,
   8: 672,
-} as const satisfies Record<BagCount, number>
+} as const satisfies Record<QuestionBagCount, number>
 
 export const QUESTION_PLACEMENT_TOTAL = 1_426
 export const QUESTION_SET_MAX_ROUNDS = 20
 export const SOLO_QUESTION_HISTORY_LIMIT = 20
 
-const placementCache = new Map<BagCount, readonly QuestionPlacement[]>()
-const placementKeyCache = new Map<BagCount, ReadonlySet<string>>()
+const placementCache = new Map<QuestionBagCount, readonly QuestionPlacement[]>()
+const placementKeyCache = new Map<QuestionBagCount, ReadonlySet<string>>()
 
-function sample(random: RandomSource): number {
+function isQuestionBagCount(value: number): value is QuestionBagCount {
+  return QUESTION_BAG_COUNTS.includes(value as QuestionBagCount)
+}
+
+function sample(random: QuestionRandomSource): number {
   const value = random.next()
   if (!(value >= 0 && value < 1)) {
     throw new Error('Question random source returned an invalid sample.')
@@ -51,7 +66,7 @@ export function normalizeQuestionPlacement(
   placement: QuestionPlacement,
 ): QuestionPlacement {
   const bagCountValue: number = placement.bagCount
-  if (!isBagCount(bagCountValue)) throw new Error('Invalid bagCount.')
+  if (!isQuestionBagCount(bagCountValue)) throw new Error('Invalid bagCount.')
   const bagCount = bagCountValue
   const bombBagNumber = integer(
     placement.bombBagNumber,
@@ -76,7 +91,7 @@ export function questionPlacementKey(placement: QuestionPlacement): string {
   return `${normalized.bagCount}|${normalized.bombBagNumber}|${normalized.coinBagNumbers.join(',')}`
 }
 
-function buildPlacements(bagCount: BagCount): readonly QuestionPlacement[] {
+function buildPlacements(bagCount: QuestionBagCount): readonly QuestionPlacement[] {
   const placements: QuestionPlacement[] = []
   for (let bombBagNumber = 1; bombBagNumber <= bagCount; bombBagNumber += 1) {
     const coinCandidates = Array.from(
@@ -106,7 +121,7 @@ function buildPlacements(bagCount: BagCount): readonly QuestionPlacement[] {
 }
 
 export function enumerateQuestionPlacements(
-  bagCount: BagCount,
+  bagCount: QuestionBagCount,
 ): readonly QuestionPlacement[] {
   const cached = placementCache.get(bagCount)
   if (cached) return cached
@@ -119,7 +134,7 @@ export function enumerateQuestionPlacements(
   return placements
 }
 
-function knownPlacementKeys(bagCount: BagCount): ReadonlySet<string> {
+function knownPlacementKeys(bagCount: QuestionBagCount): ReadonlySet<string> {
   enumerateQuestionPlacements(bagCount)
   return placementKeyCache.get(bagCount)!
 }
@@ -130,7 +145,7 @@ function sanitizeExcludedKeys(values: Iterable<unknown> | null | undefined): Set
   try {
     for (const value of values) {
       if (typeof value !== 'string') continue
-      for (const bagCount of BAG_COUNTS) {
+      for (const bagCount of QUESTION_BAG_COUNTS) {
         if (knownPlacementKeys(bagCount).has(value)) {
           result.add(value)
           break
@@ -143,7 +158,7 @@ function sanitizeExcludedKeys(values: Iterable<unknown> | null | undefined): Set
   return result
 }
 
-function pickIndex(random: RandomSource, length: number): number {
+function pickIndex(random: QuestionRandomSource, length: number): number {
   if (!Number.isInteger(length) || length < 1) {
     throw new Error('Cannot choose from an empty question pool.')
   }
@@ -151,10 +166,10 @@ function pickIndex(random: RandomSource, length: number): number {
 }
 
 export function pickWeightedQuestionBagCount(
-  random: RandomSource = defaultRandom,
-  availableBagCounts: readonly BagCount[] = BAG_COUNTS,
-): BagCount {
-  const available = BAG_COUNTS.filter((bagCount) => availableBagCounts.includes(bagCount))
+  random: QuestionRandomSource = defaultQuestionRandom,
+  availableBagCounts: readonly QuestionBagCount[] = QUESTION_BAG_COUNTS,
+): QuestionBagCount {
+  const available = QUESTION_BAG_COUNTS.filter((bagCount) => availableBagCounts.includes(bagCount))
   if (available.length === 0) throw new Error('No question bag count is available.')
   const totalWeight = available.reduce(
     (total, bagCount) => total + QUESTION_BAG_WEIGHTS[bagCount],
@@ -170,8 +185,8 @@ export function pickWeightedQuestionBagCount(
 }
 
 export function drawQuestionForBagCount(
-  bagCount: BagCount,
-  random: RandomSource = defaultRandom,
+  bagCount: QuestionBagCount,
+  random: QuestionRandomSource = defaultQuestionRandom,
   excludedKeys?: Iterable<unknown> | null,
 ): QuestionPlacement {
   const excluded = sanitizeExcludedKeys(excludedKeys)
@@ -184,12 +199,12 @@ export function drawQuestionForBagCount(
 }
 
 export function drawQuestion(
-  random: RandomSource = defaultRandom,
+  random: QuestionRandomSource = defaultQuestionRandom,
   excludedKeys?: Iterable<unknown> | null,
 ): QuestionPlacement {
   const excluded = sanitizeExcludedKeys(excludedKeys)
-  const availableByBagCount = new Map<BagCount, readonly QuestionPlacement[]>()
-  for (const bagCount of BAG_COUNTS) {
+  const availableByBagCount = new Map<QuestionBagCount, readonly QuestionPlacement[]>()
+  for (const bagCount of QUESTION_BAG_COUNTS) {
     const available = enumerateQuestionPlacements(bagCount).filter(
       (placement) => !excluded.has(questionPlacementKey(placement)),
     )
@@ -209,16 +224,16 @@ export function drawQuestion(
 
 export function generateUniqueQuestionSet(
   roundCount: number,
-  random: RandomSource = defaultRandom,
+  random: QuestionRandomSource = defaultQuestionRandom,
 ): readonly QuestionPlacement[] {
   integer(roundCount, 1, QUESTION_SET_MAX_ROUNDS, 'roundCount')
-  const pools = new Map<BagCount, QuestionPlacement[]>()
-  for (const bagCount of BAG_COUNTS) {
+  const pools = new Map<QuestionBagCount, QuestionPlacement[]>()
+  for (const bagCount of QUESTION_BAG_COUNTS) {
     pools.set(bagCount, [...enumerateQuestionPlacements(bagCount)])
   }
   const result: QuestionPlacement[] = []
   for (let round = 0; round < roundCount; round += 1) {
-    const availableBagCounts = BAG_COUNTS.filter(
+    const availableBagCounts = QUESTION_BAG_COUNTS.filter(
       (bagCount) => (pools.get(bagCount)?.length ?? 0) > 0,
     )
     const bagCount = pickWeightedQuestionBagCount(random, availableBagCounts)
@@ -241,7 +256,7 @@ export function recentSoloQuestionKeys(
     for (const value of values) {
       if (
         typeof value === 'string' &&
-        BAG_COUNTS.some((bagCount) => knownPlacementKeys(bagCount).has(value))
+        QUESTION_BAG_COUNTS.some((bagCount) => knownPlacementKeys(bagCount).has(value))
       ) {
         valid.push(value)
       }
