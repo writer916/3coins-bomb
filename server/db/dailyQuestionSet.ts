@@ -99,20 +99,49 @@ export async function persistOrLoadDailyQuestionSet(input: {
       from challenge
       inner join placement_input on challenge.created
       on conflict (challenge_date, round_number) do nothing
-      returning challenge_date, round_number
+      returning
+        challenge_date,
+        round_number,
+        bag_count,
+        bomb_bag_number,
+        coin_bag_numbers
     ),
     placement_guard as materialized (
       select count(*)::integer as inserted_count from inserted_placements
     ),
+    /*
+     * Sibling CTEs share one snapshot, so a table scan cannot see rows just
+     * inserted in this statement. Newly created sets must be read from
+     * INSERT … RETURNING; existing sets are read from the committed table.
+     */
     canonical as materialized (
+      select
+        inserted_placements.challenge_date,
+        inserted_placements.round_number,
+        inserted_placements.bag_count,
+        inserted_placements.bomb_bag_number,
+        inserted_placements.coin_bag_numbers
+      from challenge
+      inner join placement_guard on true
+      inner join inserted_placements
+        on inserted_placements.challenge_date = challenge.challenge_date
+      where challenge.created
+        and placement_guard.inserted_count = ${DAILY_CHALLENGE_ROUNDS}
+
+      union all
+
       select
         placement.challenge_date,
         placement.round_number,
         placement.bag_count,
         placement.bomb_bag_number,
         placement.coin_bag_numbers
-      from daily_challenge_placements placement
-      inner join challenge on challenge.challenge_date = placement.challenge_date
+      from challenge
+      inner join placement_guard on true
+      inner join daily_challenge_placements placement
+        on placement.challenge_date = challenge.challenge_date
+      where not challenge.created
+        and placement_guard.inserted_count = 0
     )
     select
       challenge.challenge_date,
@@ -134,14 +163,7 @@ export async function persistOrLoadDailyQuestionSet(input: {
         '[]'::jsonb
       ) as placements
     from challenge
-    cross join placement_guard
     left join canonical on canonical.challenge_date = challenge.challenge_date
-    where
-      (not challenge.created and placement_guard.inserted_count = 0)
-      or (
-        challenge.created
-        and placement_guard.inserted_count = ${DAILY_CHALLENGE_ROUNDS}
-      )
     group by
       challenge.challenge_date,
       challenge.created_at,
@@ -153,12 +175,12 @@ export async function persistOrLoadDailyQuestionSet(input: {
   const row = result.rows[0]
   if (!row) throw new Error('DAILY question set persistence returned no row.')
   if (
-    row.formation_version !== DAILY_FORMATION_VERSION ||
-    row.rule_version !== DAILY_RULE_VERSION
+    Number(row.formation_version) !== DAILY_FORMATION_VERSION ||
+    Number(row.rule_version) !== DAILY_RULE_VERSION
   ) {
     throw new Error('Persisted DAILY challenge has an unsupported version state.')
   }
-  if (row.placement_count !== DAILY_CHALLENGE_ROUNDS) {
+  if (Number(row.placement_count) !== DAILY_CHALLENGE_ROUNDS) {
     throw new Error('Persisted DAILY challenge failed its placement integrity guard.')
   }
 
@@ -170,7 +192,7 @@ export async function persistOrLoadDailyQuestionSet(input: {
   return validateDailyQuestionSet({
     challengeDate,
     createdAt: new Date(row.created_at).toISOString(),
-    created: row.created,
+    created: row.created === true,
     formationVersion: DAILY_FORMATION_VERSION,
     ruleVersion: DAILY_RULE_VERSION,
     rounds: row.placements,
@@ -213,7 +235,7 @@ export async function loadDailyQuestionSet(
   `)
   const row = result.rows[0]
   if (!row) return null
-  if (row.placement_count !== DAILY_CHALLENGE_ROUNDS) {
+  if (Number(row.placement_count) !== DAILY_CHALLENGE_ROUNDS) {
     throw new Error('Persisted DAILY challenge failed its placement integrity guard.')
   }
   const date =
@@ -224,8 +246,8 @@ export async function loadDailyQuestionSet(
     challengeDate: date,
     createdAt: new Date(row.created_at).toISOString(),
     created: false,
-    formationVersion: row.formation_version,
-    ruleVersion: row.rule_version,
+    formationVersion: Number(row.formation_version),
+    ruleVersion: Number(row.rule_version),
     rounds: row.placements,
   })
 }
