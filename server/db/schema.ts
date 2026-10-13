@@ -3,6 +3,7 @@ import {
   type AnyPgColumn,
   boolean,
   check,
+  date,
   foreignKey,
   index,
   integer,
@@ -691,3 +692,86 @@ export type GroupRoundAttemptRow = typeof groupRoundAttempts.$inferSelect
 export type NewGroupRoundAttemptRow = typeof groupRoundAttempts.$inferInsert
 export type GroupRoundOpenRow = typeof groupRoundOpens.$inferSelect
 export type NewGroupRoundOpenRow = typeof groupRoundOpens.$inferInsert
+
+/** One UTC calendar day of DAILY CHALLENGE — world-common question set header. */
+export const dailyChallenges = pgTable(
+  'daily_challenges',
+  {
+    /** UTC calendar date `YYYY-MM-DD`; primary identity for the day's challenge. */
+    challengeDate: date('challenge_date', { mode: 'string' }).primaryKey(),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    formationVersion: smallint('formation_version').default(1).notNull(),
+    ruleVersion: smallint('rule_version').default(1).notNull(),
+  },
+  (table) => [
+    check(
+      'daily_challenges_formation_version_check',
+      sql`${table.formationVersion} >= 1`,
+    ),
+    check('daily_challenges_rule_version_check', sql`${table.ruleVersion} >= 1`),
+  ],
+)
+
+/** Ordered ROUND placements for one DAILY challenge date (exactly 20 rows). */
+export const dailyChallengePlacements = pgTable(
+  'daily_challenge_placements',
+  {
+    challengeDate: date('challenge_date', { mode: 'string' })
+      .notNull()
+      .references(() => dailyChallenges.challengeDate, { onDelete: 'cascade' }),
+    roundNumber: smallint('round_number').notNull(),
+    bagCount: smallint('bag_count').notNull(),
+    bombBagNumber: smallint('bomb_bag_number').notNull(),
+    /** Three bag numbers, one per coin, stored in non-decreasing order. */
+    coinBagNumbers: smallint('coin_bag_numbers').array().notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    primaryKey({
+      name: 'daily_challenge_placements_date_round_pk',
+      columns: [table.challengeDate, table.roundNumber],
+    }),
+    check(
+      'daily_challenge_placements_round_number_check',
+      sql`${table.roundNumber} between 1 and 20`,
+    ),
+    check(
+      'daily_challenge_placements_bag_count_check',
+      sql`${table.bagCount} between 3 and 8`,
+    ),
+    check(
+      'daily_challenge_placements_bomb_bag_number_check',
+      sql`${table.bombBagNumber} between 1 and ${table.bagCount}`,
+    ),
+    check(
+      'daily_challenge_placements_coin_count_check',
+      sql`array_ndims(${table.coinBagNumbers}) = 1
+        and cardinality(${table.coinBagNumbers}) = 3
+        and array_lower(${table.coinBagNumbers}, 1) = 1
+        and array_upper(${table.coinBagNumbers}, 1) = 3
+        and array_position(${table.coinBagNumbers}, null) is null`,
+    ),
+    check(
+      'daily_challenge_placements_coin_bag_numbers_check',
+      sql`(
+        (${table.coinBagNumbers})[1] between 1 and ${table.bagCount}
+        and (${table.coinBagNumbers})[2] between 1 and ${table.bagCount}
+        and (${table.coinBagNumbers})[3] between 1 and ${table.bagCount}
+        and (${table.coinBagNumbers})[1] <> ${table.bombBagNumber}
+        and (${table.coinBagNumbers})[2] <> ${table.bombBagNumber}
+        and (${table.coinBagNumbers})[3] <> ${table.bombBagNumber}
+        and (${table.coinBagNumbers})[1] <= (${table.coinBagNumbers})[2]
+        and (${table.coinBagNumbers})[2] <= (${table.coinBagNumbers})[3]
+      )`,
+    ),
+  ],
+)
+
+export type DailyChallengeRow = typeof dailyChallenges.$inferSelect
+export type NewDailyChallengeRow = typeof dailyChallenges.$inferInsert
+export type DailyChallengePlacementRow = typeof dailyChallengePlacements.$inferSelect
+export type NewDailyChallengePlacementRow = typeof dailyChallengePlacements.$inferInsert

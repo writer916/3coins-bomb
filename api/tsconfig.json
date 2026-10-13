@@ -21,6 +21,8 @@
     "./**/*.ts",
     "../server/**/*.ts",
     "../src/group/groupDomain.ts",
-    "../src/group/groupResultDetail.ts"
+    "../src/group/groupResultDetail.ts",
+    "../src/daily/**/*.ts",
+    "../src/game/questionGeneration.ts"
   ]
 }

@@ -84,13 +84,19 @@ assert.equal(
   2,
 )
 
-/* No drizzle journal entry for unapproved CHECK tighten. */
-assert.doesNotMatch(journal, /0005_/)
+/* Bomb CHECK tighten remains unapproved; later migrations must not apply it. */
+assert.doesNotMatch(journal, /0005_group_bomb_captured_coins_check/)
 assert.equal(
   existsSync(resolve(root, 'drizzle/0005_group_bomb_captured_coins_check.sql')),
   false,
-  'approved migration must not be registered yet',
+  'approved bomb CHECK migration must not be registered yet',
 )
+const migration0005 = readFileSync(
+  resolve(root, 'drizzle/0005_romantic_doctor_faustus.sql'),
+  'utf8',
+)
+assert.doesNotMatch(migration0005, /group_round_attempts/)
+assert.doesNotMatch(migration0005, /captured_coins/)
 
 /* Review drafts exist for human approval. */
 assert.equal(
