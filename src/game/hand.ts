@@ -6,6 +6,10 @@ import {
   type BagCount,
 } from './formations'
 import { defaultRandom, pickOne, type RandomSource } from './random'
+import {
+  drawQuestion,
+  type QuestionPlacement,
+} from './questionGeneration'
 
 /** One bag's hidden contents. Bomb never coexists with coins. */
 export type BagContents =
@@ -205,15 +209,28 @@ export function generateHiddenHand(
   return createHiddenHand({ bagCount, bombBagId, coinTargets })
 }
 
+export function createHiddenHandFromQuestion(
+  question: QuestionPlacement,
+): HiddenHand {
+  const bags = bagsForCount(question.bagCount)
+  return createHiddenHand({
+    bagCount: question.bagCount,
+    bombBagId: bags[question.bombBagNumber - 1]!,
+    coinTargets: question.coinBagNumbers.map(
+      (bagNumber) => bags[bagNumber - 1]!,
+    ) as [BagId, BagId, BagId],
+  })
+}
+
 /**
- * Solo system-generated ROUND: bag count is uniform in 3–8, then a hand is generated.
- * Pair / multiplayer can call `generateHiddenHand(bagCount)` with an external count instead.
+ * Solo system-generated ROUND using the shared weighted question engine.
+ * History-aware callers can draw a question first and use
+ * `createHiddenHandFromQuestion`.
  */
 export function generateSoloSystemHand(
   random: RandomSource = defaultRandom,
 ): HiddenHand {
-  const bagCount = pickRandomBagCount(random)
-  return generateHiddenHand(bagCount, random)
+  return createHiddenHandFromQuestion(drawQuestion(random))
 }
 
 export function assertHiddenHandInvariants(hand: HiddenHand): void {

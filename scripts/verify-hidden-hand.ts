@@ -96,9 +96,10 @@ for (const bagCount of BAG_COUNTS) {
   )
 }
 
-// --- 2) Solo system hand: bagCount uniform in 3–8 ---
+// --- 2) Solo system hand: shared 5/10/15/25/25/20 weighting ---
 {
   const bagHits: Record<number, number> = { 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0 }
+  const weights: Record<number, number> = { 3: 5, 4: 10, 5: 15, 6: 25, 7: 25, 8: 20 }
   for (let i = 0; i < SOLO_ITERATIONS; i++) {
     const hand = generateSoloSystemHand()
     assertHiddenHandInvariants(hand)
@@ -108,10 +109,10 @@ for (const bagCount of BAG_COUNTS) {
       bagHits[hand.bagCount]! += 1
     }
   }
-  const expectedShare = SOLO_ITERATIONS / BAG_COUNTS.length
   for (const n of BAG_COUNTS) {
     const hit = bagHits[n]!
     if (hit === 0) fail(`solo: bagCount ${n} never appeared`)
+    const expectedShare = SOLO_ITERATIONS * weights[n]! / 100
     const pp = (Math.abs(hit - expectedShare) / SOLO_ITERATIONS) * 100
     if (pp > 2.0) {
       fail(`solo: bagCount ${n} share off by ${pp.toFixed(2)}pp (hits=${hit})`)
@@ -172,21 +173,18 @@ try {
   ok('rejects coin target on bomb bag')
 }
 
-// --- 6) Controlled RNG: bagCount, bomb, three coins ---
-// generateSoloSystemHand / generateHiddenHand consume:
-// solo: pick bagCount among 6, then bomb among N, then 3× coin among N-1
+// --- 6) Controlled RNG: weighted bagCount + completed placement ---
 {
-  // Force bagCount=5 → index 2 among [3,4,5,6,7,8] → use 2.1/6
-  // bomb = bag-1 → 0
-  // coins all on first candidate (bag-2) → 0,0,0 → partition 3
+  // First weighted interval selects 3 bags; first completed placement is
+  // BOMB bag-1 + all three coins in bag-2.
   const hand3 = generateSoloSystemHand(
-    sequenceRandom([2.1 / 6, 0.0, 0.0, 0.0, 0.0]),
+    sequenceRandom([0, 0]),
   )
   assertHiddenHandInvariants(hand3)
-  if (hand3.bagCount !== 5) fail(`controlled solo bagCount got ${hand3.bagCount}`)
+  if (hand3.bagCount !== 3) fail(`controlled solo bagCount got ${hand3.bagCount}`)
   else if (hand3.bombBagId !== 'bag-1') fail(`controlled bomb got ${hand3.bombBagId}`)
   else if (observePartition(hand3) !== '3') fail(`controlled partition got ${observePartition(hand3)}`)
-  else ok('controlled RNG: bagCount=5, bomb=bag-1, partition=3')
+  else ok('controlled RNG: weighted bagCount=3, bomb=bag-1, partition=3')
 
   // bagCount=5 fixed: bomb bag-1 (0), coins indices 0,1,2 → bag-2,3,4 → 1+1+1
   const hand111 = generateHiddenHand(

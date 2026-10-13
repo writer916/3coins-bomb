@@ -21,7 +21,11 @@ import {
   type FxCoinCount,
 } from './game/coinFx'
 import { bagsForCount } from './game/formations'
-import type { BagContents, HiddenHand } from './game/hand'
+import {
+  createHiddenHandFromQuestion,
+  type BagContents,
+  type HiddenHand,
+} from './game/hand'
 import { nextLocale, readLocale, writeLocale } from './game/locale'
 import { openedBagIds } from './game/open'
 import {
@@ -43,6 +47,7 @@ import {
 } from './game/screenPresentation'
 import { startOpenPresentation } from './game/startOpenPresentation'
 import { readSoundEnabled, writeSoundEnabled } from './game/sound'
+import { createSoloQuestionSession } from './game/soloQuestionHistory'
 import {
   applyAcceptedOpenToDraft,
   commitRoundResultToStats,
@@ -64,6 +69,20 @@ import { withDuelNums } from './ui/withDuelNums'
 import './App.css'
 
 type AppScreen = 'top' | 'solo' | 'duel' | 'group'
+
+const soloQuestionSession = createSoloQuestionSession()
+
+function createInitialSoloRound(): RoundState {
+  return createActiveRound(
+    createHiddenHandFromQuestion(soloQuestionSession.getInitialQuestion()),
+  )
+}
+
+function createNextSoloRound(): RoundState {
+  return createActiveRound(
+    createHiddenHandFromQuestion(soloQuestionSession.nextQuestion()),
+  )
+}
 
 type DevRoundApi = {
   getRound: () => RoundState
@@ -127,7 +146,7 @@ function App() {
   const [screen, setScreen] = useState<AppScreen>('top')
   const [locale, setLocale] = useState<LocaleId>(() => readLocale())
   const t = getStrings(locale)
-  const [round, setRound] = useState<RoundState>(() => createActiveRound())
+  const [round, setRound] = useState<RoundState>(() => createInitialSoloRound())
   const [soundOn, setSoundOn] = useState(() => readSoundEnabled())
   const [soloStats, setSoloStats] = useState<SoloStats>(() => readSoloStats())
   /** In-progress ROUND bag tallies — memory only, never localStorage. */
@@ -262,7 +281,7 @@ function App() {
       setRevealed(false)
       roundStatsCommittedRef.current = false
       setDraft(resetSoloRoundDraft())
-      setRound(createActiveRound(hand))
+      setRound(hand ? createActiveRound(hand) : createNextSoloRound())
     },
     [clearOpenFx, setDraft],
   )
