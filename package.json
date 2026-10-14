@@ -40,6 +40,7 @@
     "verify:daily-terminal-reload": "tsx scripts/verify-daily-terminal-reload.ts",
     "verify:daily-placements-api": "tsx scripts/verify-daily-placements-api.ts",
     "verify:daily-result": "tsx scripts/verify-daily-result.ts",
+    "verify:daily-result-api": "tsx scripts/verify-daily-result-api.ts",
     "verify:group-domain": "tsx scripts/verify-group-domain.ts",
     "verify:group-db": "tsx scripts/verify-group-db.ts",
     "verify:group-create": "tsx scripts/verify-group-create.ts",

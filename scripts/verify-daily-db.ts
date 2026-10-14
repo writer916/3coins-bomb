@@ -262,6 +262,10 @@ assert.match(persistSource, /persistOrLoadDailyQuestionSet/)
 assert(existsSync(join(root, 'api', 'daily.ts')))
 assert(existsSync(join(root, 'api', '_daily', 'challenges', 'current', 'participants.ts')))
 assert(existsSync(join(root, 'api', '_daily', 'challenges', '[date]', 'participant.ts')))
+assert(existsSync(join(root, 'api', '_daily', 'challenges', '[date]', 'result.ts')))
+
+const dailyRouter = readFileSync(join(root, 'api', 'daily.ts'), 'utf8')
+assert.match(dailyRouter, /\/result\$/)
 
 const vercel = readFileSync(join(root, 'vercel.json'), 'utf8')
 assert.match(vercel, /"source": "\/api\/daily\/:path\*"/)

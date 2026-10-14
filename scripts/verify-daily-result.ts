@@ -535,8 +535,10 @@ function participant(
   assert.match(domain, /totalTimeSeconds/)
   assert.match(domain, /compareDailyCoinBagHitRate/)
   assert.doesNotMatch(domain, /getDatabase/)
-  assert.doesNotMatch(db, /getDatabase/)
+  assert.match(db, /loadDailyResultSource/)
+  assert.match(db, /tryBuildDailyParticipantResultSummary/)
   assert.doesNotMatch(db, /drizzle-kit|migrate/)
+  assert.doesNotMatch(db, /\b(?:DELETE|TRUNCATE|DROP)\b/i)
 }
 
 console.log('verify:daily-result OK')
