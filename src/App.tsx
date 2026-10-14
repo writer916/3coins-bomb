@@ -9,10 +9,12 @@ import { DuelFlow } from './components/DuelFlow'
 import { DuelClaimBootstrap } from './components/DuelClaimBootstrap'
 import { DailyPreStartScreen } from './components/DailyPreStartScreen'
 import { DailyPlayScreen } from './components/DailyPlayScreen'
+import { DailyResultScreen } from './components/DailyResultScreen'
 import type {
   DailyPlayCoordinator,
   DailyPlayState,
 } from './daily/dailyPlayClient'
+import type { DailyChallengeDate } from './daily/dailyChallengeDate'
 import { GroupCreateFlow } from './components/GroupCreateFlow'
 import { GroupEntryShell } from './components/GroupEntryShell'
 import { RevealBoard } from './components/RevealBoard'
@@ -81,6 +83,11 @@ type DailyPhase =
       readonly kind: 'play'
       readonly state: DailyPlayState
       readonly coordinator: DailyPlayCoordinator
+    }
+  | {
+      readonly kind: 'result'
+      /** Frozen challenge date for this RESULT session (not recomputed from now). */
+      readonly challengeDate: DailyChallengeDate
     }
 
 const soloQuestionSession = createSoloQuestionSession()
@@ -614,7 +621,9 @@ function App() {
         className={
           dailyPhase.kind === 'play'
             ? 'app app--duel app--daily-play'
-            : 'app app--duel app--daily-prestart'
+            : dailyPhase.kind === 'result'
+              ? 'app app--duel app--daily-result'
+              : 'app app--duel app--daily-prestart'
         }
       >
         <div className="field-header">
@@ -634,12 +643,30 @@ function App() {
             onGoTop={goTop}
             initialState={dailyPhase.state}
             coordinator={dailyPhase.coordinator}
+            onChallengeComplete={({ challengeDate }) => {
+              setDailyPhase({ kind: 'result', challengeDate })
+            }}
+          />
+        ) : dailyPhase.kind === 'result' ? (
+          <DailyResultScreen
+            key={dailyPhase.challengeDate}
+            t={t}
+            onGoTop={goTop}
+            challengeDate={dailyPhase.challengeDate}
           />
         ) : (
           <DailyPreStartScreen
             t={t}
             onGoTop={goTop}
             onEnterPlay={({ state, coordinator }) => {
+              if (state.completedAt) {
+                // Reload / re-entry of a finished day → RESULT, not re-play.
+                setDailyPhase({
+                  kind: 'result',
+                  challengeDate: state.challengeDate,
+                })
+                return
+              }
               setDailyPhase({ kind: 'play', state, coordinator })
             }}
           />

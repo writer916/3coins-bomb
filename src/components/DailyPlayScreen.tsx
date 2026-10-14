@@ -179,6 +179,13 @@ export type DailyPlayScreenProps = {
   readonly coordinator: DailyPlayCoordinator
   readonly t: AppStrings
   readonly onGoTop: () => void
+  /**
+   * Fired once after ROUND 20 is finished and open FX has settled.
+   * RESULT／RANKING is shown by the parent — do not cut ROUND-end FX short.
+   */
+  readonly onChallengeComplete?: (input: {
+    readonly challengeDate: string
+  }) => void
 }
 
 export function DailyPlayScreen({
@@ -186,6 +193,7 @@ export function DailyPlayScreen({
   coordinator,
   t,
   onGoTop,
+  onChallengeComplete,
 }: DailyPlayScreenProps) {
   const [play, setPlay] = useState(initialState)
   const [openedResults, setOpenedResults] = useState<readonly DailyOpenResult[]>(
@@ -245,6 +253,25 @@ export function DailyPlayScreen({
   useEffect(() => {
     playRef.current = play
   }, [play])
+
+  const challengeCompleteNotifiedRef = useRef(false)
+  useEffect(() => {
+    if (!onChallengeComplete) return
+    if (challengeCompleteNotifiedRef.current) return
+    if (!play.completedAt) return
+    if (play.activeAttempt) return
+    if (fx !== null || requestPending) return
+    // Keep ROUND-end FX / terminal settle before leaving play.
+    challengeCompleteNotifiedRef.current = true
+    onChallengeComplete({ challengeDate: play.challengeDate })
+  }, [
+    fx,
+    onChallengeComplete,
+    play.activeAttempt,
+    play.challengeDate,
+    play.completedAt,
+    requestPending,
+  ])
 
   // Bootstrap GET has already confirmed this ROUND is terminal. Any restored
   // mutation belongs to that same ROUND (validated by the coordinator), so it
@@ -1017,16 +1044,20 @@ export function DailyPlayScreen({
   )
 
   if (!active && !terminal && play.completedAt) {
+    // Parent switches to RESULT via onChallengeComplete; keep a stable status
+    // frame if the hand-off has not painted yet (or callback is absent in tests).
     return (
-      <div className="duel-play daily-play">
+      <div className="duel-play daily-play" data-daily-play-complete="">
         <p className="duel-instruction" role="status">
           {withDuelNums(t.dailyChallengeComplete)}
         </p>
-        <div className="field-action">
-          <button type="button" className="dev-btn" onClick={onGoTop}>
-            {t.duelTop}
-          </button>
-        </div>
+        {!onChallengeComplete ? (
+          <div className="field-action">
+            <button type="button" className="dev-btn" onClick={onGoTop}>
+              {t.duelTop}
+            </button>
+          </div>
+        ) : null}
       </div>
     )
   }
@@ -1153,7 +1184,11 @@ export function DailyPlayScreen({
             {t.nextRound}
           </button>
         ) : null}
-        {terminal && completed && fx === null && !requestPending ? (
+        {terminal &&
+        completed &&
+        fx === null &&
+        !requestPending &&
+        !onChallengeComplete ? (
           <button type="button" className="dev-btn" onClick={onGoTop}>
             {t.duelTop}
           </button>

@@ -1745,6 +1745,31 @@
 }
 
 /* Override quiet-top margin-top:auto — shell height + flex table already pins TOP. */
+.daily-result__status {
+  margin: 0 0 0.35rem;
+  color: #c4b49a;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(0.62rem, 2.4vw, 0.82rem);
+  letter-spacing: 0.04em;
+  line-height: 1.25;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.daily-result__actions {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.45rem;
+  width: 100%;
+}
+
+.group-result__details-slot {
+  display: block;
+  min-height: 1.6rem;
+}
+
 .group-result .group-result__top.duel-btn--quiet-top {
   margin-top: 0.7rem;
   margin-bottom: 0;

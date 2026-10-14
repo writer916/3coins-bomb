@@ -68,6 +68,7 @@ export const en: AppStrings = {
   dailyClearedLabel: '3 COINS',
   dailyBombedLabel: 'BOMB',
   dailyChallengeComplete: '20 ROUNDS COMPLETE',
+  dailyRankingUpdatesEvery10Minutes: 'RANKING UPDATES EVERY 10 MINUTES',
   groupRoundsHint: 'Choose the number of rounds.',
   groupRoundsLabel: 'ROUNDS（1-20）',
   groupPlayersHint: 'Choose the number of players.',

@@ -81,6 +81,11 @@ export type AppStrings = {
   dailyClearedLabel: string
   dailyBombedLabel: string
   dailyChallengeComplete: string
+  /**
+   * Shown when personal RESULT is ready but ranking API returned 404
+   * `ranking_unavailable` (UTC 10-minute bucket wait). EN is fixed copy.
+   */
+  dailyRankingUpdatesEvery10Minutes: string
   groupRoundsHint: string
   groupRoundsLabel: string
   groupPlayersHint: string

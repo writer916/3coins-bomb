@@ -69,6 +69,7 @@ export const ja: AppStrings = {
   dailyClearedLabel: '3 COINS',
   dailyBombedLabel: 'BOMB',
   dailyChallengeComplete: '20 ROUNDS COMPLETE',
+  dailyRankingUpdatesEvery10Minutes: 'RANKING UPDATES EVERY 10 MINUTES',
   groupRoundsHint: 'ROUND数を決めてください',
   groupRoundsLabel: 'ROUNDS（1-20）',
   groupPlayersHint: '参加人数を決めてください',
