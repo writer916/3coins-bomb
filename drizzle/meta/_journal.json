@@ -43,6 +43,13 @@
       "when": 1791906867890,
       "tag": "0005_romantic_doctor_faustus",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791939291927,
+      "tag": "0006_lazy_major_mapleleaf",
+      "breakpoints": true
     }
   ]
 }

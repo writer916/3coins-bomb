@@ -593,7 +593,7 @@ export const groupRoundAttempts = pgTable(
         ${table.status} = 'bombed'
         and ${table.endedAt} is not null
         and ${table.terminalRequestId} is not null
-        and ${table.capturedCoins} = 0
+        and ${table.capturedCoins} between 0 and 2
         and ${table.openedBagCount} between 1 and 8
       ) or (
         ${table.status} = 'cashed_out'
@@ -771,7 +771,261 @@ export const dailyChallengePlacements = pgTable(
   ],
 )
 
+export const dailyChallengeParticipants = pgTable(
+  'daily_challenge_participants',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    challengeDate: date('challenge_date', { mode: 'string' })
+      .notNull()
+      .references(() => dailyChallenges.challengeDate, { onDelete: 'cascade' }),
+    displayNickname: text('display_nickname').notNull(),
+    /** NFC-normalized, case-sensitive key; DAILY intentionally permits duplicates. */
+    nicknameKey: text('nickname_key').notNull(),
+    /** SHA-256 encoded as 64 lowercase hexadecimal characters. */
+    authTokenHash: varchar('auth_token_hash', { length: 64 }).notNull(),
+    joinRequestId: uuid('join_request_id').notNull(),
+    /** Permutation of the day's placement ROUND numbers 1 through 20. */
+    questionOrder: smallint('question_order').array().notNull(),
+    acceptedAt: timestamp('accepted_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    completedAt: timestamp('completed_at', { withTimezone: true }),
+    expiredAt: timestamp('expired_at', { withTimezone: true }),
+    version: integer('version').default(0).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    unique('daily_participants_date_id_unique').on(table.challengeDate, table.id),
+    uniqueIndex('daily_participants_token_hash_unique').on(table.authTokenHash),
+    unique('daily_participants_join_request_unique').on(table.joinRequestId),
+    index('daily_participants_ranking_idx').on(
+      table.challengeDate,
+      table.completedAt,
+      table.expiredAt,
+      table.acceptedAt,
+    ),
+    check(
+      'daily_participants_display_nickname_nonempty_check',
+      sql`char_length(${table.displayNickname}) > 0`,
+    ),
+    check(
+      'daily_participants_nickname_key_nonempty_check',
+      sql`char_length(${table.nicknameKey}) > 0`,
+    ),
+    check(
+      'daily_participants_auth_token_hash_check',
+      sql`${table.authTokenHash} ~ '^[0-9a-f]{64}$'`,
+    ),
+    check(
+      'daily_participants_question_order_check',
+      sql`array_ndims(${table.questionOrder}) = 1
+        and cardinality(${table.questionOrder}) = 20
+        and array_lower(${table.questionOrder}, 1) = 1
+        and array_upper(${table.questionOrder}, 1) = 20
+        and array_position(${table.questionOrder}, null) is null
+        and ${table.questionOrder} @> array[1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+          11, 12, 13, 14, 15, 16, 17, 18, 19, 20]::smallint[]`,
+    ),
+    check(
+      'daily_participants_completion_expiry_check',
+      sql`${table.completedAt} is null or ${table.expiredAt} is null`,
+    ),
+    check(
+      'daily_participants_completion_deadline_check',
+      sql`${table.completedAt} is null or ${table.completedAt} <
+        (${table.challengeDate}::timestamp at time zone 'UTC') + interval '1 day'`,
+    ),
+    check('daily_participants_version_check', sql`${table.version} >= 0`),
+  ],
+)
+
+export const dailyChallengeRoundAttempts = pgTable(
+  'daily_challenge_round_attempts',
+  {
+    participantId: uuid('participant_id').notNull(),
+    challengeDate: date('challenge_date', { mode: 'string' }).notNull(),
+    roundNumber: smallint('round_number').notNull(),
+    challengeRoundNumber: smallint('challenge_round_number').notNull(),
+    status: text('status').default('active').notNull(),
+    startedAt: timestamp('started_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    endedAt: timestamp('ended_at', { withTimezone: true }),
+    elapsedSeconds: smallint('elapsed_seconds'),
+    capturedCoins: smallint('captured_coins'),
+    openedBagCount: smallint('opened_bag_count').default(0).notNull(),
+    coinBagHits: smallint('coin_bag_hits'),
+    startRequestId: uuid('start_request_id').notNull(),
+    terminalRequestId: uuid('terminal_request_id'),
+    version: integer('version').default(0).notNull(),
+  },
+  (table) => [
+    primaryKey({
+      name: 'daily_attempts_participant_round_pk',
+      columns: [table.participantId, table.roundNumber],
+    }),
+    unique('daily_attempts_date_participant_round_unique').on(
+      table.challengeDate,
+      table.participantId,
+      table.roundNumber,
+    ),
+    unique('daily_attempts_start_request_unique').on(table.startRequestId),
+    unique('daily_attempts_terminal_request_unique').on(table.terminalRequestId),
+    foreignKey({
+      name: 'daily_attempts_participant_fk',
+      columns: [table.challengeDate, table.participantId],
+      foreignColumns: [
+        dailyChallengeParticipants.challengeDate,
+        dailyChallengeParticipants.id,
+      ],
+    }).onDelete('cascade'),
+    foreignKey({
+      name: 'daily_attempts_placement_fk',
+      columns: [table.challengeDate, table.challengeRoundNumber],
+      foreignColumns: [
+        dailyChallengePlacements.challengeDate,
+        dailyChallengePlacements.roundNumber,
+      ],
+    }).onDelete('cascade'),
+    index('daily_attempts_date_status_idx').on(table.challengeDate, table.status),
+    check(
+      'daily_attempts_round_number_check',
+      sql`${table.roundNumber} between 1 and 20`,
+    ),
+    check(
+      'daily_attempts_challenge_round_number_check',
+      sql`${table.challengeRoundNumber} between 1 and 20`,
+    ),
+    check(
+      'daily_attempts_status_check',
+      sql`${table.status} in ('active', 'bombed', 'cashed_out', 'cleared', 'timed_out')`,
+    ),
+    check(
+      'daily_attempts_opened_bag_count_check',
+      sql`${table.openedBagCount} between 0 and 8`,
+    ),
+    check(
+      'daily_attempts_elapsed_seconds_check',
+      sql`${table.elapsedSeconds} is null or ${table.elapsedSeconds} between 0 and 60`,
+    ),
+    check(
+      'daily_attempts_captured_coins_check',
+      sql`${table.capturedCoins} is null or ${table.capturedCoins} between 0 and 3`,
+    ),
+    check(
+      'daily_attempts_coin_bag_hits_check',
+      sql`${table.coinBagHits} is null or ${table.coinBagHits} between 0 and ${table.openedBagCount}`,
+    ),
+    check(
+      'daily_attempts_state_check',
+      sql`(
+        ${table.status} = 'active'
+        and ${table.endedAt} is null
+        and ${table.elapsedSeconds} is null
+        and ${table.capturedCoins} is null
+        and ${table.coinBagHits} is null
+        and ${table.terminalRequestId} is null
+      ) or (
+        ${table.status} = 'bombed'
+        and ${table.endedAt} is not null
+        and ${table.elapsedSeconds} between 0 and 59
+        and ${table.capturedCoins} = 0
+        and ${table.openedBagCount} between 1 and 8
+        and ${table.coinBagHits} is not null
+        and ${table.terminalRequestId} is not null
+      ) or (
+        ${table.status} = 'cashed_out'
+        and ${table.endedAt} is not null
+        and ${table.elapsedSeconds} between 0 and 59
+        and ${table.capturedCoins} in (1, 2)
+        and ${table.openedBagCount} between 1 and 8
+        and ${table.coinBagHits} is not null
+        and ${table.terminalRequestId} is not null
+      ) or (
+        ${table.status} = 'cleared'
+        and ${table.endedAt} is not null
+        and ${table.elapsedSeconds} between 0 and 59
+        and ${table.capturedCoins} = 3
+        and ${table.openedBagCount} between 1 and 8
+        and ${table.coinBagHits} is not null
+        and ${table.terminalRequestId} is not null
+      ) or (
+        ${table.status} = 'timed_out'
+        and ${table.endedAt} is not null
+        and ${table.elapsedSeconds} = 60
+        and ${table.capturedCoins} = 0
+        and ${table.coinBagHits} is not null
+      )`,
+    ),
+    check('daily_attempts_version_check', sql`${table.version} >= 0`),
+  ],
+)
+
+export const dailyChallengeRoundOpens = pgTable(
+  'daily_challenge_round_opens',
+  {
+    participantId: uuid('participant_id').notNull(),
+    challengeDate: date('challenge_date', { mode: 'string' }).notNull(),
+    roundNumber: smallint('round_number').notNull(),
+    openOrder: smallint('open_order').notNull(),
+    bagNumber: smallint('bag_number').notNull(),
+    requestId: uuid('request_id').notNull(),
+    remainingSecondsAtTap: smallint('remaining_seconds_at_tap').notNull(),
+    openedAt: timestamp('opened_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    primaryKey({
+      name: 'daily_opens_participant_round_order_pk',
+      columns: [table.participantId, table.roundNumber, table.openOrder],
+    }),
+    unique('daily_opens_participant_round_bag_unique').on(
+      table.participantId,
+      table.roundNumber,
+      table.bagNumber,
+    ),
+    unique('daily_opens_request_unique').on(table.requestId),
+    foreignKey({
+      name: 'daily_opens_attempt_fk',
+      columns: [table.challengeDate, table.participantId, table.roundNumber],
+      foreignColumns: [
+        dailyChallengeRoundAttempts.challengeDate,
+        dailyChallengeRoundAttempts.participantId,
+        dailyChallengeRoundAttempts.roundNumber,
+      ],
+    }).onDelete('cascade'),
+    check(
+      'daily_opens_round_number_check',
+      sql`${table.roundNumber} between 1 and 20`,
+    ),
+    check(
+      'daily_opens_open_order_check',
+      sql`${table.openOrder} between 1 and 8`,
+    ),
+    check(
+      'daily_opens_bag_number_check',
+      sql`${table.bagNumber} between 1 and 8`,
+    ),
+    check(
+      'daily_opens_remaining_seconds_check',
+      sql`${table.remainingSecondsAtTap} between 1 and 60`,
+    ),
+  ],
+)
+
 export type DailyChallengeRow = typeof dailyChallenges.$inferSelect
 export type NewDailyChallengeRow = typeof dailyChallenges.$inferInsert
 export type DailyChallengePlacementRow = typeof dailyChallengePlacements.$inferSelect
 export type NewDailyChallengePlacementRow = typeof dailyChallengePlacements.$inferInsert
+export type DailyChallengeParticipantRow = typeof dailyChallengeParticipants.$inferSelect
+export type NewDailyChallengeParticipantRow = typeof dailyChallengeParticipants.$inferInsert
+export type DailyChallengeRoundAttemptRow = typeof dailyChallengeRoundAttempts.$inferSelect
+export type NewDailyChallengeRoundAttemptRow = typeof dailyChallengeRoundAttempts.$inferInsert
+export type DailyChallengeRoundOpenRow = typeof dailyChallengeRoundOpens.$inferSelect
+export type NewDailyChallengeRoundOpenRow = typeof dailyChallengeRoundOpens.$inferInsert

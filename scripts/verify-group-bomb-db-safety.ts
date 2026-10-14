@@ -33,10 +33,10 @@ assert.match(
   /status" = 'bombed'[\s\S]*?captured_coins" between 0 and 2/,
 )
 
-/* Code schema intent (not yet applied on prod until approved migration). */
+/* Code schema matches the currently applied 0004 constraint. */
 assert.match(
   schema,
-  /\$\{table\.status\} = 'bombed'[\s\S]*?\$\{table\.capturedCoins\} = 0/,
+  /\$\{table\.status\} = 'bombed'[\s\S]*?\$\{table\.capturedCoins\} between 0 and 2/,
 )
 
 /* New writes: bomb → 0. Compatible with BOTH 0002 (=0) and 0004 (0–2). */
