@@ -6,6 +6,7 @@ import { randomUUID } from 'node:crypto'
 import {
   bagIdToBagNumber,
   bagNumberToBagId,
+  createDailyPlayClient,
   createDailyPlayCoordinator,
   DailyPlayClientError,
   judgeDailyBag,
@@ -38,6 +39,34 @@ import { ja } from '../src/i18n/ja.ts'
 const root = resolve(import.meta.dirname, '..')
 const date = '2099-09-10'
 const otherDate = '2099-09-11'
+
+// Chrome's native window.fetch rejects a non-Window receiver. Keep the play
+// client from invoking a supplied fetch as a method of its dependency object.
+const participantStorageJson = JSON.stringify({
+  version: 1,
+  phase: 'joined',
+  challengeDate: date,
+  joinRequestId: '11111111-1111-4111-8111-111111111111',
+  participantId: '22222222-2222-4222-8222-222222222222',
+  nickname: 'Player',
+  token: `3cb_dp1_${'A'.repeat(43)}`,
+  acceptedAt: '2099-09-10T00:00:00.000Z',
+})
+const receiverSensitiveFetch = async function (
+  this: unknown,
+): Promise<Response> {
+  assert.equal(this, globalThis)
+  return Response.json(makePlacementsDto(date))
+}
+const receiverSafeClient = createDailyPlayClient({
+  storage: {
+    getItem: () => participantStorageJson,
+    setItem: () => undefined,
+  },
+  fetch: receiverSensitiveFetch as typeof fetch,
+  crypto: globalThis.crypto,
+})
+assert.equal((await receiverSafeClient.getPlacements(date)).placements.length, 20)
 
 function makePlacementsDto(challengeDate: string) {
   return {

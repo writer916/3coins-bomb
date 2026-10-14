@@ -486,6 +486,11 @@ export function createDailyPlayClient(dependencies: {
   readonly fetch: typeof fetch
   readonly crypto: RandomUuidCrypto
 }) {
+  // Native window.fetch requires the Window receiver in some browsers.
+  // Calling it as dependencies.fetch(...) binds the dependencies object and
+  // causes Chrome to throw "Illegal invocation" before sending the request.
+  const fetcher = dependencies.fetch.bind(globalThis)
+
   function participant(challengeDate: string): JoinedDailyParticipantRecord {
     const record = readDailyParticipant(dependencies.storage, challengeDate)
     if (!record || record.phase !== 'joined') return fail('UNAVAILABLE')
@@ -509,7 +514,7 @@ export function createDailyPlayClient(dependencies: {
     async getPlay(challengeDate: string): Promise<DailyPlayState> {
       let response: Response
       try {
-        response = await dependencies.fetch(
+        response = await fetcher(
           `/api/daily/challenges/${encodeURIComponent(challengeDate)}/play`,
           { method: 'GET', headers: auth(challengeDate) },
         )
@@ -526,7 +531,7 @@ export function createDailyPlayClient(dependencies: {
     ): Promise<DailyPlayState> {
       let response: Response
       try {
-        response = await dependencies.fetch(
+        response = await fetcher(
           `/api/daily/challenges/${encodeURIComponent(challengeDate)}/rounds/start`,
           {
             method: 'POST',
@@ -559,7 +564,7 @@ export function createDailyPlayClient(dependencies: {
     async openBag(command: DailyOpenCommand): Promise<DailyOpenResult> {
       let response: Response
       try {
-        response = await dependencies.fetch(
+        response = await fetcher(
           `/api/daily/challenges/${encodeURIComponent(command.challengeDate)}/rounds/open`,
           {
             method: 'POST',
@@ -595,7 +600,7 @@ export function createDailyPlayClient(dependencies: {
     async cashOut(command: DailyCashOutCommand): Promise<DailyCashOutResult> {
       let response: Response
       try {
-        response = await dependencies.fetch(
+        response = await fetcher(
           `/api/daily/challenges/${encodeURIComponent(command.challengeDate)}/rounds/cash-out`,
           {
             method: 'POST',
@@ -619,7 +624,7 @@ export function createDailyPlayClient(dependencies: {
     async getPlacements(challengeDate: string): Promise<DailyPlacementsSet> {
       let response: Response
       try {
-        response = await dependencies.fetch(
+        response = await fetcher(
           `/api/daily/challenges/${encodeURIComponent(challengeDate)}/placements`,
           { method: 'GET', headers: auth(challengeDate) },
         )
