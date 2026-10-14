@@ -1,7 +1,7 @@
 import type { AppStrings } from '../i18n'
 import { withDuelNums } from '../ui/withDuelNums'
 
-export type PlayMode = 'solo' | 'duel' | 'group'
+export type PlayMode = 'solo' | 'duel' | 'group' | 'daily'
 
 type ModeSelectProps = {
   t: AppStrings
@@ -9,7 +9,7 @@ type ModeSelectProps = {
 }
 
 /**
- * App front door — three equal mode blocks. No tagline.
+ * App front door — four equal mode blocks. No tagline.
  * Mode titles stay Georgia (same as EN). JA desc digits use `.duel-num`.
  */
 export function ModeSelect({ t, onSelect }: ModeSelectProps) {
@@ -43,6 +43,15 @@ export function ModeSelect({ t, onSelect }: ModeSelectProps) {
           <span className="mode-badge">{t.modeGroupBadge}</span>
         </span>
         <span className="mode-card-desc">{withDuelNums(t.modeGroupDesc)}</span>
+      </button>
+
+      <button
+        type="button"
+        className="mode-card"
+        onClick={() => onSelect('daily')}
+      >
+        <span className="mode-card-title">{t.modeDailyName}</span>
+        <span className="mode-card-desc">{withDuelNums(t.modeDailyDesc)}</span>
       </button>
     </nav>
   )

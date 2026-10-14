@@ -44,7 +44,26 @@ export type AppStrings = {
   modeGroupName: string
   modeGroupDesc: string
   modeGroupBadge: string
+  modeDailyName: string
+  modeDailyDesc: string
   comingSoon: string
+  /** DAILY pre-start rules + entry (play wiring comes later). */
+  dailyRoundsLabel: string
+  dailyRoundsValue: (rounds: number) => string
+  dailyTimeLimitLabel: string
+  dailyTimeLimitValue: (seconds: number) => string
+  dailyTimeoutLabel: string
+  dailyTimeoutValue: string
+  dailyRankingRule: string
+  dailyPeriodLabel: string
+  dailyPeriodRange: (startsAt: string, endsAt: string) => string
+  dailyNicknameLead: string
+  dailyNicknameLabel: string
+  dailyNicknamePlaceholder: string
+  dailyStart: string
+  dailyStartDisabledHint: string
+  dailyJoinedStatus: (nickname: string) => string
+  dailyStorageReadError: string
   groupRoundsHint: string
   groupRoundsLabel: string
   groupPlayersHint: string

@@ -7,6 +7,7 @@ import { LanguageToggle } from './components/LanguageToggle'
 import { ModeSelect, type PlayMode } from './components/ModeSelect'
 import { DuelFlow } from './components/DuelFlow'
 import { DuelClaimBootstrap } from './components/DuelClaimBootstrap'
+import { DailyPreStartScreen } from './components/DailyPreStartScreen'
 import { GroupCreateFlow } from './components/GroupCreateFlow'
 import { GroupEntryShell } from './components/GroupEntryShell'
 import { RevealBoard } from './components/RevealBoard'
@@ -68,7 +69,7 @@ import { brandTitleNodes } from './ui/brandTitleNodes'
 import { withDuelNums } from './ui/withDuelNums'
 import './App.css'
 
-type AppScreen = 'top' | 'solo' | 'duel' | 'group'
+type AppScreen = 'top' | 'solo' | 'duel' | 'group' | 'daily'
 
 const soloQuestionSession = createSoloQuestionSession()
 
@@ -452,6 +453,10 @@ function App() {
       setScreen('duel')
       return
     }
+    if (mode === 'daily') {
+      setScreen('daily')
+      return
+    }
     setScreen('group')
   }, [])
 
@@ -584,6 +589,25 @@ function App() {
           </header>
         </div>
         <GroupCreateFlow t={t} onGoTop={goTop} onCreated={handleGroupCreated} />
+      </main>
+    )
+  }
+
+  if (screen === 'daily') {
+    return (
+      <main className="app app--duel app--daily-prestart">
+        <div className="field-header">
+          {topControls}
+          <header className="app-header">
+            <h1
+              className="brand-title duel-setup-heading"
+              aria-label={t.modeDailyName}
+            >
+              {t.modeDailyName}
+            </h1>
+          </header>
+        </div>
+        <DailyPreStartScreen t={t} onGoTop={goTop} />
       </main>
     )
   }
