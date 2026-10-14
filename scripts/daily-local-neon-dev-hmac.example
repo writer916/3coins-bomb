@@ -1,0 +1,10 @@
+# Local DAILY Neon:dev playtesting — HMAC only.
+# Copy to the repository root as:
+#   .env.neon.dev.hmac.local
+# (that filename is gitignored; do not commit it)
+#
+# Generate a local-only 32-byte key (base64url, unpadded):
+#   node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
+#
+# Put the generated value on the next line. Do not reuse the production key.
+DUEL_TOKEN_HMAC_KEY=REPLACE_WITH_GENERATED_LOCAL_KEY

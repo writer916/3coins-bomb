@@ -116,6 +116,9 @@
     "verify:play-media-invalidate": "tsx scripts/verify-play-media-invalidate.ts",
     "verify:web-manifest": "tsx scripts/verify-web-manifest.ts",
     "verify:duel-home-install-client": "tsx scripts/verify-duel-home-install-client.ts",
+    "verify:local-neon-dev-guard": "tsx scripts/verify-local-neon-dev-guard.ts",
+    "daily:local:assert-env": "tsx scripts/assert-daily-local-neon-dev-env.ts",
+    "daily:local:dev": "tsx scripts/daily-local-neon-dev/devServer.ts",
     "db:generate": "drizzle-kit generate",
     "preview": "vite preview"
   },
