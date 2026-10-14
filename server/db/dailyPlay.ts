@@ -33,6 +33,18 @@ export interface DailyActiveAttemptView {
   readonly opens: readonly DailyOpenSummary[]
 }
 
+export interface DailyTerminalAttemptView {
+  readonly roundNumber: number
+  readonly bagCount: number
+  readonly endReason: 'bombed' | 'cashed_out' | 'cleared' | 'timed_out'
+  readonly endedAt: string
+  readonly elapsedSeconds: number
+  readonly capturedCoins: 0 | 1 | 2 | 3
+  readonly openedBagCount: number
+  readonly coinBagHits: number
+  readonly opens: readonly DailyOpenSummary[]
+}
+
 export interface PersistedDailyPlayState {
   readonly challengeDate: DailyChallengeDate
   readonly serverNow: string
@@ -44,6 +56,7 @@ export interface PersistedDailyPlayState {
   readonly completedRounds: number
   readonly nextRoundNumber: number | null
   readonly activeAttempt: DailyActiveAttemptView | null
+  readonly latestTerminalAttempt: DailyTerminalAttemptView | null
 }
 
 export type DailyStartRejectReason =
@@ -91,6 +104,7 @@ interface StateRow extends Record<string, unknown> {
   readonly active_opened_bag_count: number | null
   readonly active_bag_count: number | null
   readonly active_opens: unknown
+  readonly latest_terminal_attempt: unknown
 }
 
 function optionalIso(value: Date | string | null): string | null {
@@ -98,18 +112,31 @@ function optionalIso(value: Date | string | null): string | null {
 }
 
 function asIso(value: Date | string): string {
-  return new Date(value).toISOString()
+  const date = new Date(value)
+  if (!Number.isFinite(date.getTime())) {
+    throw new Error('DAILY timestamp is inconsistent.')
+  }
+  return date.toISOString()
+}
+
+function asInteger(value: unknown, min: number, max: number): number {
+  const parsed = Number(value)
+  if (!Number.isInteger(parsed) || parsed < min || parsed > max) {
+    throw new Error('DAILY integer value is inconsistent.')
+  }
+  return parsed
 }
 
 function parseOpens(value: unknown): DailyOpenSummary[] {
   if (!Array.isArray(value)) return []
-  return value.map((entry) => {
+  const opens = value.map((entry) => {
     const row = entry as Record<string, unknown>
     const outcome = row.outcome
     if (outcome !== 'empty' && outcome !== 'coins' && outcome !== 'bomb') {
       throw new Error('DAILY open summary outcome is inconsistent.')
     }
-    const coinsFound = Number(row.coinsFound)
+    const parsedOutcome: DailyOpenSummary['outcome'] = outcome
+    const coinsFound = asInteger(row.coinsFound, 0, 3)
     if (
       !Number.isInteger(coinsFound) ||
       coinsFound < 0 ||
@@ -121,14 +148,64 @@ function parseOpens(value: unknown): DailyOpenSummary[] {
       throw new Error('DAILY open summary coinsFound is inconsistent.')
     }
     return {
-      openOrder: Number(row.openOrder),
-      bagNumber: Number(row.bagNumber),
-      remainingSecondsAtTap: Number(row.remainingSecondsAtTap),
+      openOrder: asInteger(row.openOrder, 1, 8),
+      bagNumber: asInteger(row.bagNumber, 1, 8),
+      remainingSecondsAtTap: asInteger(row.remainingSecondsAtTap, 1, 60),
       openedAt: asIso(row.openedAt as Date | string),
-      outcome,
+      outcome: parsedOutcome,
       coinsFound: coinsFound as 0 | 1 | 2 | 3,
     }
   })
+  if (
+    opens.some((open, index) => open.openOrder !== index + 1) ||
+    new Set(opens.map((open) => open.bagNumber)).size !== opens.length
+  ) {
+    throw new Error('DAILY open summaries are inconsistent.')
+  }
+  return opens
+}
+
+function parseTerminalAttempt(value: unknown): DailyTerminalAttemptView | null {
+  if (value === null) return null
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error('DAILY terminal attempt is inconsistent.')
+  }
+  const row = value as Record<string, unknown>
+  const endReason = row.endReason
+  if (
+    endReason !== 'bombed' &&
+    endReason !== 'cashed_out' &&
+    endReason !== 'cleared' &&
+    endReason !== 'timed_out'
+  ) {
+    throw new Error('DAILY terminal attempt status is inconsistent.')
+  }
+  const opens = parseOpens(row.opens)
+  const parsed: DailyTerminalAttemptView = {
+    roundNumber: asInteger(row.roundNumber, 1, DAILY_CHALLENGE_ROUNDS),
+    bagCount: asInteger(row.bagCount, 3, 8),
+    endReason,
+    endedAt: asIso(row.endedAt as Date | string),
+    elapsedSeconds: asInteger(row.elapsedSeconds, 0, 60),
+    capturedCoins: asInteger(row.capturedCoins, 0, 3) as 0 | 1 | 2 | 3,
+    openedBagCount: asInteger(row.openedBagCount, 0, 8),
+    coinBagHits: asInteger(row.coinBagHits, 0, 8),
+    opens,
+  }
+  if (
+    parsed.openedBagCount !== opens.length ||
+    parsed.coinBagHits > opens.length ||
+    (endReason === 'timed_out' &&
+      (parsed.elapsedSeconds !== 60 || parsed.capturedCoins !== 0)) ||
+    (endReason === 'bombed' && parsed.capturedCoins !== 0) ||
+    (endReason === 'cleared' && parsed.capturedCoins !== 3) ||
+    (endReason === 'cashed_out' &&
+      parsed.capturedCoins !== 1 &&
+      parsed.capturedCoins !== 2)
+  ) {
+    throw new Error('DAILY terminal attempt result is inconsistent.')
+  }
+  return parsed
 }
 
 function toState(row: StateRow): PersistedDailyPlayState {
@@ -180,6 +257,7 @@ function toState(row: StateRow): PersistedDailyPlayState {
       ? null
       : (activeAttempt?.roundNumber ?? terminalCount + 1),
     activeAttempt,
+    latestTerminalAttempt: parseTerminalAttempt(row.latest_terminal_attempt),
   }
 }
 
@@ -382,7 +460,53 @@ async function readDailyPlayState(input: {
               and active_attempt.status = 'active'
             limit 1
           )
-      ), '[]'::jsonb) as active_opens
+      ), '[]'::jsonb) as active_opens,
+      (
+        select jsonb_build_object(
+          'roundNumber', terminal_attempt.round_number,
+          'bagCount', terminal_placement.bag_count,
+          'endReason', terminal_attempt.status,
+          'endedAt', terminal_attempt.ended_at,
+          'elapsedSeconds', terminal_attempt.elapsed_seconds,
+          'capturedCoins', terminal_attempt.captured_coins,
+          'openedBagCount', terminal_attempt.opened_bag_count,
+          'coinBagHits', terminal_attempt.coin_bag_hits,
+          'opens', coalesce((
+            select jsonb_agg(
+              jsonb_build_object(
+                'openOrder', terminal_open.open_order,
+                'bagNumber', terminal_open.bag_number,
+                'remainingSecondsAtTap', terminal_open.remaining_seconds_at_tap,
+                'openedAt', terminal_open.opened_at,
+                'outcome', case
+                  when terminal_open.bag_number = terminal_placement.bomb_bag_number then 'bomb'
+                  when terminal_open.bag_number = any (terminal_placement.coin_bag_numbers) then 'coins'
+                  else 'empty'
+                end,
+                'coinsFound', (
+                  select count(*)::integer
+                  from unnest(terminal_placement.coin_bag_numbers) coin_bag
+                  where coin_bag = terminal_open.bag_number
+                )
+              )
+              order by terminal_open.open_order
+            )
+            from daily_challenge_round_opens terminal_open
+            where terminal_open.participant_id = terminal_attempt.participant_id
+              and terminal_open.challenge_date = terminal_attempt.challenge_date
+              and terminal_open.round_number = terminal_attempt.round_number
+          ), '[]'::jsonb)
+        )
+        from daily_challenge_round_attempts terminal_attempt
+        inner join daily_challenge_placements terminal_placement
+          on terminal_placement.challenge_date = terminal_attempt.challenge_date
+          and terminal_placement.round_number = terminal_attempt.challenge_round_number
+        where terminal_attempt.participant_id = participant.id
+          and terminal_attempt.challenge_date = participant.challenge_date
+          and terminal_attempt.status <> 'active'
+        order by terminal_attempt.round_number desc
+        limit 1
+      ) as latest_terminal_attempt
     from daily_challenge_participants participant
     inner join params
       on params.challenge_date = participant.challenge_date

@@ -75,6 +75,18 @@ export interface DailyPlayActiveAttempt {
   readonly opens: readonly DailyPlayOpenView[]
 }
 
+export interface DailyPlayTerminalAttempt {
+  readonly roundNumber: number
+  readonly bagCount: number
+  readonly endReason: DailyRoundEndReason
+  readonly endedAt: string
+  readonly elapsedSeconds: number
+  readonly capturedCoins: 0 | 1 | 2 | 3
+  readonly openedBagCount: number
+  readonly coinBagHits: number
+  readonly opens: readonly DailyPlayOpenView[]
+}
+
 export interface DailyPlayState {
   readonly challengeDate: DailyChallengeDate
   readonly serverNow: string
@@ -82,6 +94,7 @@ export interface DailyPlayState {
   readonly completedRounds: number
   readonly nextRoundNumber: number | null
   readonly activeAttempt: DailyPlayActiveAttempt | null
+  readonly latestTerminalAttempt: DailyPlayTerminalAttempt | null
   readonly completedAt: string | null
   readonly expiredAt: string | null
 }
@@ -213,6 +226,7 @@ export function parseDailyPlayState(
     'completedRounds',
     'nextRoundNumber',
     'activeAttempt',
+    'latestTerminalAttempt',
     'completedAt',
     'expiredAt',
   ])
@@ -280,6 +294,97 @@ export function parseDailyPlayState(
     if (parsedActive.openedBagCount !== opens.length) return fail()
     activeAttempt = parsedActive
   }
+  const terminal =
+    state.latestTerminalAttempt === null
+      ? null
+      : record(state.latestTerminalAttempt)
+  let latestTerminalAttempt: DailyPlayTerminalAttempt | null = null
+  if (terminal) {
+    exact(terminal, [
+      'roundNumber',
+      'bagCount',
+      'endReason',
+      'endedAt',
+      'elapsedSeconds',
+      'capturedCoins',
+      'openedBagCount',
+      'coinBagHits',
+      'opens',
+    ])
+    if (!Array.isArray(terminal.opens)) return fail()
+    const opens = terminal.opens.map((entry) => {
+      const open = record(entry)
+      exact(open, [
+        'openOrder',
+        'bagNumber',
+        'remainingSecondsAtTap',
+        'openedAt',
+        'outcome',
+        'coinsFound',
+      ])
+      if (
+        open.outcome !== 'empty' &&
+        open.outcome !== 'coins' &&
+        open.outcome !== 'bomb'
+      ) {
+        return fail()
+      }
+      const outcome: DailyOpenOutcome = open.outcome
+      return {
+        openOrder: integer(open.openOrder, 1, 8),
+        bagNumber: integer(open.bagNumber, 1, 8),
+        remainingSecondsAtTap: integer(open.remainingSecondsAtTap, 1, 60),
+        openedAt: iso(open.openedAt),
+        outcome,
+        coinsFound: integer(open.coinsFound, 0, 3) as 0 | 1 | 2 | 3,
+      }
+    })
+    const endReason = terminal.endReason
+    if (
+      endReason !== 'bombed' &&
+      endReason !== 'cashed_out' &&
+      endReason !== 'cleared' &&
+      endReason !== 'timed_out'
+    ) {
+      return fail()
+    }
+    const parsedTerminal: DailyPlayTerminalAttempt = {
+      roundNumber: integer(terminal.roundNumber, 1, DAILY_CHALLENGE_ROUNDS),
+      bagCount: integer(terminal.bagCount, 3, 8),
+      endReason,
+      endedAt: iso(terminal.endedAt),
+      elapsedSeconds: integer(terminal.elapsedSeconds, 0, 60),
+      capturedCoins: integer(terminal.capturedCoins, 0, 3) as 0 | 1 | 2 | 3,
+      openedBagCount: integer(terminal.openedBagCount, 0, 8),
+      coinBagHits: integer(terminal.coinBagHits, 0, 8),
+      opens,
+    }
+    if (
+      parsedTerminal.openedBagCount !== opens.length ||
+      parsedTerminal.coinBagHits > opens.length ||
+      (endReason === 'timed_out' &&
+        (parsedTerminal.elapsedSeconds !== 60 ||
+          parsedTerminal.capturedCoins !== 0)) ||
+      (endReason === 'bombed' && parsedTerminal.capturedCoins !== 0) ||
+      (endReason === 'cleared' && parsedTerminal.capturedCoins !== 3) ||
+      (endReason === 'cashed_out' &&
+        parsedTerminal.capturedCoins !== 1 &&
+        parsedTerminal.capturedCoins !== 2)
+    ) {
+      return fail()
+    }
+    latestTerminalAttempt = parsedTerminal
+  }
+  if (
+    (activeAttempt !== null &&
+      activeAttempt.roundNumber !== completedRounds + 1) ||
+    (latestTerminalAttempt !== null &&
+      latestTerminalAttempt.roundNumber !== completedRounds) ||
+    (completedRounds === 0 && latestTerminalAttempt !== null) ||
+    (completedRounds > 0 && latestTerminalAttempt === null)
+  ) {
+    return fail()
+  }
   return {
     challengeDate,
     serverNow: iso(state.serverNow),
@@ -287,6 +392,7 @@ export function parseDailyPlayState(
     completedRounds,
     nextRoundNumber,
     activeAttempt,
+    latestTerminalAttempt,
     completedAt: optionalIso(state.completedAt),
     expiredAt: optionalIso(state.expiredAt),
   }
@@ -771,6 +877,7 @@ export function createDailyPlayCoordinator(
       let state = await client.getPlay(date)
       restorePending(state)
       if (state.activeAttempt) return state
+      if (state.latestTerminalAttempt) return state
       if (pendingOpen || pendingCashOut) return state
       if (state.completedAt || state.expiredAt || state.nextRoundNumber === null) {
         return state

@@ -37,6 +37,7 @@
     "verify:daily-open-cashout-db": "tsx scripts/verify-daily-open-cashout-db.ts",
     "verify:daily-open-cashout-api": "tsx scripts/verify-daily-open-cashout-api.ts",
     "verify:daily-play-client": "tsx scripts/verify-daily-play-client.ts",
+    "verify:daily-terminal-reload": "tsx scripts/verify-daily-terminal-reload.ts",
     "verify:daily-placements-api": "tsx scripts/verify-daily-placements-api.ts",
     "verify:group-domain": "tsx scripts/verify-group-domain.ts",
     "verify:group-db": "tsx scripts/verify-group-db.ts",

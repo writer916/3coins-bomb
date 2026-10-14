@@ -26,6 +26,7 @@ import {
   type DailyOpenResult,
   type DailyPlayCoordinator,
   type DailyPlayState,
+  type DailyPlayTerminalAttempt,
 } from '../daily/dailyPlayClient'
 import { DAILY_CHALLENGE_ROUNDS } from '../daily/dailyQuestionSet'
 import {
@@ -96,23 +97,81 @@ function opensToResults(
   roundNumber: number,
   opens: NonNullable<DailyPlayState['activeAttempt']>['opens'],
 ): DailyOpenResult[] {
-  return opens.map((open) => ({
-    challengeDate,
-    roundNumber,
-    bagNumber: open.bagNumber,
-    openOrder: open.openOrder,
-    remainingSecondsAtTap: open.remainingSecondsAtTap,
-    outcome: open.outcome,
-    coinsFound: open.coinsFound,
-    provisionalCoins: 0,
-    openedBagCount: open.openOrder,
-    roundEnded: false,
-    endReason: null,
-    capturedCoins: 0,
-    elapsedSeconds: null,
-    coinBagHits: null,
-    participantCompleted: false,
-  }))
+  let coins = 0
+  return opens.map((open) => {
+    coins = open.outcome === 'bomb' ? 0 : Math.min(3, coins + open.coinsFound)
+    return {
+      challengeDate,
+      roundNumber,
+      bagNumber: open.bagNumber,
+      openOrder: open.openOrder,
+      remainingSecondsAtTap: open.remainingSecondsAtTap,
+      outcome: open.outcome,
+      coinsFound: open.coinsFound,
+      provisionalCoins: coins as 0 | 1 | 2 | 3,
+      openedBagCount: open.openOrder,
+      roundEnded: false,
+      endReason: null,
+      capturedCoins: 0,
+      elapsedSeconds: null,
+      coinBagHits: null,
+      participantCompleted: false,
+    }
+  })
+}
+
+function restoredTerminal(
+  state: DailyPlayState,
+): TerminalState | null {
+  if (state.activeAttempt) return null
+  const attempt = state.latestTerminalAttempt
+  if (!attempt) return null
+  if (attempt.endReason === 'timed_out') return { kind: 'timeout' }
+  if (attempt.endReason === 'cashed_out') {
+    return {
+      kind: 'cash',
+      result: {
+        challengeDate: state.challengeDate,
+        roundNumber: attempt.roundNumber,
+        endReason: 'cashed_out',
+        capturedCoins: attempt.capturedCoins as 1 | 2,
+        openedBagCount: attempt.openedBagCount,
+        elapsedSeconds: attempt.elapsedSeconds,
+        coinBagHits: attempt.coinBagHits,
+        remainingSecondsAtTap: 60 - attempt.elapsedSeconds,
+        participantCompleted: state.completedAt !== null,
+      },
+    }
+  }
+  const lastOpen = attempt.opens.at(-1)
+  if (!lastOpen) return null
+  return {
+    kind: 'open',
+    result: {
+      challengeDate: state.challengeDate,
+      roundNumber: attempt.roundNumber,
+      bagNumber: lastOpen.bagNumber,
+      openOrder: lastOpen.openOrder,
+      remainingSecondsAtTap: lastOpen.remainingSecondsAtTap,
+      outcome: lastOpen.outcome,
+      coinsFound: lastOpen.coinsFound,
+      provisionalCoins: attempt.capturedCoins,
+      openedBagCount: attempt.openedBagCount,
+      roundEnded: true,
+      endReason: attempt.endReason,
+      capturedCoins: attempt.capturedCoins,
+      elapsedSeconds: attempt.elapsedSeconds,
+      coinBagHits: attempt.coinBagHits,
+      participantCompleted: state.completedAt !== null,
+    },
+  }
+}
+
+function visibleAttempt(state: DailyPlayState):
+  | DailyPlayState['activeAttempt']
+  | DailyPlayTerminalAttempt
+  | null {
+  return state.activeAttempt ?? state.latestTerminalAttempt
 }
 
 export type DailyPlayScreenProps = {
@@ -133,17 +192,25 @@ export function DailyPlayScreen({
     () =>
       opensToResults(
         initialState.challengeDate,
-        initialState.activeAttempt?.roundNumber ?? 1,
-        initialState.activeAttempt?.opens ?? [],
+        visibleAttempt(initialState)?.roundNumber ?? 1,
+        visibleAttempt(initialState)?.opens ?? [],
       ),
   )
   const [provisionalCoins, setProvisionalCoins] = useState<0 | 1 | 2 | 3>(() =>
-    provisionalCoinsFromOpens(initialState.activeAttempt?.opens ?? []),
+    initialState.activeAttempt
+      ? provisionalCoinsFromOpens(initialState.activeAttempt.opens)
+      : (initialState.latestTerminalAttempt?.capturedCoins ?? 0),
   )
   const [terminal, setTerminal] = useState<TerminalState | null>(() => {
     if (initialState.expiredAt) return { kind: 'challenge_ended' }
-    if (initialState.completedAt) return { kind: 'timeout' }
-    return null
+    const restored = restoredTerminal(initialState)
+    if (
+      restored?.kind === 'timeout' &&
+      (coordinator.getPendingOpen() || coordinator.getPendingCashOut())
+    ) {
+      return { kind: 'connection_error_end' }
+    }
+    return restored
   })
   const [remaining, setRemaining] = useState(DAILY_CHALLENGE_ROUNDS > 0 ? 60 : 0)
   const [requestPending, setRequestPending] = useState(false)
@@ -178,6 +245,15 @@ export function DailyPlayScreen({
   useEffect(() => {
     playRef.current = play
   }, [play])
+
+  // Bootstrap GET has already confirmed this ROUND is terminal. Any restored
+  // mutation belongs to that same ROUND (validated by the coordinator), so it
+  // can now be discarded without retrying or starting the next ROUND.
+  useEffect(() => {
+    if (initialState.activeAttempt || !initialState.latestTerminalAttempt) return
+    if (coordinator.getPendingOpen()) coordinator.clearPendingOpen()
+    if (coordinator.getPendingCashOut()) coordinator.clearPendingCashOut()
+  }, [coordinator, initialState.activeAttempt, initialState.latestTerminalAttempt])
 
   const active = play.activeAttempt
   const challengeDate = play.challengeDate
@@ -254,16 +330,28 @@ export function DailyPlayScreen({
 
   const applyRoundEndFromState = useCallback(
     (state: DailyPlayState): boolean => {
+      const persistedTerminal = restoredTerminal(state)
+      const hadPending = readInTimePending()
       const kind = resolveDailyDisplayEndKind({
         state,
-        hadInTimePendingAction: readInTimePending(),
+        hadInTimePendingAction: hadPending,
       })
-      if (!kind) return false
+      const nextTerminal =
+        hadPending && state.latestTerminalAttempt?.endReason === 'timed_out'
+          ? { kind: 'connection_error_end' as const }
+          : persistedTerminal ?? (kind ? { kind } : null)
+      if (!nextTerminal) return false
       if (coordinator.getPendingOpen()) coordinator.clearPendingOpen()
       if (coordinator.getPendingCashOut()) coordinator.clearPendingCashOut()
       setPlay(state)
-      setTerminal({ kind })
-      setProvisionalCoins(0)
+      setTerminal(nextTerminal)
+      const attempt = state.latestTerminalAttempt
+      setOpenedResults(
+        attempt
+          ? opensToResults(state.challengeDate, attempt.roundNumber, attempt.opens)
+          : [],
+      )
+      setProvisionalCoins(attempt?.capturedCoins ?? 0)
       setConnectionError(false)
       setCashOutError(false)
       setRetryBag(null)
@@ -958,21 +1046,6 @@ export function DailyPlayScreen({
     )
   }
 
-  if (!active && terminal && isRoundEndTerminal(terminal) && completed) {
-    return (
-      <div className="duel-play daily-play">
-        <p className="duel-instruction" role="status">
-          {withDuelNums(t.dailyChallengeComplete)}
-        </p>
-        <div className="field-action">
-          <button type="button" className="dev-btn" onClick={onGoTop}>
-            {t.duelTop}
-          </button>
-        </div>
-      </div>
-    )
-  }
-
   if (!active && !terminal) {
     return (
       <div className="duel-play daily-play">
@@ -994,7 +1067,8 @@ export function DailyPlayScreen({
       ? terminal.result.roundNumber
       : play.completedRounds)
 
-  const bagCount = (active?.bagCount ?? 3) as BagCount
+  const displayAttempt = visibleAttempt(play)
+  const bagCount = (displayAttempt?.bagCount ?? 3) as BagCount
 
   return (
     <div className="duel-play daily-play">
@@ -1007,14 +1081,16 @@ export function DailyPlayScreen({
       <p className="daily-play__timer" aria-live="polite">
         <span className="duel-num">{remaining}</span>
       </p>
-      {active ? (
+      {displayAttempt ? (
         <BagBoard
           bagCount={bagCount}
           hiddenBagIds={hidden}
           onBagTap={(bagId) => {
             void tap(bagId)
           }}
-          interactive={!requestPending && !terminal && remaining > 0}
+          interactive={
+            active !== null && !requestPending && !terminal && remaining > 0
+          }
         >
           {fx?.kind === 'coins' ? (
             <CoinOpenFx

@@ -47,6 +47,7 @@ const baseState: PersistedDailyPlayState = {
   completedRounds: 0,
   nextRoundNumber: 1,
   activeAttempt: null,
+  latestTerminalAttempt: null,
 }
 
 const activeState: PersistedDailyPlayState = {
@@ -70,6 +71,7 @@ assert.deepEqual(Object.keys(toDailyPlayResponse(activeState)).sort(), [
   'completedRounds',
   'expiredAt',
   'nextRoundNumber',
+  'latestTerminalAttempt',
   'serverNow',
 ].sort())
 assert.doesNotMatch(JSON.stringify(toDailyPlayResponse(activeState)), /bomb/i)
@@ -77,6 +79,39 @@ assert.doesNotMatch(JSON.stringify(toDailyPlayResponse(activeState)), /coinBag/i
 assert.doesNotMatch(
   JSON.stringify(toDailyPlayResponse(activeState)),
   /participantId|displayNickname|token/,
+)
+
+const terminalState: PersistedDailyPlayState = {
+  ...baseState,
+  completedRounds: 1,
+  nextRoundNumber: 2,
+  latestTerminalAttempt: {
+    roundNumber: 1,
+    bagCount: 5,
+    endReason: 'cashed_out',
+    endedAt: '2026-10-14T12:00:18.000Z',
+    elapsedSeconds: 18,
+    capturedCoins: 2,
+    openedBagCount: 1,
+    coinBagHits: 1,
+    opens: [
+      {
+        openOrder: 1,
+        bagNumber: 2,
+        remainingSecondsAtTap: 42,
+        openedAt: '2026-10-14T12:00:18.000Z',
+        outcome: 'coins',
+        coinsFound: 2,
+      },
+    ],
+  },
+}
+const terminalResponse = toDailyPlayResponse(terminalState)
+assert.equal(terminalResponse.latestTerminalAttempt?.endReason, 'cashed_out')
+assert.equal(terminalResponse.latestTerminalAttempt?.capturedCoins, 2)
+assert.doesNotMatch(
+  JSON.stringify(terminalResponse),
+  /participantId|displayNickname|token|bombBagNumber|coinBagNumbers/,
 )
 
 assert.throws(

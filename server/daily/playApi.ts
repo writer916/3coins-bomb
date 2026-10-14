@@ -55,6 +55,18 @@ export interface DailyPlayActiveAttemptView {
   readonly opens: readonly DailyPlayOpenView[]
 }
 
+export interface DailyPlayTerminalAttemptView {
+  readonly roundNumber: number
+  readonly bagCount: number
+  readonly endReason: 'bombed' | 'cashed_out' | 'cleared' | 'timed_out'
+  readonly endedAt: string
+  readonly elapsedSeconds: number
+  readonly capturedCoins: 0 | 1 | 2 | 3
+  readonly openedBagCount: number
+  readonly coinBagHits: number
+  readonly opens: readonly DailyPlayOpenView[]
+}
+
 /** Safe play DTO — no bomb/coin placements, no other participants. */
 export interface DailyPlayResponse {
   readonly challengeDate: string
@@ -63,6 +75,7 @@ export interface DailyPlayResponse {
   readonly completedRounds: number
   readonly nextRoundNumber: number | null
   readonly activeAttempt: DailyPlayActiveAttemptView | null
+  readonly latestTerminalAttempt: DailyPlayTerminalAttemptView | null
   readonly completedAt: string | null
   readonly expiredAt: string | null
 }
@@ -91,6 +104,26 @@ export function toDailyPlayResponse(
           deadlineAt: state.activeAttempt.deadlineAt,
           openedBagCount: state.activeAttempt.openedBagCount,
           opens: state.activeAttempt.opens.map((open) => ({
+            openOrder: open.openOrder,
+            bagNumber: open.bagNumber,
+            remainingSecondsAtTap: open.remainingSecondsAtTap,
+            openedAt: open.openedAt,
+            outcome: open.outcome,
+            coinsFound: open.coinsFound,
+          })),
+        }
+      : null,
+    latestTerminalAttempt: state.latestTerminalAttempt
+      ? {
+          roundNumber: state.latestTerminalAttempt.roundNumber,
+          bagCount: state.latestTerminalAttempt.bagCount,
+          endReason: state.latestTerminalAttempt.endReason,
+          endedAt: state.latestTerminalAttempt.endedAt,
+          elapsedSeconds: state.latestTerminalAttempt.elapsedSeconds,
+          capturedCoins: state.latestTerminalAttempt.capturedCoins,
+          openedBagCount: state.latestTerminalAttempt.openedBagCount,
+          coinBagHits: state.latestTerminalAttempt.coinBagHits,
+          opens: state.latestTerminalAttempt.opens.map((open) => ({
             openOrder: open.openOrder,
             bagNumber: open.bagNumber,
             remainingSecondsAtTap: open.remainingSecondsAtTap,

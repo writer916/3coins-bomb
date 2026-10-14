@@ -150,6 +150,7 @@ const playState = parseDailyPlayState(
         },
       ],
     },
+    latestTerminalAttempt: null,
   },
   date,
 )

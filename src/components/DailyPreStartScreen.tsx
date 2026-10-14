@@ -151,6 +151,7 @@ export function DailyPreStartScreen({
         playCoordinator.getPendingCashOut() !== null
       if (
         !state.activeAttempt &&
+        !state.latestTerminalAttempt &&
         !hasPendingOperation &&
         !state.completedAt &&
         !state.expiredAt
