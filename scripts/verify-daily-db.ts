@@ -259,18 +259,12 @@ const persistSource = readFileSync(
 assert.match(persistSource, /on conflict \(challenge_date\) do nothing/)
 assert.match(persistSource, /persistOrLoadDailyQuestionSet/)
 
-const apiFiles = readdirSync(join(root, 'api'), { withFileTypes: true })
-assert(
-  !apiFiles.some(
-    (entry) =>
-      entry.name === 'daily.ts' ||
-      entry.name === 'daily' ||
-      entry.name.startsWith('daily'),
-  ),
-  'no public /api/daily entry must exist yet',
-)
+assert(existsSync(join(root, 'api', 'daily.ts')))
+assert(existsSync(join(root, 'api', '_daily', 'challenges', 'current', 'participants.ts')))
+assert(existsSync(join(root, 'api', '_daily', 'challenges', '[date]', 'participant.ts')))
 
 const vercel = readFileSync(join(root, 'vercel.json'), 'utf8')
-assert.doesNotMatch(vercel, /daily/)
+assert.match(vercel, /"source": "\/api\/daily\/:path\*"/)
+assert.match(vercel, /"destination": "\/api\/daily"/)
 
 console.log('verify:daily-db OK')

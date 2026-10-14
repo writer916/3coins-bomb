@@ -24,10 +24,20 @@ import {
 import { DAILY_CHALLENGE_ROUNDS } from '../../src/daily/dailyQuestionSet.js'
 import { getOrCreateDailyQuestionSet } from './getOrCreateDailyQuestionSet.js'
 
+export type DailyParticipantErrorCode =
+  | 'INVALID_REQUEST'
+  | 'CHALLENGE_UNAVAILABLE'
+  | 'QUESTION_SET_UNAVAILABLE'
+  | 'JOIN_UNAVAILABLE'
+  | 'PERSISTENCE_UNAVAILABLE'
+
 export class DailyParticipantError extends Error {
-  constructor(message = 'The DAILY participant operation could not be completed.') {
-    super(message)
+  readonly code: DailyParticipantErrorCode
+
+  constructor(code: DailyParticipantErrorCode) {
+    super('The DAILY participant operation could not be completed.')
     this.name = 'DailyParticipantError'
+    this.code = code
   }
 }
 
@@ -43,7 +53,7 @@ export function createDailyQuestionOrder(
   for (let index = order.length - 1; index > 0; index -= 1) {
     const selected = random(index + 1)
     if (!Number.isInteger(selected) || selected < 0 || selected > index) {
-      throw new DailyParticipantError('The DAILY order random source is invalid.')
+      throw new DailyParticipantError('INVALID_REQUEST')
     }
     const value = order[index]!
     order[index] = order[selected]!
@@ -71,37 +81,60 @@ export async function registerDailyParticipant(
   joinRequestIdValue: unknown,
   dependencies: RegisterDailyParticipantDependencies = {},
 ): Promise<RegisteredDailyParticipant> {
+  let challengeDate: DailyChallengeDate
+  let displayNickname: string
+  let nicknameKey: string
+  let joinRequestId: string
   try {
-    const challengeDate = utcDailyChallengeDate(dependencies.now ?? new Date())
-    const displayNickname = validateGroupNickname(nicknameValue)
-    const nicknameKey = createGroupNicknameKey(displayNickname)
-    const joinRequestId = validateCreateRequestId(joinRequestIdValue)
-    const ensureQuestionSet =
-      dependencies.ensureQuestionSet ?? getOrCreateDailyQuestionSet
+    challengeDate = utcDailyChallengeDate(dependencies.now ?? new Date())
+  } catch {
+    throw new DailyParticipantError('CHALLENGE_UNAVAILABLE')
+  }
+  try {
+    displayNickname = validateGroupNickname(nicknameValue)
+    nicknameKey = createGroupNicknameKey(displayNickname)
+    joinRequestId = validateCreateRequestId(joinRequestIdValue)
+  } catch {
+    throw new DailyParticipantError('INVALID_REQUEST')
+  }
+  const ensureQuestionSet =
+    dependencies.ensureQuestionSet ?? getOrCreateDailyQuestionSet
+  try {
     await ensureQuestionSet(challengeDate)
-    const token = deriveDailyParticipantCapability(
+  } catch {
+    throw new DailyParticipantError('QUESTION_SET_UNAVAILABLE')
+  }
+  let token: string
+  let questionOrder: readonly number[]
+  try {
+    token = deriveDailyParticipantCapability(
       challengeDate,
       joinRequestId,
       dependencies.environment,
     )
-    const persist = dependencies.persist ?? persistDailyParticipant
+    questionOrder = deriveDailyQuestionOrder(
+      challengeDate,
+      joinRequestId,
+      dependencies.environment,
+    )
+  } catch {
+    throw new DailyParticipantError('JOIN_UNAVAILABLE')
+  }
+  const persist = dependencies.persist ?? persistDailyParticipant
+  try {
     const saved = await persist({
       challengeDate,
       displayNickname,
       nicknameKey,
       authTokenHash: hashDailyParticipantCapability(token),
       joinRequestId,
-      questionOrder: deriveDailyQuestionOrder(
-        challengeDate,
-        joinRequestId,
-        dependencies.environment,
-      ),
+      questionOrder,
     })
-    if (!saved) throw new DailyParticipantError()
+    if (!saved) throw new DailyParticipantError('JOIN_UNAVAILABLE')
     return { ...saved, token }
   } catch (error) {
     if (error instanceof DailyParticipantError) throw error
-    throw new DailyParticipantError()
+    throw new DailyParticipantError('PERSISTENCE_UNAVAILABLE')
   }
 }
 

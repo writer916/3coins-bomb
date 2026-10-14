@@ -9,6 +9,10 @@
       "destination": "/api/group"
     },
     {
+      "source": "/api/daily/:path*",
+      "destination": "/api/daily"
+    },
+    {
       "source": "/duel/:matchId",
       "destination": "/index.html"
     },
