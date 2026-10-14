@@ -54,6 +54,12 @@ export type AppStrings = {
   dailyTimeLimitValue: (seconds: number) => string
   dailyTimeoutLabel: string
   dailyTimeoutValue: string
+  /** Final ROUND label when an in-time op missed the delivery window (server still timed_out). */
+  dailyConnectionErrorEnd: string
+  /** Unresolved mid-round sync / delivery failure (ROUND not finalized yet). */
+  dailyConnectionError: string
+  /** UTC challenge day closed (`expiredAt`). */
+  dailyChallengeEndedLabel: string
   dailyRankingRule: string
   /**
    * EN: ranking still uses `dailyRankingRule`; this adds the server-arrival

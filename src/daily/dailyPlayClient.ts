@@ -682,6 +682,16 @@ export function createDailyPlayCoordinator(
       return pendingCashOut
     },
 
+    /** Clears pending OPEN after GET play proves the bag was already recorded. */
+    clearPendingOpen() {
+      pendingOpen = null
+    },
+
+    /** Clears pending CASH OUT after GET play / idempotent retry proves success. */
+    clearPendingCashOut() {
+      pendingCashOut = null
+    },
+
     getCachedPlacements() {
       return cachedPlacements
     },

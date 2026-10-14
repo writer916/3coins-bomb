@@ -47,6 +47,9 @@ export const ja: AppStrings = {
   dailyTimeLimitValue: (seconds) => `${seconds}秒 / ROUND`,
   dailyTimeoutLabel: 'TIME OUT',
   dailyTimeoutValue: '0 COINS',
+  dailyConnectionErrorEnd: '通信エラーで終了',
+  dailyConnectionError: '通信エラー',
+  dailyChallengeEndedLabel: '開催終了',
   dailyRankingRule:
     'ランキングに参加するには、開催時間内に全20ROUNDを終了し、最終操作がサーバーに到着している必要があります。',
   dailyServerArrivalRule: '',

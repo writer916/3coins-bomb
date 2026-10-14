@@ -26,9 +26,16 @@ import {
   type DailyOpenResult,
   type DailyPlayCoordinator,
   type DailyPlayState,
-  type DailyRoundEndReason,
 } from '../daily/dailyPlayClient'
 import { DAILY_CHALLENGE_ROUNDS } from '../daily/dailyQuestionSet'
+import {
+  classifyInactivePlaySync,
+  hasInTimePendingAction,
+  nextDailyStatusPollDelayMs,
+  resolveDailyDisplayEndKind,
+  shouldDiscardStalePlaySync,
+  type DailyDisplayEndKind,
+} from '../daily/dailyRoundEndUi'
 import {
   calculateDailyRemainingSeconds,
   estimateDailyServerNowMs,
@@ -61,12 +68,51 @@ type ActiveFx =
 type TerminalState =
   | { readonly kind: 'open'; readonly result: DailyOpenResult }
   | { readonly kind: 'cash'; readonly result: DailyCashOutResult }
-  | { readonly kind: 'timeout' }
+  | { readonly kind: DailyDisplayEndKind }
 
-function endReasonOf(terminal: TerminalState): DailyRoundEndReason {
-  if (terminal.kind === 'timeout') return 'timed_out'
-  if (terminal.kind === 'cash') return 'cashed_out'
-  return terminal.result.endReason === 'cleared' ? 'cleared' : 'bombed'
+function isRoundEndTerminal(terminal: TerminalState): boolean {
+  return (
+    terminal.kind === 'timeout' ||
+    terminal.kind === 'connection_error_end' ||
+    terminal.kind === 'challenge_ended'
+  )
+}
+
+function endLabel(terminal: TerminalState, t: AppStrings): string {
+  if (terminal.kind === 'timeout') return t.dailyTimeoutLabel
+  if (terminal.kind === 'connection_error_end') return t.dailyConnectionErrorEnd
+  if (terminal.kind === 'challenge_ended') return t.dailyChallengeEndedLabel
+  if (terminal.kind === 'cash') return t.cashOut
+  if (terminal.kind === 'open') {
+    return terminal.result.endReason === 'cleared'
+      ? t.dailyClearedLabel
+      : t.dailyBombedLabel
+  }
+  return t.dailyTimeoutLabel
+}
+
+function opensToResults(
+  challengeDate: string,
+  roundNumber: number,
+  opens: NonNullable<DailyPlayState['activeAttempt']>['opens'],
+): DailyOpenResult[] {
+  return opens.map((open) => ({
+    challengeDate,
+    roundNumber,
+    bagNumber: open.bagNumber,
+    openOrder: open.openOrder,
+    remainingSecondsAtTap: open.remainingSecondsAtTap,
+    outcome: open.outcome,
+    coinsFound: open.coinsFound,
+    provisionalCoins: 0,
+    openedBagCount: open.openOrder,
+    roundEnded: false,
+    endReason: null,
+    capturedCoins: 0,
+    elapsedSeconds: null,
+    coinBagHits: null,
+    participantCompleted: false,
+  }))
 }
 
 export type DailyPlayScreenProps = {
@@ -85,49 +131,59 @@ export function DailyPlayScreen({
   const [play, setPlay] = useState(initialState)
   const [openedResults, setOpenedResults] = useState<readonly DailyOpenResult[]>(
     () =>
-      (initialState.activeAttempt?.opens ?? []).map((open) => ({
-        challengeDate: initialState.challengeDate,
-        roundNumber: initialState.activeAttempt!.roundNumber,
-        bagNumber: open.bagNumber,
-        openOrder: open.openOrder,
-        remainingSecondsAtTap: open.remainingSecondsAtTap,
-        outcome: open.outcome,
-        coinsFound: open.coinsFound,
-        provisionalCoins: 0,
-        openedBagCount: open.openOrder,
-        roundEnded: false,
-        endReason: null,
-        capturedCoins: 0,
-        elapsedSeconds: null,
-        coinBagHits: null,
-        participantCompleted: false,
-      })),
+      opensToResults(
+        initialState.challengeDate,
+        initialState.activeAttempt?.roundNumber ?? 1,
+        initialState.activeAttempt?.opens ?? [],
+      ),
   )
   const [provisionalCoins, setProvisionalCoins] = useState<0 | 1 | 2 | 3>(() =>
     provisionalCoinsFromOpens(initialState.activeAttempt?.opens ?? []),
   )
   const [terminal, setTerminal] = useState<TerminalState | null>(() => {
-    if (initialState.completedAt || initialState.expiredAt) {
-      return { kind: 'timeout' }
-    }
+    if (initialState.expiredAt) return { kind: 'challenge_ended' }
+    if (initialState.completedAt) return { kind: 'timeout' }
     return null
   })
   const [remaining, setRemaining] = useState(DAILY_CHALLENGE_ROUNDS > 0 ? 60 : 0)
   const [requestPending, setRequestPending] = useState(false)
   const [retryBag, setRetryBag] = useState<BagId | null>(null)
-  const [error, setError] = useState(false)
+  const [connectionError, setConnectionError] = useState(false)
   const [cashOutError, setCashOutError] = useState(false)
   const [fx, setFx] = useState<ActiveFx | null>(null)
   const [coinFxSample, setCoinFxSample] = useState<CoinFxSample | null>(null)
   const lockRef = useRef(false)
   const gateRef = useRef<OptimisticOpenGate | null>(null)
   const runIdRef = useRef(0)
-  const timeoutPollRef = useRef(false)
+  const statusPollActiveRef = useRef(false)
+  const statusPollInFlightRef = useRef(false)
+  const wakeStatusPollRef = useRef<(() => void) | null>(null)
+  const requestPendingRef = useRef(false)
+  const fxRef = useRef<ActiveFx | null>(null)
+  const terminalRef = useRef<TerminalState | null>(null)
+  const playRef = useRef(play)
+  /** Bumped on ROUND advance / unmount-sensitive sync so stale GET play is ignored. */
+  const playEpochRef = useRef(0)
+  const reconcileInFlightRef = useRef(false)
+
+  useEffect(() => {
+    requestPendingRef.current = requestPending
+  }, [requestPending])
+  useEffect(() => {
+    fxRef.current = fx
+  }, [fx])
+  useEffect(() => {
+    terminalRef.current = terminal
+  }, [terminal])
+  useEffect(() => {
+    playRef.current = play
+  }, [play])
 
   const active = play.activeAttempt
   const challengeDate = play.challengeDate
   const completed =
     play.completedAt !== null ||
+    play.expiredAt !== null ||
     (terminal !== null &&
       (terminal.kind === 'cash'
         ? terminal.result.participantCompleted
@@ -186,6 +242,247 @@ export function DailyPlayScreen({
     [],
   )
 
+  const readInTimePending = useCallback(() => {
+    const pendingOpen = coordinator.getPendingOpen()
+    const pendingCash = coordinator.getPendingCashOut()
+    return hasInTimePendingAction({
+      pendingOpenRemainingSeconds: pendingOpen?.remainingSecondsAtTap ?? null,
+      pendingCashOutRemainingSeconds:
+        pendingCash?.remainingSecondsAtTap ?? null,
+    })
+  }, [coordinator])
+
+  const applyRoundEndFromState = useCallback(
+    (state: DailyPlayState): boolean => {
+      const kind = resolveDailyDisplayEndKind({
+        state,
+        hadInTimePendingAction: readInTimePending(),
+      })
+      if (!kind) return false
+      setPlay(state)
+      setTerminal({ kind })
+      setProvisionalCoins(0)
+      setConnectionError(false)
+      setCashOutError(false)
+      setRetryBag(null)
+      return true
+    },
+    [readInTimePending],
+  )
+
+  const syncFromPlayState = useCallback(
+    (
+      state: DailyPlayState,
+    ): 'active' | 'ended' | 'defer_end_for_recovery' | 'unchanged' => {
+      const phase = classifyInactivePlaySync({
+        hasActiveAttempt: state.activeAttempt !== null,
+        hasInTimePendingAction: readInTimePending(),
+      })
+      if (phase === 'active' && state.activeAttempt) {
+        setPlay(state)
+        const nextOpens = opensToResults(
+          state.challengeDate,
+          state.activeAttempt.roundNumber,
+          state.activeAttempt.opens,
+        )
+        setOpenedResults(nextOpens)
+        setProvisionalCoins(
+          provisionalCoinsFromOpens(state.activeAttempt.opens),
+        )
+        const pendingOpen = coordinator.getPendingOpen()
+        if (
+          pendingOpen &&
+          state.activeAttempt.opens.some(
+            (open) => open.bagNumber === pendingOpen.bagNumber,
+          )
+        ) {
+          coordinator.clearPendingOpen()
+          setRetryBag(null)
+          setConnectionError(false)
+        }
+        return 'active'
+      }
+      // Keep server clocks / counts, but do not invent an end label yet.
+      setPlay(state)
+      if (phase === 'defer_end_for_recovery') return 'defer_end_for_recovery'
+      if (applyRoundEndFromState(state)) return 'ended'
+      return 'unchanged'
+    },
+    [applyRoundEndFromState, coordinator, readInTimePending],
+  )
+
+  /**
+   * After OPEN/CASH OUT transport failure: refresh, prefer accepted server
+   * results via idempotent retry, and only then classify a finalized end label.
+   */
+  const reconcileAfterMutationFailure = useCallback(
+    async (mode: 'open' | 'cash'): Promise<void> => {
+      setConnectionError(true)
+      reconcileInFlightRef.current = true
+      const epochAtStart = playEpochRef.current
+      try {
+        let state = await coordinator.refresh(challengeDate)
+        if (
+          shouldDiscardStalePlaySync({
+            cancelled: false,
+            syncEpoch: epochAtStart,
+            currentEpoch: playEpochRef.current,
+            hasTerminal: terminalRef.current !== null,
+          })
+        ) {
+          return
+        }
+
+        const sync = syncFromPlayState(state)
+        if (sync === 'ended') return
+        if (sync === 'active') {
+          const pendingOpen = coordinator.getPendingOpen()
+          if (
+            mode === 'open' &&
+            pendingOpen &&
+            state.activeAttempt &&
+            !state.activeAttempt.opens.some(
+              (open) => open.bagNumber === pendingOpen.bagNumber,
+            )
+          ) {
+            // Keep pending for idempotent retry; do not invent a new tap.
+            return
+          }
+          if (mode === 'cash' && coordinator.getPendingCashOut()) {
+            return
+          }
+          setConnectionError(false)
+          return
+        }
+
+        // No active ROUND — restore accepted ops before any end label.
+        if (mode === 'open' && coordinator.getPendingOpen()) {
+          const pending = coordinator.getPendingOpen()!
+          try {
+            const result = await coordinator.open(
+              pending.challengeDate,
+              pending.bagNumber,
+              pending.remainingSecondsAtTap,
+            )
+            if (
+              shouldDiscardStalePlaySync({
+                cancelled: false,
+                syncEpoch: epochAtStart,
+                currentEpoch: playEpochRef.current,
+                hasTerminal: terminalRef.current !== null,
+              })
+            ) {
+              return
+            }
+            setOpenedResults((current) => {
+              if (current.some((row) => row.bagNumber === result.bagNumber)) {
+                return current
+              }
+              return [...current, result]
+            })
+            setProvisionalCoins(result.provisionalCoins)
+            setRetryBag(null)
+            setConnectionError(false)
+            if (result.roundEnded) setTerminal({ kind: 'open', result })
+            else {
+              state = await coordinator.refresh(challengeDate)
+              if (
+                !shouldDiscardStalePlaySync({
+                  cancelled: false,
+                  syncEpoch: epochAtStart,
+                  currentEpoch: playEpochRef.current,
+                  hasTerminal: terminalRef.current !== null,
+                })
+              ) {
+                syncFromPlayState(state)
+              }
+            }
+            return
+          } catch {
+            // Idempotent restore failed (e.g. 409). Re-read then classify below —
+            // never treat 409 alone as TIME OUT without GET play confirmation.
+            state = await coordinator.refresh(challengeDate)
+            if (
+              shouldDiscardStalePlaySync({
+                cancelled: false,
+                syncEpoch: epochAtStart,
+                currentEpoch: playEpochRef.current,
+                hasTerminal: terminalRef.current !== null,
+              })
+            ) {
+              return
+            }
+            if (state.activeAttempt) {
+              syncFromPlayState(state)
+              return
+            }
+          }
+        }
+
+        if (mode === 'cash' && coordinator.getPendingCashOut()) {
+          const pending = coordinator.getPendingCashOut()!
+          try {
+            const result = await coordinator.cashOut(
+              pending.challengeDate,
+              pending.remainingSecondsAtTap,
+            )
+            if (
+              shouldDiscardStalePlaySync({
+                cancelled: false,
+                syncEpoch: epochAtStart,
+                currentEpoch: playEpochRef.current,
+                hasTerminal: terminalRef.current !== null,
+              })
+            ) {
+              return
+            }
+            setTerminal({ kind: 'cash', result })
+            setRetryBag(null)
+            setConnectionError(false)
+            setCashOutError(false)
+            return
+          } catch {
+            state = await coordinator.refresh(challengeDate)
+            if (
+              shouldDiscardStalePlaySync({
+                cancelled: false,
+                syncEpoch: epochAtStart,
+                currentEpoch: playEpochRef.current,
+                hasTerminal: terminalRef.current !== null,
+              })
+            ) {
+              return
+            }
+            if (state.activeAttempt) {
+              syncFromPlayState(state)
+              setCashOutError(true)
+              return
+            }
+            setCashOutError(true)
+          }
+        }
+
+        // Recovery attempted; choose end label only from confirmed inactive play.
+        if (
+          !state.activeAttempt &&
+          !shouldDiscardStalePlaySync({
+            cancelled: false,
+            syncEpoch: epochAtStart,
+            currentEpoch: playEpochRef.current,
+            hasTerminal: terminalRef.current !== null,
+          })
+        ) {
+          applyRoundEndFromState(state)
+        }
+      } catch {
+        /* keep connectionError; automatic status poll continues */
+      } finally {
+        reconcileInFlightRef.current = false
+      }
+    },
+    [applyRoundEndFromState, challengeDate, coordinator, syncFromPlayState],
+  )
+
   // Countdown from server deadline using a monotonic estimate of server now.
   useEffect(() => {
     if (!active || terminal) {
@@ -212,47 +509,140 @@ export function DailyPlayScreen({
     return () => window.clearInterval(id)
   }, [active, play.serverNow, terminal])
 
-  // When UI hits 0, poll server for TIME OUT finalize (62s) without inventing score.
-  // Do not poll away an in-flight OPEN that was started with remaining > 0.
+  // After UI 0: keep confirming server finalize with bounded backoff (no fixed 8-cap).
   useEffect(() => {
     if (
       !active ||
       terminal ||
       remaining > 0 ||
-      timeoutPollRef.current ||
-      requestPending ||
-      fx !== null
+      statusPollActiveRef.current
     ) {
       return
     }
-    timeoutPollRef.current = true
+    statusPollActiveRef.current = true
     let cancelled = false
-    const poll = async () => {
-      for (let attempt = 0; attempt < 8; attempt += 1) {
-        if (cancelled) return
-        try {
-          const next = await coordinator.refresh(challengeDate)
-          setPlay(next)
-          if (!next.activeAttempt) {
-            setTerminal({ kind: 'timeout' })
-            setProvisionalCoins(0)
-            return
-          }
-        } catch {
-          /* keep polling briefly */
+    let delayMs = 500
+    let wake: (() => void) | null = null
+
+    const sleep = (ms: number) =>
+      new Promise<void>((resolve) => {
+        const timer = window.setTimeout(() => {
+          wake = null
+          resolve()
+        }, ms)
+        wake = () => {
+          window.clearTimeout(timer)
+          wake = null
+          resolve()
         }
-        await new Promise((resolve) => window.setTimeout(resolve, 500))
+        wakeStatusPollRef.current = wake
+      })
+
+    const epochAtEffectStart = playEpochRef.current
+
+    const pollOnce = async () => {
+      if (statusPollInFlightRef.current) return 'busy' as const
+      if (reconcileInFlightRef.current) return 'wait' as const
+      if (requestPendingRef.current || fxRef.current !== null) {
+        return 'wait' as const
       }
-      timeoutPollRef.current = false
+      statusPollInFlightRef.current = true
+      const syncEpoch = playEpochRef.current
+      try {
+        const next = await coordinator.refresh(challengeDate)
+        if (
+          shouldDiscardStalePlaySync({
+            cancelled,
+            syncEpoch,
+            currentEpoch: playEpochRef.current,
+            hasTerminal: terminalRef.current !== null,
+          })
+        ) {
+          return 'stale' as const
+        }
+        // A newer ROUND (NEXT) must never be overwritten by this response.
+        if (syncEpoch !== epochAtEffectStart) return 'stale' as const
+
+        const sync = syncFromPlayState(next)
+        if (sync === 'ended' || terminalRef.current) return 'ended' as const
+        if (sync === 'defer_end_for_recovery') {
+          // Pending in-time op: keep polling / wait for reconcile; do not label yet.
+          setConnectionError(true)
+          return 'defer' as const
+        }
+        if (sync === 'active') {
+          setConnectionError(false)
+          return 'active' as const
+        }
+        return 'active' as const
+      } catch {
+        if (cancelled || terminalRef.current) return 'stale' as const
+        setConnectionError(true)
+        return 'error' as const
+      } finally {
+        statusPollInFlightRef.current = false
+      }
     }
-    void poll()
+
+    const run = async () => {
+      while (!cancelled && !terminalRef.current) {
+        if (
+          !playRef.current.activeAttempt &&
+          !readInTimePending() &&
+          !reconcileInFlightRef.current
+        ) {
+          break
+        }
+        const result = await pollOnce()
+        if (cancelled || terminalRef.current) break
+        if (result === 'ended') break
+        if (result === 'error' || result === 'defer') {
+          delayMs = nextDailyStatusPollDelayMs(delayMs)
+        } else if (result === 'active') {
+          delayMs = 500
+        }
+        await sleep(delayMs)
+      }
+      statusPollActiveRef.current = false
+      wakeStatusPollRef.current = null
+    }
+
+    const onOnline = () => {
+      delayMs = 500
+      setConnectionError(true)
+      wakeStatusPollRef.current?.()
+    }
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') {
+        delayMs = 500
+        wakeStatusPollRef.current?.()
+      }
+    }
+    window.addEventListener('online', onOnline)
+    document.addEventListener('visibilitychange', onVisible)
+
+    void run()
     return () => {
       cancelled = true
+      wakeStatusPollRef.current?.()
+      wakeStatusPollRef.current = null
+      statusPollActiveRef.current = false
+      window.removeEventListener('online', onOnline)
+      document.removeEventListener('visibilitychange', onVisible)
     }
-  }, [active, terminal, remaining, requestPending, fx, coordinator, challengeDate])
+  }, [
+    active,
+    terminal,
+    remaining,
+    coordinator,
+    challengeDate,
+    syncFromPlayState,
+    readInTimePending,
+  ])
 
   useEffect(() => {
-    timeoutPollRef.current = false
+    statusPollActiveRef.current = false
+    playEpochRef.current += 1
   }, [active?.roundNumber])
 
   const tap = useCallback(
@@ -275,7 +665,7 @@ export function DailyPlayScreen({
         (pending.challengeDate !== challengeDate ||
           pending.bagNumber !== bagNumber)
       ) {
-        setError(true)
+        setConnectionError(true)
         return
       }
       if (coordinator.getPendingCashOut()) {
@@ -292,7 +682,7 @@ export function DailyPlayScreen({
           bagNumber,
         )
       } catch {
-        setError(true)
+        setConnectionError(true)
         return
       }
 
@@ -302,7 +692,7 @@ export function DailyPlayScreen({
       warmBagOpenAudio()
       lockRef.current = true
       setRequestPending(true)
-      setError(false)
+      setConnectionError(false)
       setCashOutError(false)
 
       const gate = createOptimisticOpenGate()
@@ -335,18 +725,12 @@ export function DailyPlayScreen({
         setFx(null)
         setCoinFxSample(null)
         setRetryBag(bagId)
-        setError(true)
-        try {
-          const next = await coordinator.refresh(challengeDate)
-          setPlay(next)
-          if (!next.activeAttempt) {
-            setTerminal({ kind: 'timeout' })
-            setProvisionalCoins(0)
-          }
-        } catch {
-          /* keep error UI; pending OPEN retained for idempotent retry */
-        }
+        await reconcileAfterMutationFailure('open')
         if (gate.fxDone) unlock()
+        else {
+          lockRef.current = false
+          setRequestPending(false)
+        }
       }
     },
     [
@@ -356,6 +740,7 @@ export function DailyPlayScreen({
       opened,
       openedResults.length,
       provisionalCoins,
+      reconcileAfterMutationFailure,
       remaining,
       requestPending,
       retryBag,
@@ -378,14 +763,14 @@ export function DailyPlayScreen({
       return
     }
     if (coordinator.getPendingOpen()) {
-      setError(true)
+      setConnectionError(true)
       return
     }
     abandonScreenPresentation()
     lockRef.current = true
     setRequestPending(true)
     setCashOutError(false)
-    setError(false)
+    setConnectionError(false)
     try {
       const result = await coordinator.cashOut(challengeDate, remaining)
       if (
@@ -398,7 +783,7 @@ export function DailyPlayScreen({
       setTerminal({ kind: 'cash', result })
       setRetryBag(null)
     } catch {
-      setCashOutError(true)
+      await reconcileAfterMutationFailure('cash')
     } finally {
       lockRef.current = false
       setRequestPending(false)
@@ -410,6 +795,7 @@ export function DailyPlayScreen({
     fx,
     openedResults.length,
     provisionalCoins,
+    reconcileAfterMutationFailure,
     remaining,
     requestPending,
     terminal,
@@ -421,7 +807,7 @@ export function DailyPlayScreen({
     fx === null &&
     !completed &&
     play.completedRounds < DAILY_CHALLENGE_ROUNDS &&
-    (terminal.kind === 'timeout'
+    (isRoundEndTerminal(terminal)
       ? play.nextRoundNumber !== null
       : (active?.roundNumber ?? play.completedRounds) < DAILY_CHALLENGE_ROUNDS)
 
@@ -429,16 +815,20 @@ export function DailyPlayScreen({
     if (!canShowNextRound || lockRef.current) return
     lockRef.current = true
     setRequestPending(true)
-    setError(false)
+    setConnectionError(false)
     try {
       const nextState = await coordinator.startNext(challengeDate)
+      playEpochRef.current += 1
       setPlay(nextState)
       setOpenedResults([])
       setProvisionalCoins(0)
       setTerminal(null)
       setRetryBag(null)
+      setConnectionError(false)
+      coordinator.clearPendingOpen()
+      coordinator.clearPendingCashOut()
     } catch {
-      setError(true)
+      setConnectionError(true)
     } finally {
       lockRef.current = false
       setRequestPending(false)
@@ -472,7 +862,22 @@ export function DailyPlayScreen({
     )
   }
 
-  if (!active && terminal?.kind === 'timeout' && completed) {
+  if (!active && play.expiredAt) {
+    return (
+      <div className="duel-play daily-play">
+        <p className="daily-play__end" role="status">
+          {t.dailyChallengeEndedLabel}
+        </p>
+        <div className="field-action">
+          <button type="button" className="dev-btn" onClick={onGoTop}>
+            {t.duelTop}
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  if (!active && terminal && isRoundEndTerminal(terminal) && completed) {
     return (
       <div className="duel-play daily-play">
         <p className="duel-instruction" role="status">
@@ -491,7 +896,7 @@ export function DailyPlayScreen({
     return (
       <div className="duel-play daily-play">
         <p className="duel-play-error" role="alert">
-          {t.dailyPlayError}
+          {connectionError ? t.dailyConnectionError : t.dailyPlayError}
         </p>
         <div className="field-action">
           <button type="button" className="dev-btn" onClick={onGoTop}>
@@ -504,10 +909,8 @@ export function DailyPlayScreen({
 
   const roundNumber =
     active?.roundNumber ??
-    (terminal && terminal.kind !== 'timeout'
-      ? terminal.kind === 'cash'
-        ? terminal.result.roundNumber
-        : terminal.result.roundNumber
+    (terminal?.kind === 'cash' || terminal?.kind === 'open'
+      ? terminal.result.roundNumber
       : play.completedRounds)
 
   const bagCount = (active?.bagCount ?? 3) as BagCount
@@ -601,13 +1004,7 @@ export function DailyPlayScreen({
       </div>
       {terminal && fx === null ? (
         <p className="daily-play__end" role="status">
-          {endReasonOf(terminal) === 'timed_out'
-            ? t.dailyTimeoutLabel
-            : endReasonOf(terminal) === 'cashed_out'
-              ? t.cashOut
-              : endReasonOf(terminal) === 'cleared'
-                ? t.dailyClearedLabel
-                : t.dailyBombedLabel}
+          {endLabel(terminal, t)}
         </p>
       ) : null}
       {completed && fx === null ? (
@@ -615,13 +1012,15 @@ export function DailyPlayScreen({
           {withDuelNums(t.dailyChallengeComplete)}
         </p>
       ) : null}
-      {error || cashOutError ? (
+      {connectionError || cashOutError ? (
         <div
           className="duel-play-error stable-message-slot stable-message-slot--play-error"
           role="alert"
         >
-          {error ? <p>{t.dailyPlayError}</p> : null}
-          {cashOutError ? <p>{t.duelCashOutRetry}</p> : null}
+          {connectionError && !terminal ? (
+            <p>{t.dailyConnectionError}</p>
+          ) : null}
+          {cashOutError && !terminal ? <p>{t.duelCashOutRetry}</p> : null}
         </div>
       ) : null}
     </div>

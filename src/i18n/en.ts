@@ -46,6 +46,9 @@ export const en: AppStrings = {
   dailyTimeLimitValue: (seconds) => `${seconds} sec / ROUND`,
   dailyTimeoutLabel: 'TIME OUT',
   dailyTimeoutValue: '0 COINS',
+  dailyConnectionErrorEnd: 'ROUND ENDED — CONNECTION ERROR',
+  dailyConnectionError: 'CONNECTION ERROR',
+  dailyChallengeEndedLabel: 'CHALLENGE ENDED',
   dailyRankingRule: 'Finish all 20 ROUNDS to enter the ranking.',
   dailyServerArrivalRule:
     'Your final action must reach the server before the challenge period ends.',

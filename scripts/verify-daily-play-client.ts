@@ -24,7 +24,16 @@ import {
   calculateDailyRemainingSeconds,
   estimateDailyServerNowMs,
 } from '../src/daily/dailyTime.ts'
+import {
+  classifyInactivePlaySync,
+  hasInTimePendingAction,
+  nextDailyStatusPollDelayMs,
+  resolveDailyDisplayEndKind,
+  shouldDiscardStalePlaySync,
+} from '../src/daily/dailyRoundEndUi.ts'
 import { DAILY_CHALLENGE_ROUNDS } from '../src/daily/dailyQuestionSet.ts'
+import { en } from '../src/i18n/en.ts'
+import { ja } from '../src/i18n/ja.ts'
 
 const root = resolve(import.meta.dirname, '..')
 const date = '2099-09-10'
@@ -492,15 +501,167 @@ assert.doesNotMatch(
   playScreen,
   /canShowDailyCashOutButton\([^)]*fx/,
 )
-assert.match(
-  playScreen,
-  /requestPending \|\|[\s\S]*fx !== null/,
-  'timeout poll must not run during in-flight OPEN/FX',
-)
+assert.match(playScreen, /reconcileAfterMutationFailure/)
+assert.match(playScreen, /resolveDailyDisplayEndKind|dailyRoundEndUi/)
+assert.match(playScreen, /nextDailyStatusPollDelayMs/)
+assert.match(playScreen, /addEventListener\('online'/)
+assert.doesNotMatch(playScreen, /attempt < 8/)
+assert.match(playScreen, /requestPendingRef/)
+assert.match(playScreen, /fxRef/)
+assert.match(playScreen, /dailyConnectionErrorEnd/)
+assert.match(playScreen, /dailyConnectionError/)
+assert.match(playScreen, /dailyChallengeEndedLabel/)
 assert.match(read('src/daily/dailyPlayClient.ts'), /getPlacements/)
 assert.match(read('src/daily/dailyPlayClient.ts'), /getLocalOpenResult/)
+assert.match(read('src/daily/dailyPlayClient.ts'), /clearPendingOpen/)
+assert.match(read('src/daily/dailyPlayClient.ts'), /clearPendingCashOut/)
 assert.match(read('src/daily/dailyLocalOpen.ts'), /judgeDailyBag/)
 assert.match(read('src/components/GroupPlayScreen.tsx'), /createOptimisticOpenGate/)
+
+const idleEnded = {
+  challengeDate: date,
+  serverNow: '2099-09-10T12:01:02.000Z',
+  challengeEndsAt: '2099-09-11T00:00:00.000Z',
+  completedRounds: 1,
+  nextRoundNumber: 2,
+  activeAttempt: null,
+  completedAt: null,
+  expiredAt: null,
+} as const
+
+assert.equal(
+  resolveDailyDisplayEndKind({
+    state: idleEnded,
+    hadInTimePendingAction: false,
+  }),
+  'timeout',
+)
+assert.equal(
+  resolveDailyDisplayEndKind({
+    state: idleEnded,
+    hadInTimePendingAction: true,
+  }),
+  'connection_error_end',
+  'in-time pending + server timed_out must not show plain TIME OUT',
+)
+assert.equal(
+  resolveDailyDisplayEndKind({
+    state: { ...idleEnded, expiredAt: '2099-09-11T00:00:00.000Z' },
+    hadInTimePendingAction: true,
+  }),
+  'challenge_ended',
+  'UTC expiry must win over connection-error-end',
+)
+assert.equal(
+  resolveDailyDisplayEndKind({
+    state: {
+      ...idleEnded,
+      activeAttempt: {
+        roundNumber: 1,
+        bagCount: 5,
+        startedAt: '2099-09-10T12:00:00.000Z',
+        deadlineAt: '2099-09-10T12:01:00.000Z',
+        openedBagCount: 0,
+        opens: [],
+      },
+    },
+    hadInTimePendingAction: true,
+  }),
+  null,
+)
+
+assert.equal(
+  hasInTimePendingAction({
+    pendingOpenRemainingSeconds: 1,
+    pendingCashOutRemainingSeconds: null,
+  }),
+  true,
+)
+assert.equal(
+  hasInTimePendingAction({
+    pendingOpenRemainingSeconds: null,
+    pendingCashOutRemainingSeconds: null,
+  }),
+  false,
+)
+assert.equal(nextDailyStatusPollDelayMs(500), 1000)
+assert.equal(nextDailyStatusPollDelayMs(8_000), 15_000)
+assert.equal(nextDailyStatusPollDelayMs(15_000), 15_000)
+
+assert.equal(
+  classifyInactivePlaySync({
+    hasActiveAttempt: false,
+    hasInTimePendingAction: true,
+  }),
+  'defer_end_for_recovery',
+  'accepted BOMB/cash with lost response must defer end until idempotent restore',
+)
+assert.equal(
+  classifyInactivePlaySync({
+    hasActiveAttempt: false,
+    hasInTimePendingAction: false,
+  }),
+  'classify_end',
+)
+assert.equal(
+  classifyInactivePlaySync({
+    hasActiveAttempt: true,
+    hasInTimePendingAction: true,
+  }),
+  'active',
+)
+
+assert.equal(
+  shouldDiscardStalePlaySync({
+    cancelled: true,
+    syncEpoch: 1,
+    currentEpoch: 1,
+    hasTerminal: false,
+  }),
+  true,
+)
+assert.equal(
+  shouldDiscardStalePlaySync({
+    cancelled: false,
+    syncEpoch: 1,
+    currentEpoch: 2,
+    hasTerminal: false,
+  }),
+  true,
+  'ROUND1 poll must not apply after ROUND2 epoch bump',
+)
+assert.equal(
+  shouldDiscardStalePlaySync({
+    cancelled: false,
+    syncEpoch: 3,
+    currentEpoch: 3,
+    hasTerminal: true,
+  }),
+  true,
+)
+assert.equal(
+  shouldDiscardStalePlaySync({
+    cancelled: false,
+    syncEpoch: 3,
+    currentEpoch: 3,
+    hasTerminal: false,
+  }),
+  false,
+)
+
+assert.match(playScreen, /shouldDiscardStalePlaySync/)
+assert.match(playScreen, /classifyInactivePlaySync|defer_end_for_recovery/)
+assert.match(playScreen, /playEpochRef/)
+assert.match(playScreen, /reconcileInFlightRef/)
+
+assert.equal(en.dailyTimeoutLabel, 'TIME OUT')
+assert.equal(en.dailyRankingRule, 'Finish all 20 ROUNDS to enter the ranking.')
+assert.equal(en.dailyConnectionErrorEnd, 'ROUND ENDED — CONNECTION ERROR')
+assert.equal(en.dailyConnectionError, 'CONNECTION ERROR')
+assert.equal(en.dailyChallengeEndedLabel, 'CHALLENGE ENDED')
+assert.equal(ja.dailyConnectionErrorEnd, '通信エラーで終了')
+assert.equal(ja.dailyConnectionError, '通信エラー')
+assert.equal(ja.dailyChallengeEndedLabel, '開催終了')
 
 const prestart = read('src/components/DailyPreStartScreen.tsx')
 assert.match(prestart, /createDailyParticipantCoordinator/)
@@ -523,13 +684,7 @@ for (const modeFile of [
 
 assert.match(read('src/i18n/en.ts'), /dailyChallengeComplete/)
 assert.match(read('src/i18n/ja.ts'), /dailyChallengeComplete/)
-assert.equal(
-  (await import('../src/i18n/en.ts')).en.cashOut,
-  'CASH OUT',
-)
-assert.equal(
-  (await import('../src/i18n/ja.ts')).ja.cashOut,
-  'ここで利確',
-)
+assert.equal(en.cashOut, 'CASH OUT')
+assert.equal(ja.cashOut, 'ここで利確')
 
 console.log('verify:daily-play-client OK')
