@@ -2,8 +2,11 @@
 import assert from 'node:assert/strict'
 import {
   calculateDailyRemainingSeconds,
+  canFinalizeDailyRoundTimeout,
   dailyChallengePeriod,
   dailyElapsedSecondsAtTap,
+  dailyRoundTimeoutFinalizeAtMs,
+  dailyRoundUiDeadlineMs,
   dailyTimedOutElapsedSeconds,
   estimateDailyServerNowMs,
   formatDailyChallengePeriod,
@@ -172,5 +175,41 @@ assert.deepEqual(formatDailyChallengePeriod('2026-10-14', undefined), {
   startsAt: '2026-10-14 00:00',
   endsAt: '2026-10-15 00:00',
 })
+
+const started = Date.parse('2026-10-14T12:00:00.000Z')
+assert.equal(dailyRoundUiDeadlineMs(started), started + 60_000)
+assert.equal(dailyRoundTimeoutFinalizeAtMs(started), started + 62_000)
+assert.equal(
+  canFinalizeDailyRoundTimeout({
+    startedAtMs: started,
+    nowMs: started + 60_000,
+    challengeEndsAtMs: started + 86_400_000,
+  }),
+  false,
+)
+assert.equal(
+  canFinalizeDailyRoundTimeout({
+    startedAtMs: started,
+    nowMs: started + 61_999,
+    challengeEndsAtMs: started + 86_400_000,
+  }),
+  false,
+)
+assert.equal(
+  canFinalizeDailyRoundTimeout({
+    startedAtMs: started,
+    nowMs: started + 62_000,
+    challengeEndsAtMs: started + 86_400_000,
+  }),
+  true,
+)
+assert.equal(
+  canFinalizeDailyRoundTimeout({
+    startedAtMs: started,
+    nowMs: started + 30_000,
+    challengeEndsAtMs: started + 30_000,
+  }),
+  true,
+)
 
 console.log('verify:daily-time OK')

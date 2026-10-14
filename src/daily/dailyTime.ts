@@ -89,6 +89,46 @@ export function dailyTimedOutElapsedSeconds(): number {
   return DAILY_ROUND_LIMIT_SECONDS
 }
 
+/** UI countdown reaches zero at started_at + 60s (not the DB finalize instant). */
+export function dailyRoundUiDeadlineMs(startedAtMsValue: number): number {
+  return requireFiniteTime(startedAtMsValue) + DAILY_ROUND_LIMIT_MS
+}
+
+/**
+ * Irreversible TIME OUT may be written only after the round clock and the
+ * two-second network grace have both elapsed. This is not extra play time:
+ * taps must still claim a remainingSeconds > 0 window that began before the
+ * UI deadline; grace only covers late delivery of that claim.
+ */
+export function dailyRoundTimeoutFinalizeAtMs(startedAtMsValue: number): number {
+  return (
+    requireFiniteTime(startedAtMsValue) +
+    DAILY_ROUND_LIMIT_MS +
+    DAILY_OPERATION_GRACE_MS
+  )
+}
+
+/**
+ * Whether an active attempt may be finalized as `timed_out`.
+ * UTC challenge end has no grace and forces finalize so OPEN cannot race
+ * after `challenge_ended` rejects further taps.
+ */
+export function canFinalizeDailyRoundTimeout(input: {
+  readonly startedAtMs: number
+  readonly nowMs: number
+  readonly challengeEndsAtMs: number
+}): boolean {
+  if (
+    !finiteNumber(input.startedAtMs) ||
+    !finiteNumber(input.nowMs) ||
+    !finiteNumber(input.challengeEndsAtMs)
+  ) {
+    return false
+  }
+  if (input.nowMs >= input.challengeEndsAtMs) return true
+  return input.nowMs >= dailyRoundTimeoutFinalizeAtMs(input.startedAtMs)
+}
+
 /**
  * Estimates server epoch time from a server epoch/monotonic-clock anchor.
  * The caller controls how the anchor was obtained (for example an API response).
