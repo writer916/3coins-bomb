@@ -3,16 +3,19 @@ import { validateGroupNickname } from '../group/groupDomain'
 import { utcDailyChallengeDate, type DailyChallengeDate } from './dailyChallengeDate'
 import {
   createPendingDailyParticipant,
+  dailyJoinLockName,
   readDailyParticipant,
   saveDailyParticipant,
   type DailyParticipantStorageRecord,
   type DailyStorageAdapter,
   type JoinedDailyParticipantRecord,
+  type PendingDailyParticipantRecord,
 } from './dailyParticipantStorage'
 
 const UUID_V4_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const TOKEN_PATTERN = /^3cb_dp1_[A-Za-z0-9_-]{42}[AEIMQUYcgkosw048]$/
+const DATE_ROLLOVER_ATTEMPTS = 3
 
 export type DailyParticipantClientErrorCode =
   | 'INVALID_INPUT'
@@ -30,6 +33,14 @@ export class DailyParticipantClientError extends Error {
     this.name = 'DailyParticipantClientError'
     this.code = code
   }
+}
+
+/** Minimal LockManager surface so tests can inject serialization without DOM types. */
+export interface DailyJoinLockManager {
+  request<T>(
+    name: string,
+    callback: (lock: { name: string } | null) => Promise<T>,
+  ): Promise<T>
 }
 
 interface JoinResponse {
@@ -235,6 +246,11 @@ export interface DailyParticipantCoordinatorDependencies {
   readonly fetch: typeof fetch
   readonly crypto: RandomUuidCrypto
   readonly now?: () => Date
+  /**
+   * Inject Web Locks for tests. `undefined` uses `navigator.locks` when present.
+   * `null` forces the no-lock fallback (re-read before JOIN only).
+   */
+  readonly locks?: DailyJoinLockManager | null
 }
 
 export interface DailyParticipantCoordinatorResult {
@@ -243,47 +259,56 @@ export interface DailyParticipantCoordinatorResult {
   readonly restored: boolean
 }
 
-async function runDailyParticipant(
-  nicknameValue: unknown,
-  dependencies: DailyParticipantCoordinatorDependencies,
-): Promise<DailyParticipantCoordinatorResult> {
-  const challengeDate = utcDailyChallengeDate(
-    dependencies.now?.() ?? new Date(),
-  )
-  const existing = readDailyParticipant(dependencies.storage, challengeDate)
-  if (existing?.phase === 'joined') {
-    const view = await fetchDailyParticipant(existing, dependencies.fetch)
-    if (
-      view.participantId !== existing.participantId ||
-      view.nickname !== existing.nickname ||
-      view.acceptedAt !== existing.acceptedAt
-    ) {
-      return fail('INVALID_RESPONSE')
-    }
-    return { participant: existing, view, restored: true }
-  }
+type LockedOutcome =
+  | { readonly kind: 'ok'; readonly result: DailyParticipantCoordinatorResult }
+  | { readonly kind: 'date-changed' }
 
-  let pending = existing
-  if (pending === null) {
-    let validatedNickname: string
-    try {
-      validatedNickname = validateGroupNickname(nicknameValue)
-    } catch {
-      return fail('INVALID_INPUT')
-    }
-    pending = createPendingDailyParticipant(
-      challengeDate,
-      validatedNickname,
-      dependencies.crypto,
-    )
+function resolveLocks(
+  override: DailyJoinLockManager | null | undefined,
+): DailyJoinLockManager | null {
+  if (override === null) return null
+  if (override !== undefined) return override
+  const locks = (
+    globalThis as { navigator?: { locks?: DailyJoinLockManager } }
+  ).navigator?.locks
+  return locks ?? null
+}
+
+async function withDailyJoinLock<T>(
+  challengeDate: DailyChallengeDate,
+  locks: DailyJoinLockManager | null,
+  run: () => Promise<T>,
+): Promise<T> {
+  if (!locks) return run()
+  return locks.request(dailyJoinLockName(challengeDate), async () => run())
+}
+
+async function restoreJoined(
+  existing: JoinedDailyParticipantRecord,
+  fetcher: typeof fetch,
+): Promise<DailyParticipantCoordinatorResult> {
+  const view = await fetchDailyParticipant(existing, fetcher)
+  if (
+    view.participantId !== existing.participantId ||
+    view.nickname !== existing.nickname ||
+    view.acceptedAt !== existing.acceptedAt
+  ) {
+    return fail('INVALID_RESPONSE')
   }
-  if (existing === null) saveDailyParticipant(dependencies.storage, pending)
-  const joined = await postDailyJoin(pending, dependencies.fetch)
-  const participant = saveDailyParticipant(dependencies.storage, {
+  return { participant: existing, view, restored: true }
+}
+
+function toJoinedResult(
+  challengeDate: DailyChallengeDate,
+  joined: JoinResponse,
+  joinRequestId: string,
+  storage: DailyStorageAdapter,
+): DailyParticipantCoordinatorResult {
+  const participant = saveDailyParticipant(storage, {
     version: 1,
     phase: 'joined',
     challengeDate,
-    joinRequestId: pending.joinRequestId,
+    joinRequestId,
     participantId: joined.participantId,
     nickname: joined.nickname,
     token: joined.token,
@@ -301,6 +326,100 @@ async function runDailyParticipant(
     },
     restored: false,
   }
+}
+
+/**
+ * Join/restore body. Callers must re-read storage after any wait (e.g. lock
+ * acquisition); pre-wait "empty" decisions must not be reused.
+ */
+async function executeJoinOrRestore(
+  nicknameValue: unknown,
+  challengeDate: DailyChallengeDate,
+  dependencies: DailyParticipantCoordinatorDependencies,
+  now: () => Date,
+): Promise<DailyParticipantCoordinatorResult | 'date-changed'> {
+  const existing = readDailyParticipant(dependencies.storage, challengeDate)
+  if (existing?.phase === 'joined') {
+    return restoreJoined(existing, dependencies.fetch)
+  }
+
+  let pending: PendingDailyParticipantRecord | null =
+    existing?.phase === 'pending-join' ? existing : null
+  if (pending === null) {
+    let validatedNickname: string
+    try {
+      validatedNickname = validateGroupNickname(nicknameValue)
+    } catch {
+      return fail('INVALID_INPUT')
+    }
+    pending = createPendingDailyParticipant(
+      challengeDate,
+      validatedNickname,
+      dependencies.crypto,
+    )
+    saveDailyParticipant(dependencies.storage, pending)
+  }
+
+  /*
+   * Prefer any record another tab may have written (especially without Web
+   * Locks). Never invent a second request id when storage already has one.
+   */
+  const latest = readDailyParticipant(dependencies.storage, challengeDate)
+  if (latest?.phase === 'joined') {
+    return restoreJoined(latest, dependencies.fetch)
+  }
+  if (latest?.phase === 'pending-join') {
+    pending = latest
+  }
+
+  if (utcDailyChallengeDate(now()) !== challengeDate) {
+    /*
+     * Date rolled over after lock wait / before network. Abort this day's JOIN
+     * so the outer retry can re-evaluate under the new UTC date.
+     */
+    return 'date-changed'
+  }
+
+  const joined = await postDailyJoin(pending, dependencies.fetch)
+  return toJoinedResult(
+    challengeDate,
+    joined,
+    pending.joinRequestId,
+    dependencies.storage,
+  )
+}
+
+async function runDailyParticipant(
+  nicknameValue: unknown,
+  dependencies: DailyParticipantCoordinatorDependencies,
+): Promise<DailyParticipantCoordinatorResult> {
+  const locks = resolveLocks(dependencies.locks)
+  const now = () => dependencies.now?.() ?? new Date()
+
+  for (let attempt = 0; attempt < DATE_ROLLOVER_ATTEMPTS; attempt += 1) {
+    const challengeDate = utcDailyChallengeDate(now())
+    const outcome = await withDailyJoinLock(
+      challengeDate,
+      locks,
+      async (): Promise<LockedOutcome> => {
+        const lockedDate = utcDailyChallengeDate(now())
+        if (lockedDate !== challengeDate) {
+          return { kind: 'date-changed' }
+        }
+        const result = await executeJoinOrRestore(
+          nicknameValue,
+          challengeDate,
+          dependencies,
+          now,
+        )
+        if (result === 'date-changed') return { kind: 'date-changed' }
+        return { kind: 'ok', result }
+      },
+    )
+    if (outcome.kind === 'ok') return outcome.result
+  }
+
+  return fail('CHALLENGE_UNAVAILABLE')
 }
 
 export function createDailyParticipantCoordinator(

@@ -93,6 +93,11 @@ export function dailyParticipantStorageKey(dateValue: unknown): string {
   return `3cb:daily:v1:participant:${validateDailyChallengeDate(dateValue)}`
 }
 
+/** Web Locks API name for serializing DAILY join/restore per UTC day. */
+export function dailyJoinLockName(dateValue: unknown): string {
+  return `3cb:daily:v1:join-lock:${validateDailyChallengeDate(dateValue)}`
+}
+
 export function validateDailyParticipantStorageRecord(
   value: unknown,
   expectedDateValue?: unknown,
