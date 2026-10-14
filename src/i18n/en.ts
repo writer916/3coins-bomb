@@ -47,6 +47,10 @@ export const en: AppStrings = {
   dailyTimeoutLabel: 'TIME OUT',
   dailyTimeoutValue: '0 COINS',
   dailyRankingRule: 'Finish all 20 ROUNDS to enter the ranking.',
+  dailyServerArrivalRule:
+    'Your final action must reach the server before the challenge period ends.',
+  dailySameBrowserRule:
+    'Play through to the end on the same device and browser you started with.',
   dailyPeriodLabel: 'TODAY (LOCAL TIME)',
   dailyPeriodRange: (startsAt, endsAt) => `${startsAt} – ${endsAt}`,
   dailyNicknameLead: "Nickname for today's challenge",

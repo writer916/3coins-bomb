@@ -55,6 +55,12 @@ export type AppStrings = {
   dailyTimeoutLabel: string
   dailyTimeoutValue: string
   dailyRankingRule: string
+  /**
+   * EN: ranking still uses `dailyRankingRule`; this adds the server-arrival
+   * deadline. JA: empty when that condition is already in `dailyRankingRule`.
+   */
+  dailyServerArrivalRule: string
+  dailySameBrowserRule: string
   dailyPeriodLabel: string
   dailyPeriodRange: (startsAt: string, endsAt: string) => string
   dailyNicknameLead: string

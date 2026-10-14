@@ -32,6 +32,28 @@ assert.equal(ja.dailyStart, 'START')
 assert.equal(en.cashOut, 'CASH OUT')
 assert.equal(ja.cashOut, 'ここで利確')
 
+// Existing EN ranking copy must stay; server-arrival is a separate key.
+assert.equal(en.dailyRankingRule, 'Finish all 20 ROUNDS to enter the ranking.')
+assert.equal(
+  ja.dailyRankingRule,
+  'ランキングに参加するには、開催時間内に全20ROUNDを終了し、最終操作がサーバーに到着している必要があります。',
+)
+assert.equal(
+  en.dailyServerArrivalRule,
+  'Your final action must reach the server before the challenge period ends.',
+)
+assert.equal(ja.dailyServerArrivalRule, '')
+assert.match(en.dailyServerArrivalRule, /server/i)
+assert.match(en.dailyServerArrivalRule, /before the challenge period ends/i)
+assert.equal(
+  en.dailySameBrowserRule,
+  'Play through to the end on the same device and browser you started with.',
+)
+assert.equal(
+  ja.dailySameBrowserRule,
+  'ゲームは開始した端末の同じブラウザで最後までプレイしてください。',
+)
+
 const tokyo = formatDailyChallengePeriod('2026-10-14', 'Asia/Tokyo')
 const denver = formatDailyChallengePeriod('2026-10-14', 'America/Denver')
 assert.equal(tokyo.challengeDate, '2026-10-14')
@@ -73,9 +95,16 @@ assert.match(prestart, /createDailyParticipantCoordinator/)
 assert.match(prestart, /createDailyPlayCoordinator/)
 assert.match(prestart, /onEnterPlay/)
 assert.match(prestart, /loadOrStart/)
+assert.match(prestart, /dailyRankingRule/)
+assert.match(prestart, /dailyServerArrivalRule/)
+assert.match(prestart, /dailySameBrowserRule/)
+assert.match(prestart, /dailyServerArrivalRule \?/)
 assert.doesNotMatch(prestart, /GroupReadyScreen/)
 assert.doesNotMatch(prestart, /groupPlayReady|groupPlayStart|duelStartConfirmStart/)
 assert.doesNotMatch(prestart, /dailyStartDisabledHint/)
+assert.match(prestart, /dailyPeriodRange/)
+assert.match(prestart, /dailyNickname/)
+assert.match(prestart, /dailyStart/)
 
 // Existing modes untouched by this screen.
 assert.doesNotMatch(prestart, /SoloPlay|handleBagTap/)

@@ -189,6 +189,14 @@ export function DailyPreStartScreen({
         <p className="duel-instruction daily-prestart__ranking">
           {withDuelNums(t.dailyRankingRule)}
         </p>
+        {t.dailyServerArrivalRule ? (
+          <p className="duel-instruction daily-prestart__server-arrival">
+            {withDuelNums(t.dailyServerArrivalRule)}
+          </p>
+        ) : null}
+        <p className="duel-instruction daily-prestart__same-browser">
+          {withDuelNums(t.dailySameBrowserRule)}
+        </p>
         <p className="daily-prestart__period-label">{t.dailyPeriodLabel}</p>
         <p className="daily-prestart__period-value">
           {withDuelNums(t.dailyPeriodRange(period.startsAt, period.endsAt))}

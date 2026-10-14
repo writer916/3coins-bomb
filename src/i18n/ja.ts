@@ -47,7 +47,11 @@ export const ja: AppStrings = {
   dailyTimeLimitValue: (seconds) => `${seconds}秒 / ROUND`,
   dailyTimeoutLabel: 'TIME OUT',
   dailyTimeoutValue: '0 COINS',
-  dailyRankingRule: '全20ROUND完了者だけがランキング対象です。',
+  dailyRankingRule:
+    'ランキングに参加するには、開催時間内に全20ROUNDを終了し、最終操作がサーバーに到着している必要があります。',
+  dailyServerArrivalRule: '',
+  dailySameBrowserRule:
+    'ゲームは開始した端末の同じブラウザで最後までプレイしてください。',
   dailyPeriodLabel: '本日の開催時間（現地時間）',
   dailyPeriodRange: (startsAt, endsAt) => `${startsAt} – ${endsAt}`,
   dailyNicknameLead: '本日のニックネーム',
