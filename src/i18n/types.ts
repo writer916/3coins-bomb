@@ -64,6 +64,11 @@ export type AppStrings = {
   dailyStartDisabledHint: string
   dailyJoinedStatus: (nickname: string) => string
   dailyStorageReadError: string
+  dailyRoundLabel: string
+  dailyPlayError: string
+  dailyClearedLabel: string
+  dailyBombedLabel: string
+  dailyChallengeComplete: string
   groupRoundsHint: string
   groupRoundsLabel: string
   groupPlayersHint: string

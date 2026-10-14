@@ -8,6 +8,11 @@ import { ModeSelect, type PlayMode } from './components/ModeSelect'
 import { DuelFlow } from './components/DuelFlow'
 import { DuelClaimBootstrap } from './components/DuelClaimBootstrap'
 import { DailyPreStartScreen } from './components/DailyPreStartScreen'
+import { DailyPlayScreen } from './components/DailyPlayScreen'
+import type {
+  DailyPlayCoordinator,
+  DailyPlayState,
+} from './daily/dailyPlayClient'
 import { GroupCreateFlow } from './components/GroupCreateFlow'
 import { GroupEntryShell } from './components/GroupEntryShell'
 import { RevealBoard } from './components/RevealBoard'
@@ -70,6 +75,13 @@ import { withDuelNums } from './ui/withDuelNums'
 import './App.css'
 
 type AppScreen = 'top' | 'solo' | 'duel' | 'group' | 'daily'
+type DailyPhase =
+  | { readonly kind: 'prestart' }
+  | {
+      readonly kind: 'play'
+      readonly state: DailyPlayState
+      readonly coordinator: DailyPlayCoordinator
+    }
 
 const soloQuestionSession = createSoloQuestionSession()
 
@@ -145,6 +157,7 @@ function App() {
       : null,
   )
   const [screen, setScreen] = useState<AppScreen>('top')
+  const [dailyPhase, setDailyPhase] = useState<DailyPhase>({ kind: 'prestart' })
   const [locale, setLocale] = useState<LocaleId>(() => readLocale())
   const t = getStrings(locale)
   const [round, setRound] = useState<RoundState>(() => createInitialSoloRound())
@@ -433,6 +446,7 @@ function App() {
   const goTop = useCallback(() => {
     if (fxLockRef.current || isScreenPresentationBlocking()) return
     setScreen('top')
+    setDailyPhase({ kind: 'prestart' })
     setDuelBootstrapUrl(null)
     setGroupBootstrapUrl(null)
     try {
@@ -454,6 +468,7 @@ function App() {
       return
     }
     if (mode === 'daily') {
+      setDailyPhase({ kind: 'prestart' })
       setScreen('daily')
       return
     }
@@ -595,7 +610,13 @@ function App() {
 
   if (screen === 'daily') {
     return (
-      <main className="app app--duel app--daily-prestart">
+      <main
+        className={
+          dailyPhase.kind === 'play'
+            ? 'app app--duel app--daily-play'
+            : 'app app--duel app--daily-prestart'
+        }
+      >
         <div className="field-header">
           {topControls}
           <header className="app-header">
@@ -607,7 +628,22 @@ function App() {
             </h1>
           </header>
         </div>
-        <DailyPreStartScreen t={t} onGoTop={goTop} />
+        {dailyPhase.kind === 'play' ? (
+          <DailyPlayScreen
+            t={t}
+            onGoTop={goTop}
+            initialState={dailyPhase.state}
+            coordinator={dailyPhase.coordinator}
+          />
+        ) : (
+          <DailyPreStartScreen
+            t={t}
+            onGoTop={goTop}
+            onEnterPlay={({ state, coordinator }) => {
+              setDailyPhase({ kind: 'play', state, coordinator })
+            }}
+          />
+        )}
       </main>
     )
   }

@@ -18,6 +18,9 @@ export interface DailyOpenSummary {
   readonly bagNumber: number
   readonly remainingSecondsAtTap: number
   readonly openedAt: string
+  /** Server-judged result for this opened bag only — never unopened placements. */
+  readonly outcome: 'empty' | 'coins' | 'bomb'
+  readonly coinsFound: 0 | 1 | 2 | 3
 }
 
 export interface DailyActiveAttemptView {
@@ -102,11 +105,28 @@ function parseOpens(value: unknown): DailyOpenSummary[] {
   if (!Array.isArray(value)) return []
   return value.map((entry) => {
     const row = entry as Record<string, unknown>
+    const outcome = row.outcome
+    if (outcome !== 'empty' && outcome !== 'coins' && outcome !== 'bomb') {
+      throw new Error('DAILY open summary outcome is inconsistent.')
+    }
+    const coinsFound = Number(row.coinsFound)
+    if (
+      !Number.isInteger(coinsFound) ||
+      coinsFound < 0 ||
+      coinsFound > 3 ||
+      (outcome === 'bomb' && coinsFound !== 0) ||
+      (outcome === 'empty' && coinsFound !== 0) ||
+      (outcome === 'coins' && coinsFound < 1)
+    ) {
+      throw new Error('DAILY open summary coinsFound is inconsistent.')
+    }
     return {
       openOrder: Number(row.openOrder),
       bagNumber: Number(row.bagNumber),
       remainingSecondsAtTap: Number(row.remainingSecondsAtTap),
       openedAt: asIso(row.openedAt as Date | string),
+      outcome,
+      coinsFound: coinsFound as 0 | 1 | 2 | 3,
     }
   })
 }
@@ -327,11 +347,32 @@ async function readDailyPlayState(input: {
             'openOrder', open_row.open_order,
             'bagNumber', open_row.bag_number,
             'remainingSecondsAtTap', open_row.remaining_seconds_at_tap,
-            'openedAt', open_row.opened_at
+            'openedAt', open_row.opened_at,
+            'outcome', case
+              when open_row.bag_number = placement_open.bomb_bag_number then 'bomb'
+              when (
+                select count(*)::integer
+                from unnest(placement_open.coin_bag_numbers) coin_bag
+                where coin_bag = open_row.bag_number
+              ) > 0 then 'coins'
+              else 'empty'
+            end,
+            'coinsFound', (
+              select count(*)::integer
+              from unnest(placement_open.coin_bag_numbers) coin_bag
+              where coin_bag = open_row.bag_number
+            )
           )
           order by open_row.open_order
         )
         from daily_challenge_round_opens open_row
+        inner join daily_challenge_round_attempts open_attempt
+          on open_attempt.participant_id = open_row.participant_id
+          and open_attempt.challenge_date = open_row.challenge_date
+          and open_attempt.round_number = open_row.round_number
+        inner join daily_challenge_placements placement_open
+          on placement_open.challenge_date = open_attempt.challenge_date
+          and placement_open.round_number = open_attempt.challenge_round_number
         where open_row.participant_id = participant.id
           and open_row.round_number = (
             select active_attempt.round_number

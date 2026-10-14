@@ -1,0 +1,28 @@
+/**
+ * DAILY PLAY only — pending OPEN wait marker (outcome-agnostic).
+ * Does not alter BagBoard / shared OPEN FX styles.
+ */
+.daily-play__open-pending {
+  position: absolute;
+  box-sizing: border-box;
+  width: var(--bag-size);
+  aspect-ratio: 1 / 1;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  border-radius: 50%;
+  border: 2px solid rgba(245, 235, 216, 0.9);
+  background: rgba(24, 18, 14, 0.4);
+  animation: daily-play-open-pending-pulse 0.65s ease-in-out infinite;
+}
+
+@keyframes daily-play-open-pending-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: translate(-50%, -50%) scale(0.92);
+  }
+  50% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.04);
+  }
+}

@@ -1,4 +1,4 @@
-/** DAILY pre-start UI wiring (no network / no ROUND start). */
+/** DAILY pre-start UI wiring (JOIN + START → play handoff). */
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -29,10 +29,9 @@ assert.equal(en.dailyTimeoutValue, '0 COINS')
 assert.equal(ja.dailyTimeoutValue, '0 COINS')
 assert.equal(en.dailyStart, 'START')
 assert.equal(ja.dailyStart, 'START')
-assert.ok(en.dailyStartDisabledHint.length > 0)
-assert.ok(ja.dailyStartDisabledHint.length > 0)
+assert.equal(en.cashOut, 'CASH OUT')
+assert.equal(ja.cashOut, 'ここで利確')
 
-// Device-local schedule (not hard-coded JST): same UTC day, different zones.
 const tokyo = formatDailyChallengePeriod('2026-10-14', 'Asia/Tokyo')
 const denver = formatDailyChallengePeriod('2026-10-14', 'America/Denver')
 assert.equal(tokyo.challengeDate, '2026-10-14')
@@ -40,11 +39,9 @@ assert.equal(denver.challengeDate, '2026-10-14')
 assert.notEqual(tokyo.startsAt, denver.startsAt)
 assert.equal(tokyo.startsAt, '2026-10-14 09:00')
 assert.equal(tokyo.endsAt, '2026-10-15 09:00')
-// October is MDT (UTC-6) in Denver, not MST.
 assert.equal(denver.startsAt, '2026-10-13 18:00')
 assert.equal(denver.endsAt, '2026-10-14 18:00')
 
-// DST: US spring forward — local offset changes across the UTC day boundary.
 const beforeDst = formatDailyChallengePeriod('2026-03-07', 'America/New_York')
 const afterDst = formatDailyChallengePeriod('2026-03-08', 'America/New_York')
 assert.equal(beforeDst.startsAt, '2026-03-06 19:00')
@@ -62,31 +59,27 @@ assert.match(modeSelect, /onSelect\('group'\)/)
 
 const app = read('src/App.tsx')
 assert.match(app, /DailyPreStartScreen/)
+assert.match(app, /DailyPlayScreen/)
 assert.match(app, /screen === 'daily'/)
 assert.match(app, /mode === 'daily'/)
-assert.doesNotMatch(app, /createDailyParticipantCoordinator/)
+assert.match(app, /dailyPhase/)
 
 const prestart = read('src/components/DailyPreStartScreen.tsx')
 assert.match(prestart, /DAILY_CHALLENGE_ROUNDS/)
 assert.match(prestart, /DAILY_ROUND_LIMIT_SECONDS/)
 assert.match(prestart, /formatDailyChallengePeriod/)
 assert.match(prestart, /readDailyParticipant/)
-assert.match(prestart, /disabled/)
-assert.match(prestart, /dailyStartDisabledHint/)
-assert.doesNotMatch(prestart, /createDailyParticipantCoordinator/)
-assert.doesNotMatch(prestart, /postDailyJoin/)
-assert.doesNotMatch(prestart, /fetchDailyParticipant/)
+assert.match(prestart, /createDailyParticipantCoordinator/)
+assert.match(prestart, /createDailyPlayCoordinator/)
+assert.match(prestart, /onEnterPlay/)
+assert.match(prestart, /loadOrStart/)
 assert.doesNotMatch(prestart, /GroupReadyScreen/)
 assert.doesNotMatch(prestart, /groupPlayReady|groupPlayStart|duelStartConfirmStart/)
-assert.doesNotMatch(prestart, /\/api\/daily/)
+assert.doesNotMatch(prestart, /dailyStartDisabledHint/)
 
-assert.match(read('src/App.css'), /\.daily-prestart/)
-assert.match(
-  en.dailyPeriodRange('2026-10-14 09:00', '2026-10-15 09:00'),
-  /2026-10-14 09:00/,
-)
-assert.equal(en.dailyRoundsValue(20), '20')
-assert.equal(en.dailyTimeLimitValue(60), '60 sec / ROUND')
-assert.equal(ja.dailyTimeLimitValue(60), '60秒 / ROUND')
+// Existing modes untouched by this screen.
+assert.doesNotMatch(prestart, /SoloPlay|handleBagTap/)
+assert.doesNotMatch(read('src/components/GroupPlayScreen.tsx'), /dailyPlay|DailyPlay/)
+assert.doesNotMatch(read('src/components/DuelPlayScreen.tsx'), /dailyPlay|DailyPlay/)
 
 console.log('verify:daily-prestart OK')

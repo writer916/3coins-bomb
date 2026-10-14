@@ -320,6 +320,129 @@ await cleanup(date)
 
 await cleanup(date)
 
+// --- OPEN vs GET play mid-active outcome parity (Neon) ---
+{
+  const { hash } = await seedParticipant('ParityA', `${'P'.repeat(42)}A`)
+  const other = await seedParticipant('ParityB', `${'Q'.repeat(42)}A`)
+  // bag2 holds COIN×2; bag3 COIN×1; bomb=6; bag1/4/5 empty — stay active after empty+multi.
+  await setPlacement(1, 6, 6, [2, 2, 3])
+  const t0 = Date.parse('2099-08-01T12:15:00.000Z')
+  await startDailyRound({
+    challengeDate: date,
+    authTokenHash: hash,
+    startRequestId: randomUUID(),
+    nowMs: t0,
+  })
+
+  const empty = await openDailyBag({
+    challengeDate: date,
+    authTokenHash: hash,
+    requestId: randomUUID(),
+    bagNumber: 1,
+    remainingSecondsAtTap: 55,
+    nowMs: t0 + 5_000,
+  })
+  assert.equal(empty.status, 'opened')
+  if (empty.status !== 'opened') throw new Error('expected opened')
+  assert.equal(empty.view.outcome, 'empty')
+  assert.equal(empty.view.coinsFound, 0)
+
+  const afterEmpty = await getDailyPlayState({
+    challengeDate: date,
+    authTokenHash: hash,
+    nowMs: t0 + 5_500,
+  })
+  assert.ok(afterEmpty?.activeAttempt)
+  assert.equal(afterEmpty!.activeAttempt!.opens.length, 1)
+  assert.equal(afterEmpty!.activeAttempt!.opens[0]!.outcome, empty.view.outcome)
+  assert.equal(afterEmpty!.activeAttempt!.opens[0]!.coinsFound, empty.view.coinsFound)
+  assert.equal(afterEmpty!.activeAttempt!.opens[0]!.bagNumber, empty.view.bagNumber)
+  assert.equal(afterEmpty!.activeAttempt!.opens[0]!.openOrder, empty.view.openOrder)
+  await assertNoPlacementLeak(afterEmpty)
+  assert.equal(
+    afterEmpty!.activeAttempt!.opens.some((open) => open.bagNumber !== 1),
+    false,
+    'unopened bags must not appear in GET play opens',
+  )
+
+  const multi = await openDailyBag({
+    challengeDate: date,
+    authTokenHash: hash,
+    requestId: randomUUID(),
+    bagNumber: 2,
+    remainingSecondsAtTap: 50,
+    nowMs: t0 + 10_000,
+  })
+  assert.equal(multi.status, 'opened')
+  if (multi.status !== 'opened') throw new Error('expected opened')
+  assert.equal(multi.view.outcome, 'coins')
+  assert.equal(multi.view.coinsFound, 2)
+  assert.equal(multi.view.roundEnded, false)
+
+  const afterMulti = await getDailyPlayState({
+    challengeDate: date,
+    authTokenHash: hash,
+    nowMs: t0 + 10_500,
+  })
+  assert.ok(afterMulti?.activeAttempt)
+  assert.equal(afterMulti!.activeAttempt!.opens.length, 2)
+  const playEmpty = afterMulti!.activeAttempt!.opens.find((o) => o.openOrder === 1)!
+  const playMulti = afterMulti!.activeAttempt!.opens.find((o) => o.openOrder === 2)!
+  assert.equal(playEmpty.outcome, empty.view.outcome)
+  assert.equal(playEmpty.coinsFound, empty.view.coinsFound)
+  assert.equal(playMulti.outcome, multi.view.outcome)
+  assert.equal(playMulti.coinsFound, multi.view.coinsFound)
+  assert.equal(playMulti.bagNumber, 2)
+  await assertNoPlacementLeak(afterMulti)
+  assert.equal(
+    afterMulti!.activeAttempt!.opens.some((open) =>
+      [3, 4, 5, 6].includes(open.bagNumber),
+    ),
+    false,
+    'unopened coin/bomb bags must not leak via opens',
+  )
+
+  const otherState = await getDailyPlayState({
+    challengeDate: date,
+    authTokenHash: other.hash,
+    nowMs: t0 + 10_500,
+  })
+  assert.ok(otherState, 'other joined participant must resolve')
+  assert.equal(otherState!.activeAttempt, null)
+  assert.equal(otherState!.completedRounds, 0)
+  await assertNoPlacementLeak(otherState)
+  assert.doesNotMatch(
+    JSON.stringify(otherState),
+    /"opens":\s*\[\s*\{/,
+    'other participant must not receive ParityA opens',
+  )
+
+  const bomb = await openDailyBag({
+    challengeDate: date,
+    authTokenHash: hash,
+    requestId: randomUUID(),
+    bagNumber: 6,
+    remainingSecondsAtTap: 45,
+    nowMs: t0 + 15_000,
+  })
+  assert.equal(bomb.status, 'opened')
+  if (bomb.status !== 'opened') throw new Error('expected opened')
+  assert.equal(bomb.view.outcome, 'bomb')
+  assert.equal(bomb.view.coinsFound, 0)
+  assert.equal(bomb.view.roundEnded, true)
+  // BOMB ends the attempt — GET play drops active opens by design; assert terminal + no leak.
+  const afterBomb = await getDailyPlayState({
+    challengeDate: date,
+    authTokenHash: hash,
+    nowMs: t0 + 15_500,
+  })
+  assert.equal(afterBomb?.activeAttempt, null)
+  assert.equal(afterBomb?.completedRounds, 1)
+  await assertNoPlacementLeak(afterBomb)
+}
+
+await cleanup(date)
+
 // --- BOMB zeros coins; prior opens retained for HIT RATE ---
 {
   const { hash, participantId } = await seedParticipant('OpenC', `${'C'.repeat(42)}A`)
@@ -342,6 +465,17 @@ await cleanup(date)
   assert.equal(coin.status, 'opened')
   if (coin.status !== 'opened') throw new Error('expected opened')
   assert.equal(coin.view.provisionalCoins, 1)
+
+  // Mid-active GET must mirror the COIN open before BOMB ends the ROUND.
+  const midBeforeBomb = await getDailyPlayState({
+    challengeDate: date,
+    authTokenHash: hash,
+    nowMs: t0 + 2_500,
+  })
+  assert.ok(midBeforeBomb?.activeAttempt)
+  assert.equal(midBeforeBomb!.activeAttempt!.opens.length, 1)
+  assert.equal(midBeforeBomb!.activeAttempt!.opens[0]!.outcome, coin.view.outcome)
+  assert.equal(midBeforeBomb!.activeAttempt!.opens[0]!.coinsFound, coin.view.coinsFound)
 
   const bomb = await openDailyBag({
     challengeDate: date,

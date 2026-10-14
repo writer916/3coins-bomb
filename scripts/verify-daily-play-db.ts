@@ -27,12 +27,16 @@ assert.match(playSource, /question_order\[progress\.terminal_count \+ 1\]/)
 assert.match(playSource, /timed_out/)
 assert.match(playSource, /make_interval\(secs =>/)
 assert.match(playSource, /challenge_ends_at/)
-assert.doesNotMatch(playSource, /bomb_bag_number/)
 assert.doesNotMatch(playSource, /bombBagNumber|coinBagNumbers/)
 assert.match(
   playSource,
+  /bomb_bag_number/,
+  'opened-bag outcome may use bomb_bag_number server-side without returning placements',
+)
+assert.match(
+  playSource,
   /coin_bag_numbers/,
-  'timeout path may count coin hits server-side without returning placements',
+  'timeout/open summary may use coin_bag_numbers server-side without returning placements',
 )
 assert.doesNotMatch(playSource, /console\./)
 assert.match(timeSource, /dailyRoundTimeoutFinalizeAtMs/)

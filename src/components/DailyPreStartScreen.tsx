@@ -2,9 +2,20 @@ import { useMemo, useState } from 'react'
 import { utcDailyChallengeDate } from '../daily/dailyChallengeDate'
 import { DAILY_CHALLENGE_ROUNDS } from '../daily/dailyQuestionSet'
 import {
+  createDailyParticipantCoordinator,
+  DailyParticipantClientError,
+} from '../daily/dailyParticipantClient'
+import {
   readDailyParticipant,
   type JoinedDailyParticipantRecord,
 } from '../daily/dailyParticipantStorage'
+import {
+  createDailyPlayClient,
+  createDailyPlayCoordinator,
+  DailyPlayClientError,
+  type DailyPlayCoordinator,
+  type DailyPlayState,
+} from '../daily/dailyPlayClient'
 import {
   DAILY_ROUND_LIMIT_SECONDS,
   formatDailyChallengePeriod,
@@ -15,12 +26,18 @@ import { withDuelNums } from '../ui/withDuelNums'
 export type DailyPreStartScreenProps = {
   readonly t: AppStrings
   readonly onGoTop: () => void
+  readonly onEnterPlay: (input: {
+    readonly state: DailyPlayState
+    readonly coordinator: DailyPlayCoordinator
+  }) => void
   /** Injected for tests; defaults to the device zone. */
   readonly timeZone?: string
   /** Injected for tests; defaults to `Date`. */
   readonly now?: () => Date
   /** Injected for tests; defaults to `window.localStorage`. */
   readonly storage?: Storage
+  readonly fetch?: typeof fetch
+  readonly crypto?: Crypto
 }
 
 function readJoinedSnapshot(
@@ -46,15 +63,18 @@ function readJoinedSnapshot(
 }
 
 /**
- * DAILY CHALLENGE pre-start: rules, local schedule, nickname field, and a
- * disabled START until JOIN → ROUND 1 wiring exists. Skips any ready gate.
+ * DAILY CHALLENGE pre-start: rules, nickname JOIN, then START → ROUND 1.
+ * No ready gate between JOIN and play.
  */
 export function DailyPreStartScreen({
   t,
   onGoTop,
+  onEnterPlay,
   timeZone,
   now,
   storage,
+  fetch: fetchImpl,
+  crypto: cryptoImpl,
 }: DailyPreStartScreenProps) {
   const challengeDate = useMemo(
     () => utcDailyChallengeDate(now?.() ?? new Date()),
@@ -70,12 +90,76 @@ export function DailyPreStartScreen({
     return formatDailyChallengePeriod(challengeDate, zone)
   }, [challengeDate, timeZone])
 
-  const { joined, storageError } = useMemo(
+  const initialJoined = useMemo(
     () => readJoinedSnapshot(challengeDate, storage),
     [challengeDate, storage],
   )
 
   const [nickname, setNickname] = useState('')
+  const [joined, setJoined] = useState<JoinedDailyParticipantRecord | null>(
+    initialJoined.joined,
+  )
+  const [storageError] = useState(initialJoined.storageError)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState(false)
+
+  const storageAdapter =
+    storage ??
+    (typeof window !== 'undefined' ? window.localStorage : undefined)
+  const fetcher = fetchImpl ?? fetch
+  const cryptoApi =
+    cryptoImpl ??
+    (typeof globalThis.crypto !== 'undefined' ? globalThis.crypto : undefined)
+
+  const canStart =
+    !storageError &&
+    !busy &&
+    ((joined !== null) || nickname.trim().length > 0) &&
+    cryptoApi !== undefined &&
+    storageAdapter !== undefined
+
+  const handleStart = async () => {
+    if (!canStart || !storageAdapter || !cryptoApi) return
+    setBusy(true)
+    setError(false)
+    try {
+      const participantCoordinator = createDailyParticipantCoordinator({
+        storage: storageAdapter,
+        fetch: fetcher,
+        crypto: cryptoApi,
+        now: now ?? (() => new Date()),
+      })
+      const participantResult = await participantCoordinator.run(
+        joined?.nickname ?? nickname,
+      )
+      setJoined(participantResult.participant)
+
+      const playClient = createDailyPlayClient({
+        storage: storageAdapter,
+        fetch: fetcher,
+        crypto: cryptoApi,
+      })
+      const playCoordinator = createDailyPlayCoordinator(playClient)
+      const state = await playCoordinator.loadOrStart(
+        participantResult.participant.challengeDate,
+      )
+      if (!state.activeAttempt && !state.completedAt && !state.expiredAt) {
+        throw new Error('no active round')
+      }
+      onEnterPlay({ state, coordinator: playCoordinator })
+    } catch (caught: unknown) {
+      if (
+        caught instanceof DailyParticipantClientError ||
+        caught instanceof DailyPlayClientError
+      ) {
+        setError(true)
+      } else {
+        setError(true)
+      }
+    } finally {
+      setBusy(false)
+    }
+  }
 
   return (
     <div className="duel-flow duel-flow--setup daily-prestart">
@@ -127,6 +211,7 @@ export function DailyPreStartScreen({
                 spellCheck={false}
                 placeholder={t.dailyNicknamePlaceholder}
                 aria-label={t.dailyNicknameLabel}
+                disabled={busy}
               />
             </div>
           </>
@@ -136,9 +221,11 @@ export function DailyPreStartScreen({
             {t.dailyStorageReadError}
           </p>
         ) : null}
-        <p className="daily-prestart__start-hint" role="note">
-          {t.dailyStartDisabledHint}
-        </p>
+        {error ? (
+          <p className="duel-lock-error" role="alert">
+            {t.dailyPlayError}
+          </p>
+        ) : null}
       </div>
       <div className="duel-setup-spacer duel-setup-spacer--mid" aria-hidden="true" />
       <div className="duel-btn-area duel-button-field">
@@ -146,12 +233,15 @@ export function DailyPreStartScreen({
           <button
             type="button"
             className="duel-btn duel-btn--primary"
-            disabled
-            aria-disabled="true"
+            disabled={!canStart}
+            aria-disabled={!canStart ? 'true' : undefined}
+            onClick={() => {
+              void handleStart()
+            }}
           >
             {t.dailyStart}
           </button>
-          <button type="button" className="duel-btn" onClick={onGoTop}>
+          <button type="button" className="duel-btn" onClick={onGoTop} disabled={busy}>
             {t.duelTop}
           </button>
         </div>

@@ -42,6 +42,8 @@ export interface DailyPlayOpenView {
   readonly bagNumber: number
   readonly remainingSecondsAtTap: number
   readonly openedAt: string
+  readonly outcome: 'empty' | 'coins' | 'bomb'
+  readonly coinsFound: 0 | 1 | 2 | 3
 }
 
 export interface DailyPlayActiveAttemptView {
@@ -93,6 +95,8 @@ export function toDailyPlayResponse(
             bagNumber: open.bagNumber,
             remainingSecondsAtTap: open.remainingSecondsAtTap,
             openedAt: open.openedAt,
+            outcome: open.outcome,
+            coinsFound: open.coinsFound,
           })),
         }
       : null,
