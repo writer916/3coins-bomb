@@ -3,6 +3,8 @@ import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { sql } from 'drizzle-orm'
+import { PgDialect } from 'drizzle-orm/pg-core'
 import {
   DAILY_PARTICIPANT_TOKEN_PREFIX,
   deriveDailyParticipantCapability,
@@ -61,6 +63,19 @@ assert.deepEqual([...order].sort((a, b) => a - b), [
 ])
 assert.throws(() => createDailyQuestionOrder(() => -1), DailyParticipantError)
 assert.throws(() => createDailyQuestionOrder((max) => max), DailyParticipantError)
+
+const boundOrder = deriveDailyQuestionOrder(date, requestA, environment)
+const boundOrderQuery = new PgDialect().sqlToQuery(
+  sql`select ${sql.param(boundOrder)}::smallint[] as question_order`,
+)
+assert.equal(boundOrderQuery.sql, 'select $1::smallint[] as question_order')
+assert.equal(boundOrderQuery.params.length, 1)
+assert.deepEqual(boundOrderQuery.params[0], boundOrder)
+assert.equal(boundOrder.length, 20)
+assert.deepEqual(
+  [...boundOrder].sort((left, right) => left - right),
+  Array.from({ length: 20 }, (_, index) => index + 1),
+)
 
 const stored = new Map<string, DailyParticipantRecord>()
 const persistedInputs: PersistDailyParticipantInput[] = []
@@ -186,6 +201,7 @@ assert.match(dbSource, /on conflict \(join_request_id\) do update/)
 assert.match(dbSource, /set join_request_id = excluded\.join_request_id/)
 assert.match(dbSource, /challenge_date = excluded\.challenge_date/)
 assert.match(dbSource, /auth_token_hash = excluded\.auth_token_hash/)
+assert.match(dbSource, /sql\.param\(input\.questionOrder\)\}::smallint\[\]/)
 assert.match(dbSource, /participant\.challenge_date = /)
 assert.match(dbSource, /participant\.auth_token_hash = /)
 assert.doesNotMatch(dbSource, /console\./)

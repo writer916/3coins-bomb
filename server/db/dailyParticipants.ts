@@ -79,7 +79,7 @@ export async function persistDailyParticipant(
         ${input.nicknameKey},
         ${input.authTokenHash},
         ${input.joinRequestId}::uuid,
-        ${input.questionOrder}::smallint[]
+        ${sql.param(input.questionOrder)}::smallint[]
       from challenge
       on conflict (join_request_id) do update
       set join_request_id = excluded.join_request_id
