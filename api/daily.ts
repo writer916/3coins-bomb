@@ -1,4 +1,6 @@
 import getParticipant from './_daily/challenges/[date]/participant.js'
+import getPlay from './_daily/challenges/[date]/play.js'
+import startRound from './_daily/challenges/[date]/rounds/start.js'
 import joinParticipant from './_daily/challenges/current/participants.js'
 
 type FetchHandler = {
@@ -28,6 +30,12 @@ function resolveHandler(pathname: string): FetchHandler | null {
   }
   if (/^\/api\/daily\/challenges\/[^/]+\/participant$/.test(pathname)) {
     return getParticipant
+  }
+  if (/^\/api\/daily\/challenges\/[^/]+\/play$/.test(pathname)) {
+    return getPlay
+  }
+  if (/^\/api\/daily\/challenges\/[^/]+\/rounds\/start$/.test(pathname)) {
+    return startRound
   }
   return null
 }
