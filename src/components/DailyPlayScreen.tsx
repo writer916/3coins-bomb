@@ -259,6 +259,8 @@ export function DailyPlayScreen({
         hadInTimePendingAction: readInTimePending(),
       })
       if (!kind) return false
+      if (coordinator.getPendingOpen()) coordinator.clearPendingOpen()
+      if (coordinator.getPendingCashOut()) coordinator.clearPendingCashOut()
       setPlay(state)
       setTerminal({ kind })
       setProvisionalCoins(0)
@@ -267,7 +269,7 @@ export function DailyPlayScreen({
       setRetryBag(null)
       return true
     },
-    [readInTimePending],
+    [coordinator, readInTimePending],
   )
 
   const syncFromPlayState = useCallback(
@@ -333,7 +335,13 @@ export function DailyPlayScreen({
           return
         }
 
-        const sync = syncFromPlayState(state)
+        // Do not publish an inactive state before recovering an in-time pending
+        // operation. Doing so changes the ROUND epoch mid-reconcile and can
+        // discard the confirmed connection-error end result as stale.
+        const sync =
+          !state.activeAttempt && readInTimePending()
+            ? 'defer_end_for_recovery'
+            : syncFromPlayState(state)
         if (sync === 'ended') return
         if (sync === 'active') {
           const pendingOpen = coordinator.getPendingOpen()
@@ -345,10 +353,39 @@ export function DailyPlayScreen({
               (open) => open.bagNumber === pendingOpen.bagNumber,
             )
           ) {
-            // Keep pending for idempotent retry; do not invent a new tap.
+            try {
+              const result = await coordinator.open(
+                pendingOpen.challengeDate,
+                pendingOpen.bagNumber,
+                pendingOpen.remainingSecondsAtTap,
+              )
+              setOpenedResults((current) =>
+                current.some((row) => row.bagNumber === result.bagNumber)
+                  ? current
+                  : [...current, result],
+              )
+              setProvisionalCoins(result.provisionalCoins)
+              setRetryBag(null)
+              setConnectionError(false)
+              if (result.roundEnded) setTerminal({ kind: 'open', result })
+            } catch {
+              // Keep the exact persisted command for the next bounded retry.
+            }
             return
           }
           if (mode === 'cash' && coordinator.getPendingCashOut()) {
+            const pendingCash = coordinator.getPendingCashOut()!
+            try {
+              const result = await coordinator.cashOut(
+                pendingCash.challengeDate,
+                pendingCash.remainingSecondsAtTap,
+              )
+              setTerminal({ kind: 'cash', result })
+              setConnectionError(false)
+              setCashOutError(false)
+            } catch {
+              // Keep the exact persisted command for the next bounded retry.
+            }
             return
           }
           setConnectionError(false)
@@ -416,6 +453,8 @@ export function DailyPlayScreen({
               syncFromPlayState(state)
               return
             }
+            applyRoundEndFromState(state)
+            return
           }
         }
 
@@ -458,7 +497,8 @@ export function DailyPlayScreen({
               setCashOutError(true)
               return
             }
-            setCashOutError(true)
+            applyRoundEndFromState(state)
+            return
           }
         }
 
@@ -480,8 +520,42 @@ export function DailyPlayScreen({
         reconcileInFlightRef.current = false
       }
     },
-    [applyRoundEndFromState, challengeDate, coordinator, syncFromPlayState],
+    [
+      applyRoundEndFromState,
+      challengeDate,
+      coordinator,
+      readInTimePending,
+      syncFromPlayState,
+    ],
   )
+
+  // A persisted pending mutation is recovered on mount/reload and whenever
+  // connectivity or visibility returns. The reconcile guard serializes all
+  // overlapping triggers and the coordinator keeps the original request id/R.
+  useEffect(() => {
+    const recover = () => {
+      if (reconcileInFlightRef.current || terminalRef.current) return
+      const mode = coordinator.getPendingOpen()
+        ? 'open'
+        : coordinator.getPendingCashOut()
+          ? 'cash'
+          : null
+      if (mode) void reconcileAfterMutationFailure(mode)
+    }
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') recover()
+    }
+    window.addEventListener('online', recover)
+    document.addEventListener('visibilitychange', onVisible)
+    // Deferring avoids React development StrictMode cancelling the first
+    // mount effect while its reconcile promise still owns the in-flight guard.
+    const mountRecoveryTimer = window.setTimeout(recover, 0)
+    return () => {
+      window.clearTimeout(mountRecoveryTimer)
+      window.removeEventListener('online', recover)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [coordinator, reconcileAfterMutationFailure])
 
   // Countdown from server deadline using a monotonic estimate of server now.
   useEffect(() => {
@@ -568,6 +642,12 @@ export function DailyPlayScreen({
         if (sync === 'defer_end_for_recovery') {
           // Pending in-time op: keep polling / wait for reconcile; do not label yet.
           setConnectionError(true)
+          const mode = coordinator.getPendingOpen()
+            ? 'open'
+            : coordinator.getPendingCashOut()
+              ? 'cash'
+              : null
+          if (mode) void reconcileAfterMutationFailure(mode)
           return 'defer' as const
         }
         if (sync === 'active') {
@@ -638,6 +718,7 @@ export function DailyPlayScreen({
     challengeDate,
     syncFromPlayState,
     readInTimePending,
+    reconcileAfterMutationFailure,
   ])
 
   useEffect(() => {

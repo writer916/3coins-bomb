@@ -13,6 +13,13 @@ import {
   type DailyStorageAdapter,
   type JoinedDailyParticipantRecord,
 } from './dailyParticipantStorage'
+import {
+  clearDailyPendingOperation,
+  readDailyPendingOperation,
+  saveDailyPendingOperation,
+  type DailyPendingOperation,
+  type DailyPendingStorageAdapter,
+} from './dailyPendingOperationStorage'
 
 export type { DailyLocalOpenResult, DailyPlayPlacement }
 export {
@@ -627,13 +634,62 @@ export function createDailyPlayClient(dependencies: {
 
 export function createDailyPlayCoordinator(
   client: ReturnType<typeof createDailyPlayClient>,
+  recovery?: {
+    readonly storage: DailyPendingStorageAdapter
+    readonly participantId: string
+  },
 ) {
   let startRequestId: string | null = null
   let pendingOpen: DailyOpenCommand | null = null
   let pendingCashOut: DailyCashOutCommand | null = null
   let openInFlight = false
+  let currentRoundNumber: number | null = null
   /** In-memory only — never reuse across challenge dates or page reloads. */
   let cachedPlacements: DailyPlacementsSet | null = null
+
+  function clearPersistedPending() {
+    if (recovery) clearDailyPendingOperation(recovery.storage)
+  }
+
+  function persistPending(operation: DailyPendingOperation) {
+    if (recovery) saveDailyPendingOperation(recovery.storage, operation)
+  }
+
+  function restorePending(state: DailyPlayState) {
+    currentRoundNumber = state.activeAttempt?.roundNumber ?? null
+    if (!recovery) return
+    const stored = readDailyPendingOperation(recovery.storage)
+    if (!stored) return
+    const roundMatches = state.activeAttempt
+      ? stored.roundNumber === state.activeAttempt.roundNumber
+      : stored.roundNumber === state.completedRounds
+    if (
+      stored.challengeDate !== state.challengeDate ||
+      stored.participantId !== recovery.participantId ||
+      !roundMatches
+    ) {
+      clearPersistedPending()
+      return
+    }
+    // A terminal mutation may already have been committed even though its
+    // response was lost. In that case GET play has no active attempt, so keep
+    // the stored ROUND number for the idempotent retry/reconciliation.
+    currentRoundNumber = stored.roundNumber
+    if (stored.kind === 'open') {
+      pendingOpen = {
+        challengeDate: stored.challengeDate,
+        bagNumber: stored.bagNumber,
+        remainingSecondsAtTap: stored.remainingSecondsAtTap,
+        requestId: stored.requestId,
+      }
+    } else {
+      pendingCashOut = {
+        challengeDate: stored.challengeDate,
+        remainingSecondsAtTap: stored.remainingSecondsAtTap,
+        requestId: stored.requestId,
+      }
+    }
+  }
 
   async function ensurePlacements(
     challengeDate: string,
@@ -685,11 +741,13 @@ export function createDailyPlayCoordinator(
     /** Clears pending OPEN after GET play proves the bag was already recorded. */
     clearPendingOpen() {
       pendingOpen = null
+      clearPersistedPending()
     },
 
     /** Clears pending CASH OUT after GET play / idempotent retry proves success. */
     clearPendingCashOut() {
       pendingCashOut = null
+      clearPersistedPending()
     },
 
     getCachedPlacements() {
@@ -706,18 +764,23 @@ export function createDailyPlayCoordinator(
       await ensurePlacements(date)
 
       let state = await client.getPlay(date)
+      restorePending(state)
       if (state.activeAttempt) return state
+      if (pendingOpen || pendingCashOut) return state
       if (state.completedAt || state.expiredAt || state.nextRoundNumber === null) {
         return state
       }
       startRequestId ??= client.createRequestId()
       state = await client.startRound(date, startRequestId)
       startRequestId = null
+      currentRoundNumber = state.activeAttempt?.roundNumber ?? null
       return state
     },
 
     async refresh(challengeDate: string): Promise<DailyPlayState> {
-      return client.getPlay(challengeDate)
+      const state = await client.getPlay(challengeDate)
+      currentRoundNumber = state.activeAttempt?.roundNumber ?? currentRoundNumber
+      return state
     },
 
     async startNext(challengeDate: string): Promise<DailyPlayState> {
@@ -728,6 +791,8 @@ export function createDailyPlayCoordinator(
       const state = await client.startRound(date, startRequestId)
       startRequestId = null
       if (!state.activeAttempt) return fail('UNAVAILABLE')
+      currentRoundNumber = state.activeAttempt.roundNumber
+      clearPersistedPending()
       // Prove the next play-round slot exists before returning.
       getPlacementForRound(
         date,
@@ -755,11 +820,20 @@ export function createDailyPlayCoordinator(
         bagNumber,
         remainingSecondsAtTap,
       )
+      if (!currentRoundNumber) return fail('CONFLICT')
+      persistPending({
+        version: 1,
+        kind: 'open',
+        participantId: recovery?.participantId ?? '00000000-0000-4000-8000-000000000000',
+        roundNumber: currentRoundNumber,
+        ...pendingOpen,
+      })
       // Keep the remaining seconds from the first attempt of this request id.
       openInFlight = true
       try {
         const result = await client.openBag(pendingOpen)
         pendingOpen = null
+        clearPersistedPending()
         return result
       } finally {
         openInFlight = false
@@ -775,10 +849,19 @@ export function createDailyPlayCoordinator(
         challengeDate,
         remainingSecondsAtTap,
       )
+      if (!currentRoundNumber) return fail('CONFLICT')
+      persistPending({
+        version: 1,
+        kind: 'cash_out',
+        participantId: recovery?.participantId ?? '00000000-0000-4000-8000-000000000000',
+        roundNumber: currentRoundNumber,
+        ...pendingCashOut,
+      })
       openInFlight = true
       try {
         const result = await client.cashOut(pendingCashOut)
         pendingCashOut = null
+        clearPersistedPending()
         return result
       } finally {
         openInFlight = false

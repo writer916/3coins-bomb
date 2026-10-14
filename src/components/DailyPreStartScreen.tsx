@@ -139,11 +139,22 @@ export function DailyPreStartScreen({
         fetch: fetcher,
         crypto: cryptoApi,
       })
-      const playCoordinator = createDailyPlayCoordinator(playClient)
+      const playCoordinator = createDailyPlayCoordinator(playClient, {
+        storage: window.sessionStorage,
+        participantId: participantResult.participant.participantId,
+      })
       const state = await playCoordinator.loadOrStart(
         participantResult.participant.challengeDate,
       )
-      if (!state.activeAttempt && !state.completedAt && !state.expiredAt) {
+      const hasPendingOperation =
+        playCoordinator.getPendingOpen() !== null ||
+        playCoordinator.getPendingCashOut() !== null
+      if (
+        !state.activeAttempt &&
+        !hasPendingOperation &&
+        !state.completedAt &&
+        !state.expiredAt
+      ) {
         throw new Error('no active round')
       }
       onEnterPlay({ state, coordinator: playCoordinator })
