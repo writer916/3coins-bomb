@@ -44,6 +44,7 @@
     "verify:daily-ranking-api": "tsx scripts/verify-daily-ranking-api.ts",
     "verify:daily-result-ui": "tsx scripts/verify-daily-result-ui.ts",
     "verify:daily-result-detail": "tsx scripts/verify-daily-result-detail.ts",
+    "verify:daily-ranking-refresh": "tsx scripts/verify-daily-ranking-refresh.ts",
     "verify:group-domain": "tsx scripts/verify-group-domain.ts",
     "verify:group-db": "tsx scripts/verify-group-db.ts",
     "verify:group-create": "tsx scripts/verify-group-create.ts",

@@ -42,6 +42,8 @@ export type DailyResultScreenPhase =
       readonly kind: 'ready'
       readonly self: DailySelfResultView
       readonly ranking: DailyRankingView
+      /** Quiet refresh failed while keeping the last good ranking (eng9E). */
+      readonly refreshError?: boolean
     }
 
 /** Top-10 (+ self below when not in top). Server order preserved. */
@@ -161,8 +163,8 @@ export function dailyResultViewModel(
   }
   return {
     rows: buildDailyResultListRows(phase.ranking),
-    statusKey: 'none',
-    showRankingRetry: false,
+    statusKey: phase.refreshError ? 'groupResultError' : 'none',
+    showRankingRetry: Boolean(phase.refreshError),
     showSelfScores: true,
     phaseKind: phase.kind,
   }

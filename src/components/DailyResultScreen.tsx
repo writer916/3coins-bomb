@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { AppStrings } from '../i18n'
 import {
   DailyRankingClientError,
   fetchDailyRanking,
   fetchDailySelfResult,
+  type DailyRankingView,
   type DailySelfResultView,
 } from '../daily/dailyRankingClient'
 import {
@@ -13,6 +14,13 @@ import {
   type DailyResultListRow,
   type DailyResultScreenPhase,
 } from '../daily/dailyResultPresentation'
+import {
+  decideDailyRankingQuietRefresh,
+  msUntilNextDailyRankingRefresh,
+  shouldRefreshDailyRankingOnResume,
+  shouldScheduleDailyRankingAutoRefresh,
+  currentDailyRankingBucketMs,
+} from '../daily/dailyRankingRefresh'
 import {
   readDailyParticipant,
   type DailyStorageAdapter,
@@ -28,6 +36,8 @@ export type DailyResultScreenProps = {
   readonly fetch?: typeof fetch
   /** Test seam: skip network and render a fixed phase. */
   readonly initialPhase?: DailyResultScreenPhase
+  /** Test seam: injectable clock (UTC ms). */
+  readonly nowMs?: () => number
 }
 
 function readToken(
@@ -46,6 +56,10 @@ function readToken(
   } catch {
     return null
   }
+}
+
+function rankingAsOfMs(ranking: DailyRankingView): number {
+  return Date.parse(ranking.rankingAsOf)
 }
 
 export function DailyResultRankingTable({
@@ -279,10 +293,33 @@ function selfFromPhase(
   return null
 }
 
+function autoRefreshScheduleInput(phase: DailyResultScreenPhase) {
+  if (phase.kind === 'ranking_error') {
+    return {
+      phaseKind: phase.kind,
+      rankingErrorCode: phase.code,
+    } as const
+  }
+  if (phase.kind === 'ready') {
+    return {
+      phaseKind: phase.kind,
+      rankingStatus: phase.ranking.status,
+    } as const
+  }
+  if (phase.kind === 'self_error') {
+    return {
+      phaseKind: phase.kind,
+      selfErrorCode: phase.code,
+    } as const
+  }
+  return { phaseKind: phase.kind } as const
+}
+
 /**
  * DAILY RESULT / RANKING list after 20 ROUNDS complete.
  * Fetches personal RESULT (with boards) immediately; ranking 404 is pending.
  * Self detail does not require ranking 200.
+ * UTC 10-minute boundaries quietly re-fetch ranking only (eng9E).
  *
  * Async loads use a cancelled flag + challengeDate captured in the effect closure
  * so late responses cannot update a different date’s screen. No render-time ref writes.
@@ -294,16 +331,49 @@ export function DailyResultScreen({
   storage,
   fetch: fetchImpl,
   initialPhase,
+  nowMs: nowMsProp,
 }: DailyResultScreenProps) {
   const [phase, setPhase] = useState<DailyResultScreenPhase>(
     () => initialPhase ?? { kind: 'loading_self' },
   )
   const [rankingBusy, setRankingBusy] = useState(false)
   const [showDetail, setShowDetail] = useState(false)
-  /** Bumped by TRY AGAIN to re-run the effect without sync setState-in-effect. */
+  /** Bumped by TRY AGAIN to re-run the bootstrap effect without sync setState-in-effect. */
   const [reloadNonce, setReloadNonce] = useState(0)
   const fetcher = fetchImpl ?? fetch
   const skipNetwork = initialPhase !== undefined
+  const nowMsRef = useRef(nowMsProp)
+  const phaseRef = useRef(phase)
+  const rankingInFlightRef = useRef(false)
+  const lastAttemptMsRef = useRef<number | null>(null)
+  const appliedAsOfMsRef = useRef<number | null>(
+    initialPhase?.kind === 'ready' ? rankingAsOfMs(initialPhase.ranking) : null,
+  )
+  const appliedStatusRef = useRef<'provisional' | 'final' | null>(
+    initialPhase?.kind === 'ready' ? initialPhase.ranking.status : null,
+  )
+  const stopAutoRef = useRef(
+    initialPhase?.kind === 'ready' && initialPhase.ranking.status === 'final',
+  )
+
+  const readNow = useCallback(
+    () => (nowMsRef.current ? nowMsRef.current() : Date.now()),
+    [],
+  )
+
+  const schedulePhaseKind = phase.kind
+  const scheduleRankingStatus =
+    phase.kind === 'ready' ? phase.ranking.status : undefined
+  const scheduleRankingErrorCode =
+    phase.kind === 'ranking_error' ? phase.code : undefined
+
+  useEffect(() => {
+    nowMsRef.current = nowMsProp
+  }, [nowMsProp])
+
+  useEffect(() => {
+    phaseRef.current = phase
+  }, [phase])
 
   useEffect(() => {
     if (skipNetwork) return
@@ -319,9 +389,11 @@ export function DailyResultScreen({
       const token = readToken(expectedDate, storage)
       if (!token) {
         apply({ kind: 'ranking_error', self, code: 'unauthorized' })
+        stopAutoRef.current = true
         return
       }
       if (!cancelled) setRankingBusy(true)
+      lastAttemptMsRef.current = readNow()
       try {
         const ranking = await fetchDailyRanking(expectedDate, token, fetcher)
         if (cancelled) return
@@ -333,6 +405,9 @@ export function DailyResultScreen({
           apply({ kind: 'ranking_error', self, code: 'error' })
           return
         }
+        appliedAsOfMsRef.current = rankingAsOfMs(ranking)
+        appliedStatusRef.current = ranking.status
+        if (ranking.status === 'final') stopAutoRef.current = true
         apply({ kind: 'ready', self, ranking })
       } catch (error: unknown) {
         if (cancelled) return
@@ -342,11 +417,12 @@ export function DailyResultScreen({
             apply({ kind: 'ranking_pending', self })
             return
           }
-          apply({
-            kind: 'ranking_error',
-            self,
-            code: classified === 'unauthorized' ? 'unauthorized' : 'error',
-          })
+          if (classified === 'unauthorized') {
+            stopAutoRef.current = true
+            apply({ kind: 'ranking_error', self, code: 'unauthorized' })
+            return
+          }
+          apply({ kind: 'ranking_error', self, code: 'error' })
           return
         }
         apply({ kind: 'ranking_error', self, code: 'error' })
@@ -359,6 +435,7 @@ export function DailyResultScreen({
       const token = readToken(expectedDate, storage)
       if (!token) {
         apply({ kind: 'self_error', code: 'unauthorized' })
+        stopAutoRef.current = true
         return
       }
       // Initial phase is already loading_self — do not setState sync here.
@@ -379,6 +456,7 @@ export function DailyResultScreen({
             kind: 'self_error',
             code: error.code === 'UNAUTHORIZED' ? 'unauthorized' : 'error',
           })
+          if (error.code === 'UNAUTHORIZED') stopAutoRef.current = true
           return
         }
         apply({ kind: 'self_error', code: 'error' })
@@ -388,24 +466,314 @@ export function DailyResultScreen({
     return () => {
       cancelled = true
     }
-  }, [challengeDate, fetcher, reloadNonce, skipNetwork, storage])
+  }, [challengeDate, fetcher, readNow, reloadNonce, skipNetwork, storage])
+
+  /**
+   * Quiet ranking-only refresh on UTC boundaries / resume / limited stale retry.
+   * Does not re-fetch personal RESULT or clear the detail board.
+   */
+  useEffect(() => {
+    if (skipNetwork) return
+    if (stopAutoRef.current) return
+    if (
+      !shouldScheduleDailyRankingAutoRefresh({
+        phaseKind: schedulePhaseKind,
+        rankingStatus: scheduleRankingStatus,
+        rankingErrorCode: scheduleRankingErrorCode,
+      })
+    ) {
+      return
+    }
+
+    let cancelled = false
+    let timerId: ReturnType<typeof setTimeout> | null = null
+    let staleRetriesUsed = 0
+    const expectedDate = challengeDate
+
+    const clearTimer = () => {
+      if (timerId !== null) {
+        clearTimeout(timerId)
+        timerId = null
+      }
+    }
+
+    const scheduleBoundary = () => {
+      clearTimer()
+      if (cancelled || stopAutoRef.current) return
+      const delay = msUntilNextDailyRankingRefresh(readNow())
+      timerId = setTimeout(() => {
+        void runQuietRefresh('boundary')
+      }, delay)
+    }
+
+    const scheduleStaleRetry = (retryAfterMs: number) => {
+      clearTimer()
+      if (cancelled || stopAutoRef.current) return
+      timerId = setTimeout(() => {
+        void runQuietRefresh('stale')
+      }, retryAfterMs)
+    }
+
+    const runQuietRefresh = async (_reason: 'boundary' | 'resume' | 'stale') => {
+      if (cancelled || stopAutoRef.current) return
+      if (rankingInFlightRef.current) return
+      const current = phaseRef.current
+      if (!shouldScheduleDailyRankingAutoRefresh(autoRefreshScheduleInput(current))) {
+        return
+      }
+      const self = selfFromPhase(current)
+      if (!self) return
+      const token = readToken(expectedDate, storage)
+      if (!token) {
+        stopAutoRef.current = true
+        setPhase({ kind: 'ranking_error', self, code: 'unauthorized' })
+        return
+      }
+
+      rankingInFlightRef.current = true
+      lastAttemptMsRef.current = readNow()
+      // Quiet: do not flip the whole screen to LOADING; busy only for TRY AGAIN disable.
+      setRankingBusy(true)
+      // After a boundary (+ safety) fire, expect the current inclusive UTC bucket.
+      const expectedBucketMs = currentDailyRankingBucketMs(readNow())
+
+      try {
+        const ranking = await fetchDailyRanking(expectedDate, token, fetcher)
+        if (cancelled) return
+
+        const decision = decideDailyRankingQuietRefresh({
+          phaseKind: current.kind,
+          appliedRankingAsOfMs: appliedAsOfMsRef.current,
+          appliedRankingStatus: appliedStatusRef.current,
+          expectedBucketMs,
+          staleRetriesUsed,
+          response: {
+            kind: 'ok',
+            challengeDate: ranking.challengeDate,
+            expectedChallengeDate: expectedDate,
+            rankingAsOfMs: rankingAsOfMs(ranking),
+            status: ranking.status,
+            selfParticipantId: ranking.self.participantId,
+            expectedParticipantId: self.participantId,
+          },
+        })
+
+        if (decision.action === 'retry_stale') {
+          staleRetriesUsed += 1
+          scheduleStaleRetry(decision.retryAfterMs)
+          return
+        }
+        staleRetriesUsed = 0
+        if (decision.action === 'ignore') {
+          scheduleBoundary()
+          return
+        }
+        if (decision.action === 'apply') {
+          appliedAsOfMsRef.current = rankingAsOfMs(ranking)
+          appliedStatusRef.current = ranking.status
+          if (decision.stopAutoRefresh) stopAutoRef.current = true
+          setPhase({ kind: 'ready', self, ranking })
+          if (!decision.stopAutoRefresh) scheduleBoundary()
+          return
+        }
+      } catch (error: unknown) {
+        if (cancelled) return
+        let response:
+          | { kind: 'unavailable' }
+          | { kind: 'unauthorized' }
+          | { kind: 'error' } = { kind: 'error' }
+        if (error instanceof DailyRankingClientError) {
+          if (error.code === 'UNAVAILABLE') response = { kind: 'unavailable' }
+          else if (error.code === 'UNAUTHORIZED') response = { kind: 'unauthorized' }
+        }
+        const decision = decideDailyRankingQuietRefresh({
+          phaseKind: current.kind,
+          appliedRankingAsOfMs: appliedAsOfMsRef.current,
+          appliedRankingStatus: appliedStatusRef.current,
+          expectedBucketMs,
+          staleRetriesUsed,
+          response,
+        })
+        if (decision.action === 'hard_unauthorized') {
+          stopAutoRef.current = true
+          setPhase({ kind: 'ranking_error', self, code: 'unauthorized' })
+          return
+        }
+        if (decision.action === 'keep_pending') {
+          setPhase({ kind: 'ranking_pending', self })
+          scheduleBoundary()
+          return
+        }
+        if (decision.action === 'soft_error') {
+          if (current.kind === 'ready') {
+            setPhase({
+              kind: 'ready',
+              self: current.self,
+              ranking: current.ranking,
+              refreshError: true,
+            })
+          } else if (current.kind !== 'ranking_pending') {
+            setPhase({ kind: 'ranking_error', self, code: 'error' })
+          }
+          // pending stays pending (404 wait is not a fault); still reschedule
+          if (current.kind === 'ranking_pending') {
+            setPhase({ kind: 'ranking_pending', self })
+          }
+          scheduleBoundary()
+          return
+        }
+        scheduleBoundary()
+      } finally {
+        rankingInFlightRef.current = false
+        if (!cancelled) setRankingBusy(false)
+      }
+    }
+
+    const onVisibility = () => {
+      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') {
+        return
+      }
+      if (cancelled || stopAutoRef.current) return
+      const current = phaseRef.current
+      const now = readNow()
+      // Drop any delayed boundary timer so resume + late wake cannot double-fire.
+      clearTimer()
+      if (
+        shouldRefreshDailyRankingOnResume({
+          nowMs: now,
+          lastAttemptMs: lastAttemptMsRef.current,
+          appliedRankingAsOfMs: appliedAsOfMsRef.current,
+          phaseKind: current.kind,
+          rankingStatus:
+            current.kind === 'ready' ? current.ranking.status : undefined,
+        })
+      ) {
+        void runQuietRefresh('resume')
+        return
+      }
+      scheduleBoundary()
+    }
+
+    scheduleBoundary()
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', onVisibility)
+    }
+
+    return () => {
+      cancelled = true
+      clearTimer()
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', onVisibility)
+      }
+    }
+  }, [
+    challengeDate,
+    fetcher,
+    readNow,
+    schedulePhaseKind,
+    scheduleRankingErrorCode,
+    scheduleRankingStatus,
+    skipNetwork,
+    storage,
+  ])
 
   const retry = useCallback(() => {
-    const self = selfFromPhase(phase)
+    const current = phaseRef.current
+    const self = selfFromPhase(current)
+    // Quiet retry when we already have self (+ optional ranking): ranking only.
     if (
       self &&
-      (phase.kind === 'ranking_pending' ||
-        phase.kind === 'ranking_error' ||
-        phase.kind === 'ranking_loading')
+      (current.kind === 'ranking_pending' ||
+        current.kind === 'ranking_error' ||
+        current.kind === 'ranking_loading' ||
+        (current.kind === 'ready' && current.refreshError))
     ) {
-      // Keep self scores visible; effect re-fetches RESULT then ranking.
-      setPhase({ kind: 'ranking_loading', self })
-      setReloadNonce((value) => value + 1)
+      if (rankingInFlightRef.current) return
+      const token = readToken(challengeDate, storage)
+      if (!token) {
+        stopAutoRef.current = true
+        setPhase({ kind: 'ranking_error', self, code: 'unauthorized' })
+        return
+      }
+      rankingInFlightRef.current = true
+      setRankingBusy(true)
+      lastAttemptMsRef.current = readNow()
+      if (current.kind !== 'ready') {
+        setPhase({ kind: 'ranking_loading', self })
+      }
+      void (async () => {
+        try {
+          const ranking = await fetchDailyRanking(challengeDate, token, fetcher)
+          if (ranking.challengeDate !== challengeDate) {
+            setPhase({ kind: 'ranking_error', self, code: 'error' })
+            return
+          }
+          if (ranking.self.participantId !== self.participantId) {
+            setPhase({ kind: 'ranking_error', self, code: 'error' })
+            return
+          }
+          // Do not roll FINAL back via manual retry either.
+          if (
+            appliedStatusRef.current === 'final' &&
+            ranking.status === 'provisional'
+          ) {
+            if (current.kind === 'ready') {
+              setPhase({
+                kind: 'ready',
+                self: current.self,
+                ranking: current.ranking,
+              })
+            }
+            return
+          }
+          appliedAsOfMsRef.current = rankingAsOfMs(ranking)
+          appliedStatusRef.current = ranking.status
+          if (ranking.status === 'final') stopAutoRef.current = true
+          setPhase({ kind: 'ready', self, ranking })
+        } catch (error: unknown) {
+          if (error instanceof DailyRankingClientError) {
+            const classified = classifyDailyRankingLoadFailure(error.code)
+            if (classified === 'pending') {
+              setPhase({ kind: 'ranking_pending', self })
+              return
+            }
+            if (classified === 'unauthorized') {
+              stopAutoRef.current = true
+              setPhase({ kind: 'ranking_error', self, code: 'unauthorized' })
+              return
+            }
+            if (current.kind === 'ready') {
+              setPhase({
+                kind: 'ready',
+                self: current.self,
+                ranking: current.ranking,
+                refreshError: true,
+              })
+              return
+            }
+            setPhase({ kind: 'ranking_error', self, code: 'error' })
+            return
+          }
+          if (current.kind === 'ready') {
+            setPhase({
+              kind: 'ready',
+              self: current.self,
+              ranking: current.ranking,
+              refreshError: true,
+            })
+            return
+          }
+          setPhase({ kind: 'ranking_error', self, code: 'error' })
+        } finally {
+          rankingInFlightRef.current = false
+          setRankingBusy(false)
+        }
+      })()
       return
     }
     setPhase({ kind: 'loading_self' })
     setReloadNonce((value) => value + 1)
-  }, [phase])
+  }, [challengeDate, fetcher, readNow, storage])
 
   const self = selfFromPhase(phase)
   if (showDetail && self && self.rounds.length === 20) {

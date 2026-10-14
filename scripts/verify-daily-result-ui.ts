@@ -402,6 +402,9 @@ assert.match(resultScreen, /data-daily-result-detail-button/)
 assert.doesNotMatch(resultScreen, /totalTimeSeconds/)
 assert.match(resultScreen, /cancelled/)
 assert.doesNotMatch(resultScreen, /challengeDateRef\.current\s*=/)
+assert.match(resultScreen, /msUntilNextDailyRankingRefresh/)
+assert.match(resultScreen, /visibilitychange/)
+assert.doesNotMatch(resultScreen, /setInterval\(\s*[^,]+,\s*600_?000/)
 
 const detailScreen = readFileSync(
   resolve(root, 'src/components/DailyResultDetailScreen.tsx'),
