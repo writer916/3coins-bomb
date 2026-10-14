@@ -1,5 +1,7 @@
 import getParticipant from './_daily/challenges/[date]/participant.js'
 import getPlay from './_daily/challenges/[date]/play.js'
+import cashOutRound from './_daily/challenges/[date]/rounds/cash-out.js'
+import openRound from './_daily/challenges/[date]/rounds/open.js'
 import startRound from './_daily/challenges/[date]/rounds/start.js'
 import joinParticipant from './_daily/challenges/current/participants.js'
 
@@ -36,6 +38,12 @@ function resolveHandler(pathname: string): FetchHandler | null {
   }
   if (/^\/api\/daily\/challenges\/[^/]+\/rounds\/start$/.test(pathname)) {
     return startRound
+  }
+  if (/^\/api\/daily\/challenges\/[^/]+\/rounds\/open$/.test(pathname)) {
+    return openRound
+  }
+  if (/^\/api\/daily\/challenges\/[^/]+\/rounds\/cash-out$/.test(pathname)) {
+    return cashOutRound
   }
   return null
 }
