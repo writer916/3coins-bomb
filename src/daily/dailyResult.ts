@@ -383,9 +383,9 @@ function validateSummary(
 }
 
 /**
- * Score-only comparison for future RANKING.
+ * Score-only comparison for RANKING (4 metrics).
  * Negative means `a` ranks ahead of `b`. Equal scores return 0 (same rank).
- * Display tie-break order is deferred to a later engineering step.
+ * Display tie-break (acceptedAt / participantId) lives in `dailyRanking.ts`.
  */
 export function compareDailyParticipantScores(
   aValue: DailyParticipantResultSummary,
