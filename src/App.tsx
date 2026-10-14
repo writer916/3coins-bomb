@@ -9,12 +9,15 @@ import { DuelFlow } from './components/DuelFlow'
 import { DuelClaimBootstrap } from './components/DuelClaimBootstrap'
 import { DailyPreStartScreen } from './components/DailyPreStartScreen'
 import { DailyPlayScreen } from './components/DailyPlayScreen'
+import { DailyPriorFinalScreen } from './components/DailyPriorFinalScreen'
 import { DailyResultScreen } from './components/DailyResultScreen'
 import type {
   DailyPlayCoordinator,
   DailyPlayState,
 } from './daily/dailyPlayClient'
 import type { DailyChallengeDate } from './daily/dailyChallengeDate'
+import { decideDailyPriorFinalGate } from './daily/dailyPriorFinal'
+import type { JoinedDailyParticipantRecord } from './daily/dailyParticipantStorage'
 import { GroupCreateFlow } from './components/GroupCreateFlow'
 import { GroupEntryShell } from './components/GroupEntryShell'
 import { RevealBoard } from './components/RevealBoard'
@@ -79,6 +82,14 @@ import './App.css'
 type AppScreen = 'top' | 'solo' | 'duel' | 'group' | 'daily'
 type DailyPhase =
   | { readonly kind: 'prestart' }
+  | {
+      readonly kind: 'prior_final'
+      /** Frozen prior UTC day whose FINAL is shown. */
+      readonly priorChallengeDate: DailyChallengeDate
+      /** Frozen "today" when the player opened DAILY (not recomputed mid-gate). */
+      readonly entryChallengeDate: DailyChallengeDate
+      readonly priorParticipant: JoinedDailyParticipantRecord
+    }
   | {
       readonly kind: 'play'
       readonly state: DailyPlayState
@@ -475,7 +486,20 @@ function App() {
       return
     }
     if (mode === 'daily') {
-      setDailyPhase({ kind: 'prestart' })
+      // Sync local gate only — no network on TOP→DAILY (eng9F).
+      const storage =
+        typeof window !== 'undefined' ? window.localStorage : undefined
+      const gate = decideDailyPriorFinalGate({ storage })
+      if (gate.kind === 'offer') {
+        setDailyPhase({
+          kind: 'prior_final',
+          priorChallengeDate: gate.priorChallengeDate,
+          entryChallengeDate: gate.entryChallengeDate,
+          priorParticipant: gate.priorParticipant,
+        })
+      } else {
+        setDailyPhase({ kind: 'prestart' })
+      }
       setScreen('daily')
       return
     }
@@ -621,7 +645,7 @@ function App() {
         className={
           dailyPhase.kind === 'play'
             ? 'app app--duel app--daily-play'
-            : dailyPhase.kind === 'result'
+            : dailyPhase.kind === 'result' || dailyPhase.kind === 'prior_final'
               ? 'app app--duel app--daily-result'
               : 'app app--duel app--daily-prestart'
         }
@@ -653,6 +677,21 @@ function App() {
             t={t}
             onGoTop={goTop}
             challengeDate={dailyPhase.challengeDate}
+          />
+        ) : dailyPhase.kind === 'prior_final' ? (
+          <DailyPriorFinalScreen
+            key={dailyPhase.priorChallengeDate}
+            t={t}
+            priorChallengeDate={dailyPhase.priorChallengeDate}
+            entryChallengeDate={dailyPhase.entryChallengeDate}
+            priorParticipant={dailyPhase.priorParticipant}
+            onGoTop={goTop}
+            onAcknowledgedContinue={() => {
+              setDailyPhase({ kind: 'prestart' })
+            }}
+            onContinueWithoutAck={() => {
+              setDailyPhase({ kind: 'prestart' })
+            }}
           />
         ) : (
           <DailyPreStartScreen

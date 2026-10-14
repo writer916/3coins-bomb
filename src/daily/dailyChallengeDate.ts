@@ -34,3 +34,16 @@ export function utcDailyChallengeDate(now: Date = new Date()): DailyChallengeDat
   }
   return validateDailyChallengeDate(now.toISOString().slice(0, 10))
 }
+
+/**
+ * UTC calendar date immediately before `challengeDate` (worldwide UTC day, not JST).
+ * Example: 2026-10-15 → 2026-10-14; 2027-01-01 → 2026-12-31.
+ */
+export function previousUtcDailyChallengeDate(
+  challengeDateValue: unknown,
+): DailyChallengeDate {
+  const challengeDate = validateDailyChallengeDate(challengeDateValue)
+  const [year, month, day] = challengeDate.split('-').map(Number)
+  const previous = new Date(Date.UTC(year!, month! - 1, day! - 1))
+  return validateDailyChallengeDate(previous.toISOString().slice(0, 10))
+}
