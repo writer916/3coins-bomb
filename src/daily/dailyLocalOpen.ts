@@ -1,4 +1,4 @@
-import { DAILY_CHALLENGE_ROUNDS } from './dailyQuestionSet'
+import { DAILY_CHALLENGE_ROUNDS } from './dailyQuestionSet.js'
 
 export type DailyLocalOpenOutcome = 'empty' | 'coins' | 'bomb'
 

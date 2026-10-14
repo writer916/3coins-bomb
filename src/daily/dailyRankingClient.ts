@@ -21,6 +21,26 @@ export class DailyRankingClientError extends Error {
   }
 }
 
+export interface DailySelfResultDetailOpen {
+  readonly order: number
+  readonly bagNumber: number
+  readonly kind: 'empty' | 'coins' | 'bomb'
+  readonly coinCount: 0 | 1 | 2 | 3
+}
+
+export interface DailySelfResultDetailRound {
+  readonly roundNumber: number
+  readonly endReason: 'bombed' | 'cashed_out' | 'cleared' | 'timed_out'
+  readonly capturedCoins: 0 | 1 | 2 | 3
+  readonly openedBagCount: number
+  readonly coinBagHits: number
+  readonly elapsedSeconds: number
+  readonly bagCount: number
+  readonly bombBagNumber: number
+  readonly coinBagNumbers: readonly [number, number, number]
+  readonly opens: readonly DailySelfResultDetailOpen[]
+}
+
 export interface DailySelfResultView {
   readonly challengeDate: string
   readonly participantId: string
@@ -35,6 +55,8 @@ export interface DailySelfResultView {
     readonly numerator: number
     readonly denominator: number
   }
+  /** Play-order ROUND boards for personal detail (eng9D). */
+  readonly rounds: readonly DailySelfResultDetailRound[]
 }
 
 export interface DailyRankingEntryView {
@@ -191,7 +213,94 @@ function parseEntry(
   }
 }
 
-/** Parses eng8 personal RESULT. Rejects date mismatch. Ignores rounds/time for list UI. */
+function parseDetailRound(
+  value: unknown,
+  expectedRoundNumber: number,
+): DailySelfResultDetailRound {
+  const round = record(value)
+  exact(round, [
+    'roundNumber',
+    'endReason',
+    'capturedCoins',
+    'openedBagCount',
+    'coinBagHits',
+    'elapsedSeconds',
+    'bagCount',
+    'bombBagNumber',
+    'coinBagNumbers',
+    'opens',
+  ])
+  if (
+    (round.endReason !== 'bombed' &&
+      round.endReason !== 'cashed_out' &&
+      round.endReason !== 'cleared' &&
+      round.endReason !== 'timed_out') ||
+    !Array.isArray(round.opens) ||
+    !Array.isArray(round.coinBagNumbers) ||
+    round.coinBagNumbers.length !== 3
+  ) {
+    return fail()
+  }
+  const roundNumber = integer(round.roundNumber, 1, 20)
+  if (roundNumber !== expectedRoundNumber) return fail()
+  const bagCount = integer(round.bagCount, 3, 8)
+  const bombBagNumber = integer(round.bombBagNumber, 1, bagCount)
+  const coinBagNumbers = round.coinBagNumbers.map((bag) =>
+    integer(bag, 1, bagCount),
+  ) as [number, number, number]
+  if (coinBagNumbers.some((bag) => bag === bombBagNumber)) return fail()
+  const openedBagCount = integer(round.openedBagCount, 0, bagCount)
+  if (openedBagCount !== round.opens.length) return fail()
+  const capturedCoins = integer(round.capturedCoins, 0, 3) as 0 | 1 | 2 | 3
+  const coinBagHits = integer(round.coinBagHits, 0, openedBagCount)
+  const elapsedSeconds = integer(round.elapsedSeconds, 0, 60)
+  const seen = new Set<number>()
+  const opens: DailySelfResultDetailOpen[] = round.opens.map((openValue, openIndex) => {
+    const opened = record(openValue)
+    exact(opened, ['order', 'bagNumber', 'kind', 'coinCount'])
+    if (
+      opened.kind !== 'empty' &&
+      opened.kind !== 'coins' &&
+      opened.kind !== 'bomb'
+    ) {
+      return fail()
+    }
+    const order = integer(opened.order, 1, bagCount)
+    const bagNumber = integer(opened.bagNumber, 1, bagCount)
+    if (order !== openIndex + 1 || seen.has(bagNumber)) return fail()
+    seen.add(bagNumber)
+    const coinCount = integer(opened.coinCount, 0, 3) as 0 | 1 | 2 | 3
+    if (opened.kind === 'empty' && coinCount !== 0) return fail()
+    if (
+      opened.kind === 'bomb' &&
+      (coinCount !== 0 || bagNumber !== bombBagNumber)
+    ) {
+      return fail()
+    }
+    if (opened.kind === 'coins' && coinCount < 1) return fail()
+    if (opened.kind !== 'bomb' && bagNumber === bombBagNumber) return fail()
+    return {
+      order,
+      bagNumber,
+      kind: opened.kind,
+      coinCount,
+    }
+  })
+  return {
+    roundNumber,
+    endReason: round.endReason,
+    capturedCoins,
+    openedBagCount,
+    coinBagHits,
+    elapsedSeconds,
+    bagCount,
+    bombBagNumber,
+    coinBagNumbers,
+    opens,
+  }
+}
+
+/** Parses personal RESULT with board detail. Rejects date mismatch. */
 export function parseDailySelfResult(
   value: unknown,
   expectedChallengeDate: string,
@@ -199,12 +308,13 @@ export function parseDailySelfResult(
   const expected = validateDailyChallengeDate(expectedChallengeDate)
   const body = record(value)
   if (body.challengeDate !== expected) return fail()
-  // Allow eng8 extras (rounds, totalTimeSeconds, …) — list UI only needs scores.
-  if (typeof body.totalTimeSeconds === 'number') {
-    // present is fine; UI must not display it
-  }
+  if (!Array.isArray(body.rounds) || body.rounds.length !== 20) return fail()
+  // totalTimeSeconds may be present — list/detail UI must not display it.
   const totalOpens = integer(body.totalOpens, 0, 20 * 8)
   const coinBagHits = integer(body.coinBagHits, 0, totalOpens)
+  const rounds = body.rounds.map((round, index) =>
+    parseDetailRound(round, index + 1),
+  )
   return {
     challengeDate: expected,
     participantId: uuid(body.participantId),
@@ -216,6 +326,7 @@ export function parseDailySelfResult(
     coinBagHits,
     totalOpens,
     coinBagHitRate: hitRate(body.coinBagHitRate, coinBagHits, totalOpens),
+    rounds,
   }
 }
 

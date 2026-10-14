@@ -8,10 +8,14 @@ import {
   type DailyChallengeDate,
 } from '../../src/daily/dailyChallengeDate.js'
 import type { DailyParticipantResultSummary } from '../../src/daily/dailyResult.js'
+import type { DailyResultDetailRoundView } from '../../src/daily/dailyResultDetail.js'
+import type { DailyPlayPlacement } from '../../src/daily/dailyLocalOpen.js'
 import {
-  loadDailyResultSource,
+  loadDailyResultDetailSource,
+  tryAssembleDailyResultDetailRounds,
   tryBuildDailyParticipantResultSummary,
   type DailyAttemptResultRow,
+  type DailyResultOpenLoadRow,
   type DailyResultParticipantRow,
 } from '../db/dailyResult.js'
 
@@ -30,6 +34,13 @@ export interface DailyResultAuth {
   readonly authTokenHash: string
 }
 
+export interface DailyResultDetailOpenResponse {
+  readonly order: number
+  readonly bagNumber: number
+  readonly kind: 'empty' | 'coins' | 'bomb'
+  readonly coinCount: 0 | 1 | 2 | 3
+}
+
 export interface DailyResultRoundResponse {
   readonly roundNumber: number
   readonly endReason: 'bombed' | 'cashed_out' | 'cleared' | 'timed_out'
@@ -37,9 +48,14 @@ export interface DailyResultRoundResponse {
   readonly openedBagCount: number
   readonly coinBagHits: number
   readonly elapsedSeconds: number
+  /** Board fields (eng9D) — always present for finished self RESULT. */
+  readonly bagCount: number
+  readonly bombBagNumber: number
+  readonly coinBagNumbers: readonly [number, number, number]
+  readonly opens: readonly DailyResultDetailOpenResponse[]
 }
 
-/** Self RESULT only — never includes tokens, placements, or other participants. */
+/** Self RESULT only — never includes tokens or other participants. */
 export interface DailyResultResponse {
   readonly challengeDate: string
   readonly participantId: string
@@ -58,12 +74,14 @@ export interface DailyResultResponse {
   readonly rounds: readonly DailyResultRoundResponse[]
 }
 
-export type LoadDailyResultSource = (input: {
+export type LoadDailyResultDetailSource = (input: {
   readonly challengeDate: DailyChallengeDate
   readonly authTokenHash: string
 }) => Promise<{
   readonly participant: DailyResultParticipantRow
   readonly attempts: readonly DailyAttemptResultRow[]
+  readonly opens: readonly DailyResultOpenLoadRow[]
+  readonly placements: readonly DailyPlayPlacement[]
 } | null>
 
 export type BuildDailyResultSummary = (
@@ -71,15 +89,28 @@ export type BuildDailyResultSummary = (
   attempts: readonly DailyAttemptResultRow[],
 ) => DailyParticipantResultSummary | null
 
+export type AssembleDailyResultDetail = (
+  participant: DailyResultParticipantRow,
+  attempts: readonly DailyAttemptResultRow[],
+  opens: readonly DailyResultOpenLoadRow[],
+  placements: readonly DailyPlayPlacement[],
+  summary: DailyParticipantResultSummary,
+) => readonly DailyResultDetailRoundView[] | null
+
 export interface DailyResultApiDependencies {
-  readonly loadSource?: LoadDailyResultSource
+  readonly loadDetailSource?: LoadDailyResultDetailSource
   readonly buildSummary?: BuildDailyResultSummary
+  readonly assembleDetail?: AssembleDailyResultDetail
 }
 
 export function toDailyResultResponse(
   summary: DailyParticipantResultSummary,
   completedAt: string,
+  detailRounds: readonly DailyResultDetailRoundView[],
 ): DailyResultResponse {
+  if (detailRounds.length !== summary.rounds.length) {
+    throw new DailyResultApiError('UNAVAILABLE')
+  }
   return {
     challengeDate: summary.challengeDate,
     participantId: summary.participantId,
@@ -95,13 +126,22 @@ export function toDailyResultResponse(
       denominator: summary.coinBagHitRate.denominator,
     },
     totalTimeSeconds: summary.totalTimeSeconds,
-    rounds: summary.rounds.map((round) => ({
+    rounds: detailRounds.map((round) => ({
       roundNumber: round.roundNumber,
       endReason: round.endReason,
       capturedCoins: round.capturedCoins,
       openedBagCount: round.openedBagCount,
       coinBagHits: round.coinBagHits,
       elapsedSeconds: round.elapsedSeconds,
+      bagCount: round.bagCount,
+      bombBagNumber: round.bombBagNumber,
+      coinBagNumbers: round.coinBagNumbers,
+      opens: round.opens.map((opened) => ({
+        order: opened.order,
+        bagNumber: opened.bagNumber,
+        kind: opened.kind,
+        coinCount: opened.coinCount,
+      })),
     })),
   }
 }
@@ -130,15 +170,16 @@ export function validateDailyResultAuth(
 }
 
 /**
- * Returns the authenticated participant's finished RESULT for the route date.
- * Missing / incomplete / expired / corrupt finished data → UNAVAILABLE (404).
+ * Returns the authenticated finished RESULT with placement boards.
+ * Missing / incomplete / expired / corrupt / join failure → UNAVAILABLE (404).
  */
 export async function readDailyResult(
   auth: DailyResultAuth,
   dependencies: DailyResultApiDependencies = {},
 ): Promise<DailyResultResponse> {
-  const load = dependencies.loadSource ?? loadDailyResultSource
+  const load = dependencies.loadDetailSource ?? loadDailyResultDetailSource
   const build = dependencies.buildSummary ?? tryBuildDailyParticipantResultSummary
+  const assemble = dependencies.assembleDetail ?? tryAssembleDailyResultDetailRounds
 
   const source = await load({
     challengeDate: auth.challengeDate,
@@ -160,5 +201,18 @@ export async function readDailyResult(
     throw new DailyResultApiError('UNAVAILABLE')
   }
 
-  return toDailyResultResponse(summary, source.participant.completedAt)
+  const detailRounds = assemble(
+    source.participant,
+    source.attempts,
+    source.opens,
+    source.placements,
+    summary,
+  )
+  if (!detailRounds) throw new DailyResultApiError('UNAVAILABLE')
+
+  return toDailyResultResponse(
+    summary,
+    source.participant.completedAt,
+    detailRounds,
+  )
 }

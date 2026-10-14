@@ -56,6 +56,21 @@ function entry(
   }
 }
 
+function boardRound(roundNumber: number) {
+  return {
+    roundNumber,
+    endReason: 'timed_out' as const,
+    capturedCoins: 0 as const,
+    openedBagCount: 0,
+    coinBagHits: 0,
+    elapsedSeconds: 60,
+    bagCount: 8,
+    bombBagNumber: 8,
+    coinBagNumbers: [1, 2, 3] as [number, number, number],
+    opens: [] as const,
+  }
+}
+
 const selfResultBody = {
   challengeDate: date,
   participantId: SELF,
@@ -68,7 +83,7 @@ const selfResultBody = {
   totalOpens: 10,
   coinBagHitRate: { numerator: 5, denominator: 10 },
   totalTimeSeconds: 400,
-  rounds: [],
+  rounds: Array.from({ length: 20 }, (_, i) => boardRound(i + 1)),
 }
 
 const selfView = parseDailySelfResult(selfResultBody, date)
@@ -381,11 +396,20 @@ assert.match(resultScreen, /ranking_pending/)
 assert.match(resultScreen, /ranking_loading/)
 assert.match(resultScreen, /dailyResultViewModel/)
 assert.match(resultScreen, /dailyRankingUpdatesEvery10Minutes/)
-assert.doesNotMatch(resultScreen, /groupViewDetails/)
+assert.match(resultScreen, /groupViewDetails/)
+assert.match(resultScreen, /DailyResultDetailScreen/)
+assert.match(resultScreen, /data-daily-result-detail-button/)
 assert.doesNotMatch(resultScreen, /totalTimeSeconds/)
-assert.match(resultScreen, /Details column reserved for eng9D/)
 assert.match(resultScreen, /cancelled/)
 assert.doesNotMatch(resultScreen, /challengeDateRef\.current\s*=/)
+
+const detailScreen = readFileSync(
+  resolve(root, 'src/components/DailyResultDetailScreen.tsx'),
+  'utf8',
+)
+assert.match(detailScreen, /DuelMatchDetailBoard/)
+assert.match(detailScreen, /groupBackToResult/)
+assert.doesNotMatch(detailScreen, /elapsedSeconds|totalTime/i)
 
 const groupResult = readFileSync(
   resolve(root, 'src/components/GroupResultScreen.tsx'),

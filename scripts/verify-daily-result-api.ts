@@ -126,21 +126,100 @@ function finishedRounds(): DailyRoundResultInput[] {
   )
 }
 
+const IDENTITY_ORDER = Array.from(
+  { length: DAILY_CHALLENGE_ROUNDS },
+  (_, i) => i + 1,
+)
+
 function attemptsFromRounds(
   rounds: readonly DailyRoundResultInput[],
   participantId = PARTICIPANT_A,
   challengeDate = date,
+  questionOrder: readonly number[] = IDENTITY_ORDER,
 ): DailyAttemptResultRow[] {
   return rounds.map((r) => ({
     participantId,
     challengeDate,
     roundNumber: r.roundNumber,
+    challengeRoundNumber: questionOrder[r.roundNumber - 1]!,
     status: r.endReason,
     elapsedSeconds: r.elapsedSeconds,
     capturedCoins: r.capturedCoins,
     openedBagCount: r.openedBagCount,
     coinBagHits: r.coinBagHits,
   }))
+}
+
+function placementsForRounds(rounds: readonly DailyRoundResultInput[]) {
+  return rounds.map((r) => ({
+    roundNumber: r.roundNumber,
+    bagCount: 8 as const,
+    bombBagNumber: 8,
+    coinBagNumbers: [1, 2, 3] as [number, number, number],
+  }))
+}
+
+function opensForRounds(
+  rounds: readonly DailyRoundResultInput[],
+  participantId = PARTICIPANT_A,
+  challengeDate = date,
+) {
+  const opens: {
+    participantId: string
+    challengeDate: string
+    roundNumber: number
+    openOrder: number
+    bagNumber: number
+  }[] = []
+  for (const r of rounds) {
+    if (r.endReason === 'cleared') {
+      for (let i = 0; i < 3; i += 1) {
+        opens.push({
+          participantId,
+          challengeDate,
+          roundNumber: r.roundNumber,
+          openOrder: i + 1,
+          bagNumber: i + 1,
+        })
+      }
+    } else if (r.endReason === 'cashed_out') {
+      opens.push(
+        {
+          participantId,
+          challengeDate,
+          roundNumber: r.roundNumber,
+          openOrder: 1,
+          bagNumber: 1,
+        },
+        {
+          participantId,
+          challengeDate,
+          roundNumber: r.roundNumber,
+          openOrder: 2,
+          bagNumber: 4,
+        },
+      )
+    } else if (r.endReason === 'bombed') {
+      const count = r.openedBagCount
+      for (let i = 0; i < count - 1; i += 1) {
+        opens.push({
+          participantId,
+          challengeDate,
+          roundNumber: r.roundNumber,
+          openOrder: i + 1,
+          bagNumber: i + 1,
+        })
+      }
+      opens.push({
+        participantId,
+        challengeDate,
+        roundNumber: r.roundNumber,
+        openOrder: count,
+        bagNumber: 8,
+      })
+    }
+  }
+  return opens
 }
 
 function participantRow(
@@ -153,7 +232,34 @@ function participantRow(
     acceptedAt: ACCEPTED,
     completedAt: COMPLETED,
     expiredAt: null,
+    questionOrder: IDENTITY_ORDER,
     ...overrides,
+  }
+}
+
+function detailSource(
+  rounds: readonly DailyRoundResultInput[],
+  overrides: Partial<DailyResultParticipantRow> = {},
+  questionOrder: readonly number[] = IDENTITY_ORDER,
+) {
+  const participant = participantRow({
+    questionOrder,
+    ...overrides,
+  })
+  return {
+    participant,
+    attempts: attemptsFromRounds(
+      rounds,
+      participant.participantId,
+      participant.challengeDate,
+      questionOrder,
+    ),
+    opens: opensForRounds(
+      rounds,
+      participant.participantId,
+      participant.challengeDate,
+    ),
+    placements: placementsForRounds(rounds),
   }
 }
 
@@ -195,15 +301,12 @@ async function loadFinished(input: {
   if (input.challengeDate !== date || input.authTokenHash !== authHash) {
     return null
   }
-  return {
-    participant: participantRow(),
-    attempts: attemptsFromRounds(rounds),
-  }
+  return detailSource(rounds)
 }
 
 const result = await readDailyResult(
   { challengeDate: date, authTokenHash: authHash },
-  { loadSource: loadFinished },
+  { loadDetailSource: loadFinished },
 )
 assert.equal(result.challengeDate, date)
 assert.equal(result.participantId, PARTICIPANT_A)
@@ -227,12 +330,18 @@ assert.equal(result.rounds[19]!.endReason, 'timed_out')
 const body = JSON.stringify(result)
 assert.doesNotMatch(
   body,
-  /token|authToken|auth_token|3cb_dp1_|bombBag|coinBagNumbers|questionOrder/i,
+  /token|authToken|auth_token|3cb_dp1_|questionOrder|auth_token_hash/i,
 )
 assert.match(body, /ResultPlayer/)
+assert.match(body, /bombBagNumber/)
+assert.match(body, /coinBagNumbers/)
+assert.equal(result.rounds[0]!.bagCount, 8)
+assert.equal(result.rounds[0]!.opens.length, 3)
+assert.equal(result.rounds[0]!.opens[0]!.kind, 'coins')
+assert.equal(result.rounds[19]!.opens.length, 0)
 
 const handler = createDailyResultHandler(async (a) =>
-  readDailyResult(a, { loadSource: loadFinished }),
+  readDailyResult(a, { loadDetailSource: loadFinished }),
 )
 const okResponse = await handler(
   new Request(`https://example.test/api/daily/challenges/${date}/result`, {
@@ -257,21 +366,21 @@ assert.match(
 
 // --- Incomplete / in-progress / expired ---
 async function expectUnavailable(
-  loadSource: typeof loadFinished,
+  loadDetailSource: typeof loadFinished,
   label: string,
 ): Promise<void> {
   await assert.rejects(
     () =>
       readDailyResult(
         { challengeDate: date, authTokenHash: authHash },
-        { loadSource },
+        { loadDetailSource },
       ),
     (e: unknown) =>
       e instanceof DailyResultApiError && e.code === 'UNAVAILABLE',
     label,
   )
   const response = await createDailyResultHandler(async (a) =>
-    readDailyResult(a, { loadSource }),
+    readDailyResult(a, { loadDetailSource }),
   )(
     new Request(`https://example.test/api/daily/challenges/${date}/result`, {
       headers: { authorization: bearer(token) },
@@ -286,27 +395,20 @@ async function expectUnavailable(
 
 await expectUnavailable(async () => null, 'missing participant')
 await expectUnavailable(
-  async () => ({
-    participant: participantRow({ completedAt: null }),
-    attempts: attemptsFromRounds(rounds),
-  }),
+  async () =>
+    detailSource(rounds, { completedAt: null }),
   'not completed',
 )
 await expectUnavailable(
-  async () => ({
-    participant: participantRow({
+  async () =>
+    detailSource(rounds.slice(0, 5), {
       completedAt: null,
       expiredAt: '2026-10-15T00:00:00.000Z',
     }),
-    attempts: attemptsFromRounds(rounds.slice(0, 5)),
-  }),
   'expired incomplete',
 )
 await expectUnavailable(
-  async () => ({
-    participant: participantRow(),
-    attempts: attemptsFromRounds(rounds.slice(0, 19)),
-  }),
+  async () => detailSource(rounds.slice(0, 19)),
   '19 rounds',
 )
 await expectUnavailable(
@@ -317,6 +419,7 @@ await expectUnavailable(
         participantId: PARTICIPANT_A,
         challengeDate: date,
         roundNumber: 1,
+        challengeRoundNumber: 1,
         status: 'active',
         elapsedSeconds: null,
         capturedCoins: null,
@@ -324,25 +427,25 @@ await expectUnavailable(
         coinBagHits: null,
       },
     ],
+    opens: [],
+    placements: placementsForRounds(rounds.slice(0, 1)),
   }),
   'in progress',
 )
 
 // Duplicate / missing round numbers among 20 rows
-const dup = attemptsFromRounds(rounds)
-dup[19] = { ...dup[19]!, roundNumber: 1, status: 'cleared' }
+const dupSource = detailSource(rounds)
+const dupAttempts = [...dupSource.attempts]
+dupAttempts[19] = { ...dupAttempts[19]!, roundNumber: 1, status: 'cleared' }
 await expectUnavailable(
-  async () => ({
-    participant: participantRow(),
-    attempts: dup,
-  }),
+  async () => ({ ...dupSource, attempts: dupAttempts }),
   'duplicate round',
 )
 
 // Wrong participant id on attempt rows
 await expectUnavailable(
   async () => ({
-    participant: participantRow(),
+    ...detailSource(rounds),
     attempts: attemptsFromRounds(rounds, PARTICIPANT_B),
   }),
   'attempt participant mismatch',
@@ -354,13 +457,8 @@ await assert.rejects(
     readDailyResult(
       { challengeDate: date, authTokenHash: pastHash },
       {
-        loadSource: async (input) =>
-          input.authTokenHash === authHash
-            ? {
-                participant: participantRow(),
-                attempts: attemptsFromRounds(rounds),
-              }
-            : null,
+        loadDetailSource: async (input) =>
+          input.authTokenHash === authHash ? detailSource(rounds) : null,
       },
     ),
   (e: unknown) => e instanceof DailyResultApiError && e.code === 'UNAVAILABLE',
@@ -368,13 +466,8 @@ await assert.rejects(
 
 const foreign = await createDailyResultHandler(async (a) =>
   readDailyResult(a, {
-    loadSource: async (input) =>
-      input.authTokenHash === authHash
-        ? {
-            participant: participantRow(),
-            attempts: attemptsFromRounds(rounds),
-          }
-        : null,
+    loadDetailSource: async (input) =>
+      input.authTokenHash === authHash ? detailSource(rounds) : null,
   }),
 )(
   new Request(`https://example.test/api/daily/challenges/${date}/result`, {
@@ -393,18 +486,43 @@ assert.deepEqual(await badAuth.json(), { error: { code: 'unauthorized' } })
 
 // Same nickname, different participants stay separate
 const twinRounds = finishedRounds()
+const twinSourceA = detailSource(twinRounds, {
+  participantId: PARTICIPANT_A,
+  displayNickname: 'Twin',
+})
+const twinSourceB = detailSource(twinRounds, {
+  participantId: PARTICIPANT_B,
+  displayNickname: 'Twin',
+})
 const twinA = tryBuildDailyParticipantResultSummary(
-  participantRow({ participantId: PARTICIPANT_A, displayNickname: 'Twin' }),
-  attemptsFromRounds(twinRounds, PARTICIPANT_A),
+  twinSourceA.participant,
+  twinSourceA.attempts,
 )!
 const twinB = tryBuildDailyParticipantResultSummary(
-  participantRow({ participantId: PARTICIPANT_B, displayNickname: 'Twin' }),
-  attemptsFromRounds(twinRounds, PARTICIPANT_B),
+  twinSourceB.participant,
+  twinSourceB.attempts,
 )!
 assert.equal(twinA.displayNickname, twinB.displayNickname)
 assert.notEqual(twinA.participantId, twinB.participantId)
-const responseA = toDailyResultResponse(twinA, COMPLETED)
-const responseB = toDailyResultResponse(twinB, COMPLETED)
+const { tryAssembleDailyResultDetailRounds } = await import(
+  '../server/db/dailyResult.ts'
+)
+const twinDetailA = tryAssembleDailyResultDetailRounds(
+  twinSourceA.participant,
+  twinSourceA.attempts,
+  twinSourceA.opens,
+  twinSourceA.placements,
+  twinA,
+)!
+const twinDetailB = tryAssembleDailyResultDetailRounds(
+  twinSourceB.participant,
+  twinSourceB.attempts,
+  twinSourceB.opens,
+  twinSourceB.placements,
+  twinB,
+)!
+const responseA = toDailyResultResponse(twinA, COMPLETED, twinDetailA)
+const responseB = toDailyResultResponse(twinB, COMPLETED, twinDetailB)
 assert.notEqual(responseA.participantId, responseB.participantId)
 
 // Past-day RESULT via date in path + matching capability
@@ -412,38 +530,33 @@ const pastRounds = finishedRounds()
 const pastResult = await readDailyResult(
   { challengeDate: pastDate, authTokenHash: pastHash },
   {
-    loadSource: async (input) => {
+    loadDetailSource: async (input) => {
       if (input.challengeDate !== pastDate || input.authTokenHash !== pastHash) {
         return null
       }
-      return {
-        participant: participantRow({
-          challengeDate: pastDate,
-          acceptedAt: '2026-10-13T10:00:00.000Z',
-          completedAt: '2026-10-13T18:00:00.000Z',
-        }),
-        attempts: attemptsFromRounds(pastRounds, PARTICIPANT_A, pastDate),
-      }
+      return detailSource(pastRounds, {
+        challengeDate: pastDate,
+        acceptedAt: '2026-10-13T10:00:00.000Z',
+        completedAt: '2026-10-13T18:00:00.000Z',
+      })
     },
   },
 )
 assert.equal(pastResult.challengeDate, pastDate)
 assert.equal(pastResult.completedAt, '2026-10-13T18:00:00.000Z')
+assert.equal(pastResult.rounds[0]!.bombBagNumber, 8)
 
 const pastHandler = await createDailyResultHandler(async (a) =>
   readDailyResult(a, {
-    loadSource: async (input) => {
+    loadDetailSource: async (input) => {
       if (input.challengeDate !== pastDate || input.authTokenHash !== pastHash) {
         return null
       }
-      return {
-        participant: participantRow({
-          challengeDate: pastDate,
-          completedAt: '2026-10-13T18:00:00.000Z',
-          acceptedAt: '2026-10-13T10:00:00.000Z',
-        }),
-        attempts: attemptsFromRounds(pastRounds, PARTICIPANT_A, pastDate),
-      }
+      return detailSource(pastRounds, {
+        challengeDate: pastDate,
+        completedAt: '2026-10-13T18:00:00.000Z',
+        acceptedAt: '2026-10-13T10:00:00.000Z',
+      })
     },
   }),
 )(

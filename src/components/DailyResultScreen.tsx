@@ -18,6 +18,7 @@ import {
   type DailyStorageAdapter,
 } from '../daily/dailyParticipantStorage'
 import { withDuelNums } from '../ui/withDuelNums'
+import { DailyResultDetailScreen } from './DailyResultDetailScreen'
 
 export type DailyResultScreenProps = {
   readonly challengeDate: string
@@ -51,10 +52,12 @@ export function DailyResultRankingTable({
   rows,
   t,
   statusMessage,
+  onOpenSelfDetails,
 }: {
   readonly rows: readonly DailyResultListRow[]
   readonly t: AppStrings
   readonly statusMessage?: string | null
+  readonly onOpenSelfDetails?: () => void
 }) {
   const [totalHeading = t.groupTotalCoins, coinsHeading = ''] =
     t.groupTotalCoins.split(/\s+(?=COINS$)/)
@@ -94,7 +97,6 @@ export function DailyResultRankingTable({
           <span>{coinBagHeading}</span>
           <span>{hitRateHeading}</span>
         </span>
-        {/* Details column reserved for eng9D — intentionally empty (no fake button). */}
         <span className="group-result__h-action" />
       </div>
       <ol className="group-result__ranking">
@@ -142,7 +144,18 @@ export function DailyResultRankingTable({
                 formatDailyResultHitRate(entry.coinBagHits, entry.totalOpens),
               )}
             </strong>
-            <span className="group-result__details-slot" aria-hidden="true" />
+            {entry.isSelf && onOpenSelfDetails ? (
+              <button
+                type="button"
+                className="duel-btn duel-btn--quiet-top group-result__details"
+                onClick={onOpenSelfDetails}
+                data-daily-result-detail-button=""
+              >
+                {t.groupViewDetails}
+              </button>
+            ) : (
+              <span className="group-result__details-slot" aria-hidden="true" />
+            )}
           </li>
         ))}
       </ol>
@@ -156,12 +169,14 @@ export function DailyResultView({
   onGoTop,
   onRetryRanking,
   rankingBusy,
+  onOpenSelfDetails,
 }: {
   readonly phase: DailyResultScreenPhase
   readonly t: AppStrings
   readonly onGoTop: () => void
   readonly onRetryRanking?: () => void
   readonly rankingBusy?: boolean
+  readonly onOpenSelfDetails?: () => void
 }) {
   if (phase.kind === 'loading_self') {
     return (
@@ -224,6 +239,7 @@ export function DailyResultView({
         rows={model.rows}
         t={t}
         statusMessage={statusMessage}
+        onOpenSelfDetails={onOpenSelfDetails}
       />
       <div className="daily-result__actions">
         {model.showRankingRetry ? (
@@ -265,8 +281,8 @@ function selfFromPhase(
 
 /**
  * DAILY RESULT / RANKING list after 20 ROUNDS complete.
- * Fetches personal RESULT immediately; ranking 404 is shown as pending (not a fault).
- * Details button omitted until eng9D.
+ * Fetches personal RESULT (with boards) immediately; ranking 404 is pending.
+ * Self detail does not require ranking 200.
  *
  * Async loads use a cancelled flag + challengeDate captured in the effect closure
  * so late responses cannot update a different date’s screen. No render-time ref writes.
@@ -283,6 +299,7 @@ export function DailyResultScreen({
     () => initialPhase ?? { kind: 'loading_self' },
   )
   const [rankingBusy, setRankingBusy] = useState(false)
+  const [showDetail, setShowDetail] = useState(false)
   /** Bumped by TRY AGAIN to re-run the effect without sync setState-in-effect. */
   const [reloadNonce, setReloadNonce] = useState(0)
   const fetcher = fetchImpl ?? fetch
@@ -390,6 +407,17 @@ export function DailyResultScreen({
     setReloadNonce((value) => value + 1)
   }, [phase])
 
+  const self = selfFromPhase(phase)
+  if (showDetail && self && self.rounds.length === 20) {
+    return (
+      <DailyResultDetailScreen
+        detail={self}
+        t={t}
+        onBackToResult={() => setShowDetail(false)}
+      />
+    )
+  }
+
   return (
     <DailyResultView
       phase={phase}
@@ -397,6 +425,11 @@ export function DailyResultScreen({
       onGoTop={onGoTop}
       onRetryRanking={retry}
       rankingBusy={rankingBusy}
+      onOpenSelfDetails={
+        self && self.rounds.length === 20
+          ? () => setShowDetail(true)
+          : undefined
+      }
     />
   )
 }

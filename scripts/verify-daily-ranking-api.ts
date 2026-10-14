@@ -744,9 +744,23 @@ assert.deepEqual(await incompleteHandler.json(), {
 
 // --- Final confirm: mid-bucket 404 → next boundary 200; RESULT stays 200 ---
 const midBucketCompletedAt = '2026-10-14T12:15:00.000Z'
+const IDENTITY_ORDER = Array.from({ length: DAILY_CHALLENGE_ROUNDS }, (_, i) => i + 1)
 const midBucketSelfSource = {
-  participant: participantRow({ completedAt: midBucketCompletedAt }),
-  attempts: attemptsFromRounds(selfRounds, SELF_ID),
+  participant: {
+    ...participantRow({ completedAt: midBucketCompletedAt }),
+    questionOrder: IDENTITY_ORDER,
+  },
+  attempts: attemptsFromRounds(selfRounds, SELF_ID).map((attempt, index) => ({
+    ...attempt,
+    challengeRoundNumber: IDENTITY_ORDER[index]!,
+  })),
+  opens: [] as const,
+  placements: selfRounds.map((r) => ({
+    roundNumber: r.roundNumber,
+    bagCount: 8 as const,
+    bombBagNumber: 8,
+    coinBagNumbers: [1, 2, 3] as [number, number, number],
+  })),
 }
 const midBucketDeps = {
   loadSelf: async () => midBucketSelfSource,
@@ -802,15 +816,18 @@ assert.doesNotMatch(
   /Other|participantId|topEntries/i,
 )
 
-// Same finished self → RESULT API 200 (eng8 path unchanged)
+// Same finished self → RESULT API 200 with board fields (eng9D; ranking still 404)
 const resultWhileWaiting = await readDailyResult(
   { challengeDate: date, authTokenHash: authHash },
-  { loadSource: async () => midBucketSelfSource },
+  { loadDetailSource: async () => midBucketSelfSource },
 )
 assert.equal(resultWhileWaiting.participantId, SELF_ID)
 assert.equal(resultWhileWaiting.completedAt, midBucketCompletedAt)
+assert.equal(resultWhileWaiting.rounds.length, 20)
+assert.equal(resultWhileWaiting.rounds[0]!.bagCount, 8)
+assert.equal(resultWhileWaiting.rounds[0]!.opens.length, 0)
 const resultHandlerOk = await createDailyResultHandler(async (auth) =>
-  readDailyResult(auth, { loadSource: async () => midBucketSelfSource }),
+  readDailyResult(auth, { loadDetailSource: async () => midBucketSelfSource }),
 )(
   new Request(`https://example.test/api/daily/challenges/${date}/result`, {
     headers: { authorization: bearer(token) },
