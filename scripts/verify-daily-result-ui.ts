@@ -17,8 +17,11 @@ import {
   buildDailyResultListRows,
   buildDailyResultPendingSelfRow,
   classifyDailyRankingLoadFailure,
+  dailyResultRankSizeClass,
+  dailyResultStatusPresentation,
   dailyResultViewModel,
   formatDailyResultHitRate,
+  shouldSeparateDailySelfRow,
 } from '../src/daily/dailyResultPresentation.ts'
 import { en } from '../src/i18n/en.ts'
 
@@ -136,6 +139,16 @@ assert.equal(rowsOut.length, 11)
 assert.equal(rowsOut[10]!.isSelf, true)
 assert.equal(rowsOut[10]!.rank, 24)
 assert.ok(!rowsOut.slice(0, 10).some((r) => r.isSelf))
+assert.equal(shouldSeparateDailySelfRow(rowsOut, 10), true)
+assert.equal(shouldSeparateDailySelfRow(rowsInTop, 1), false)
+assert.equal(dailyResultRankSizeClass(1), '')
+assert.equal(dailyResultRankSizeClass(10), '')
+assert.equal(dailyResultRankSizeClass(11), '')
+assert.equal(dailyResultRankSizeClass(58), '')
+assert.equal(dailyResultRankSizeClass(123), ' daily-result__rank--3')
+assert.equal(dailyResultRankSizeClass(1234), ' daily-result__rank--4')
+assert.equal(dailyResultRankSizeClass(12345), ' daily-result__rank--5-plus')
+assert.equal(dailyResultRankSizeClass(123456), ' daily-result__rank--5-plus')
 
 const twinRanking = parseDailyRanking(
   {
@@ -243,6 +256,50 @@ assert.equal(readyVm.rows.length, 11)
 assert.equal(readyVm.showRankingRetry, false)
 assert.equal(readyVm.rows.filter((r) => r.isSelf).length, 1)
 
+assert.equal(en.dailyProvisionalResultTitle, 'PROVISIONAL RESULT')
+assert.equal(
+  en.dailyProvisionalResultDescription,
+  'Rankings update every 10 minutes and become final at 9:00 AM JST.',
+)
+assert.equal(en.dailyFinalResultTitle, 'FINAL RESULT')
+
+const provisionalPresentation = dailyResultStatusPresentation({
+  kind: 'ready',
+  self: selfView,
+  ranking: { ...rankingOut, status: 'provisional' },
+})
+assert.equal(provisionalPresentation.titleKey, 'dailyProvisionalResultTitle')
+assert.equal(
+  provisionalPresentation.descriptionKey,
+  'dailyProvisionalResultDescription',
+)
+const finalPresentation = dailyResultStatusPresentation({
+  kind: 'ready',
+  self: selfView,
+  ranking: { ...rankingOut, status: 'final' },
+})
+assert.equal(finalPresentation.titleKey, 'dailyFinalResultTitle')
+assert.equal(finalPresentation.descriptionKey, null)
+for (const phase of [
+  { kind: 'ranking_loading', self: selfView } as const,
+  { kind: 'ranking_pending', self: selfView } as const,
+  { kind: 'ranking_error', self: selfView, code: 'error' } as const,
+]) {
+  assert.deepEqual(dailyResultStatusPresentation(phase), {
+    titleKey: 'groupResultTitle',
+    descriptionKey: null,
+  })
+}
+assert.deepEqual(
+  dailyResultStatusPresentation({
+    kind: 'ready',
+    self: selfView,
+    ranking: { ...rankingOut, status: 'provisional' },
+    refreshError: true,
+  }),
+  provisionalPresentation,
+)
+
 const rankErrVm = dailyResultViewModel({
   kind: 'ranking_error',
   self: selfView,
@@ -306,6 +363,26 @@ await assert.rejects(
 assert.equal(classifyDailyRankingLoadFailure('UNAVAILABLE'), 'pending')
 const fetchedRanking = await fetchDailyRanking(date, TOKEN, fetchMock)
 assert.equal(fetchedRanking.selfInTop, true)
+
+let immediateUrl = ''
+await fetchDailyRanking(
+  date,
+  TOKEN,
+  async (input) => {
+    immediateUrl = String(input)
+    return new Response(JSON.stringify({
+      challengeDate: date,
+      status: 'provisional',
+      rankingAsOf: '2026-10-14T12:17:00.000Z',
+      topEntries: [entry(SELF, 1, 'SelfPlayer', true)],
+      self: entry(SELF, 1, 'SelfPlayer', true),
+      selfInTop: true,
+      totalRankedParticipants: 1,
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+  },
+  'immediate',
+)
+assert.match(immediateUrl, /\/ranking\?snapshot=immediate$/)
 
 await assert.rejects(
   () =>
@@ -371,7 +448,7 @@ assert.deepEqual(await simulateScreenLoad(fetchMock), [
 const app = readFileSync(resolve(root, 'src/App.tsx'), 'utf8')
 assert.match(app, /DailyResultScreen/)
 assert.match(app, /kind: 'result'/)
-assert.match(app, /onChallengeComplete/)
+assert.match(app, /onShowResult/)
 assert.match(app, /state\.completedAt/)
 assert.match(app, /challengeDate: state\.challengeDate/)
 
@@ -379,11 +456,11 @@ const play = readFileSync(
   resolve(root, 'src/components/DailyPlayScreen.tsx'),
   'utf8',
 )
-assert.match(play, /onChallengeComplete/)
+assert.match(play, /onShowResult/)
 assert.match(play, /play\.completedAt/)
-assert.match(play, /fx !== null \|\| requestPending/)
+assert.match(play, /canOpenDailyResult/)
 assert.match(play, /dailyChallengeComplete/)
-assert.match(play, /challengeCompleteNotifiedRef/)
+assert.doesNotMatch(play, /challengeCompleteNotifiedRef/)
 
 const resultScreen = readFileSync(
   resolve(root, 'src/components/DailyResultScreen.tsx'),
@@ -392,10 +469,12 @@ const resultScreen = readFileSync(
 assert.match(resultScreen, /group-result/)
 assert.match(resultScreen, /fetchDailySelfResult/)
 assert.match(resultScreen, /fetchDailyRanking/)
+assert.match(resultScreen, /fetchDailyRanking\([\s\S]*?'immediate'/)
 assert.match(resultScreen, /ranking_pending/)
 assert.match(resultScreen, /ranking_loading/)
 assert.match(resultScreen, /dailyResultViewModel/)
 assert.match(resultScreen, /dailyRankingUpdatesEvery10Minutes/)
+assert.match(resultScreen, /dailyResultStatusPresentation\(phase\)/)
 assert.match(resultScreen, /groupViewDetails/)
 assert.match(resultScreen, /DailyResultDetailScreen/)
 assert.match(resultScreen, /data-daily-result-detail-button/)
@@ -405,6 +484,8 @@ assert.doesNotMatch(resultScreen, /challengeDateRef\.current\s*=/)
 assert.match(resultScreen, /msUntilNextDailyRankingRefresh/)
 assert.match(resultScreen, /visibilitychange/)
 assert.doesNotMatch(resultScreen, /setInterval\(\s*[^,]+,\s*600_?000/)
+assert.doesNotMatch(resultScreen, /groupResultRetry/)
+assert.doesNotMatch(resultScreen, /data-daily-ranking-retry/)
 
 const detailScreen = readFileSync(
   resolve(root, 'src/components/DailyResultDetailScreen.tsx'),
@@ -435,11 +516,24 @@ assert.match(
   jaSource,
   /dailyRankingUpdatesEvery10Minutes:\s*'RANKING UPDATES EVERY 10 MINUTES'/,
 )
+assert.match(enSource, /dailyProvisionalResultTitle:\s*'PROVISIONAL RESULT'/)
+assert.match(
+  enSource,
+  /dailyProvisionalResultDescription:\s*\n?\s*'Rankings update every 10 minutes and become final at 9:00 AM JST\.'/,
+)
+assert.match(enSource, /dailyFinalResultTitle:\s*'FINAL RESULT'/)
+assert.match(jaSource, /dailyProvisionalResultTitle:\s*'暫定結果'/)
+assert.match(
+  jaSource,
+  /dailyProvisionalResultDescription:\s*\n?\s*'順位は10分ごとに更新され、日本時間9時に確定します。'/,
+)
+assert.match(jaSource, /dailyFinalResultTitle:\s*'最終結果'/)
 const presentation = readFileSync(
   resolve(root, 'src/daily/dailyResultPresentation.ts'),
   'utf8',
 )
 assert.match(presentation, /dailyRankingUpdatesEvery10Minutes/)
+assert.match(presentation, /phase\.ranking\.status === 'provisional'/)
 assert.doesNotMatch(
   presentation,
   /kind === 'ranking_pending'[\s\S]{0,200}groupDetailLoading/,
@@ -458,5 +552,23 @@ assert.match(
   readFileSync(resolve(root, 'src/App.css'), 'utf8'),
   /daily-result__status/,
 )
+const appCss = readFileSync(resolve(root, 'src/App.css'), 'utf8')
+assert.match(appCss, /\.daily-result__title[\s\S]*?white-space:\s*nowrap/)
+assert.match(appCss, /\.daily-result__provisional-note/)
+assert.match(appCss, /\.daily-result__heading[\s\S]*?min-height:/)
+assert.match(appCss, /\.daily-result__entry--separated-self[\s\S]*?margin-top:\s*7\.2rem/)
+assert.match(appCss, /\.daily-result \.group-result__rank[\s\S]*?text-align:\s*right/)
+assert.match(appCss, /\.daily-result__rank--3/)
+assert.match(appCss, /\.daily-result__rank--4/)
+assert.match(appCss, /\.daily-result__rank--5-plus/)
+assert.match(
+  appCss,
+  /\.group-result__cols > \*[\s\S]*?min-width:\s*0[\s\S]*?\.group-result__nickname[\s\S]*?text-overflow:\s*ellipsis[\s\S]*?white-space:\s*nowrap/,
+)
+assert.match(
+  appCss,
+  /\.daily-result \.group-result__nickname[\s\S]*?padding-inline-start:\s*0\.5ch/,
+)
+assert.match(resultScreen, /withDuelNums\(t\[statusPresentation\.descriptionKey\]\)/)
 
 console.log('verify:daily-result-ui OK')

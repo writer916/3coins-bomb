@@ -75,6 +75,21 @@ export function formatDailyResultHitRate(hits: number, opens: number): string {
   return formatGroupHitRate(hits, opens)
 }
 
+export function dailyResultRankSizeClass(rank: number | null): string {
+  const digits = rank === null ? 0 : String(rank).length
+  if (digits >= 5) return ' daily-result__rank--5-plus'
+  if (digits === 4) return ' daily-result__rank--4'
+  if (digits === 3) return ' daily-result__rank--3'
+  return ''
+}
+
+export function shouldSeparateDailySelfRow(
+  rows: readonly DailyResultListRow[],
+  index: number,
+): boolean {
+  return index === 10 && rows[index]?.isSelf === true
+}
+
 function toRow(entry: DailyRankingEntryView): DailyResultListRow {
   return {
     key: entry.participantId,
@@ -110,6 +125,30 @@ export type DailyResultViewModel = {
   readonly showRankingRetry: boolean
   readonly showSelfScores: boolean
   readonly phaseKind: DailyResultScreenPhase['kind']
+}
+
+export type DailyResultStatusPresentation = {
+  readonly titleKey:
+    | 'groupResultTitle'
+    | 'dailyProvisionalResultTitle'
+    | 'dailyFinalResultTitle'
+  readonly descriptionKey: 'dailyProvisionalResultDescription' | null
+}
+
+/** Uses only the last validated ranking API status; unknown phases stay neutral. */
+export function dailyResultStatusPresentation(
+  phase: DailyResultScreenPhase,
+): DailyResultStatusPresentation {
+  if (phase.kind !== 'ready') {
+    return { titleKey: 'groupResultTitle', descriptionKey: null }
+  }
+  if (phase.ranking.status === 'provisional') {
+    return {
+      titleKey: 'dailyProvisionalResultTitle',
+      descriptionKey: 'dailyProvisionalResultDescription',
+    }
+  }
+  return { titleKey: 'dailyFinalResultTitle', descriptionKey: null }
 }
 
 /** Maps screen phase → list rows / status / retry. */

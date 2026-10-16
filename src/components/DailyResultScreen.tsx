@@ -9,8 +9,11 @@ import {
 } from '../daily/dailyRankingClient'
 import {
   classifyDailyRankingLoadFailure,
+  dailyResultRankSizeClass,
+  dailyResultStatusPresentation,
   dailyResultViewModel,
   formatDailyResultHitRate,
+  shouldSeparateDailySelfRow,
   type DailyResultListRow,
   type DailyResultScreenPhase,
 } from '../daily/dailyResultPresentation'
@@ -114,15 +117,15 @@ export function DailyResultRankingTable({
         <span className="group-result__h-action" />
       </div>
       <ol className="group-result__ranking">
-        {rows.map((entry) => (
+        {rows.map((entry, index) => (
           <li
             key={entry.key}
-            className={`group-result__cols group-result__entry${entry.isSelf ? ' group-result__entry--self' : ''}`}
+            className={`group-result__cols group-result__entry${entry.isSelf ? ' group-result__entry--self' : ''}${shouldSeparateDailySelfRow(rows, index) ? ' daily-result__entry--separated-self' : ''}`}
             aria-current={entry.isSelf ? 'true' : undefined}
             data-daily-result-self={entry.isSelf ? 'true' : undefined}
           >
             <span
-              className="group-result__rank"
+              className={`group-result__rank daily-result__rank${dailyResultRankSizeClass(entry.rank)}`}
               aria-label={
                 entry.rank === null
                   ? t.groupRank
@@ -181,15 +184,11 @@ export function DailyResultView({
   phase,
   t,
   onGoTop,
-  onRetryRanking,
-  rankingBusy,
   onOpenSelfDetails,
 }: {
   readonly phase: DailyResultScreenPhase
   readonly t: AppStrings
   readonly onGoTop: () => void
-  readonly onRetryRanking?: () => void
-  readonly rankingBusy?: boolean
   readonly onOpenSelfDetails?: () => void
 }) {
   if (phase.kind === 'loading_self') {
@@ -207,16 +206,6 @@ export function DailyResultView({
           {t.groupResultError}
         </p>
         <div className="group-result-detail-error__actions">
-          {phase.code !== 'unauthorized' && onRetryRanking ? (
-            <button
-              type="button"
-              className="duel-btn"
-              disabled={rankingBusy}
-              onClick={onRetryRanking}
-            >
-              {t.groupResultRetry}
-            </button>
-          ) : null}
           <button
             type="button"
             className="duel-btn duel-btn--quiet-top"
@@ -236,6 +225,8 @@ export function DailyResultView({
       : model.statusKey === 'groupResultError'
         ? t.groupResultError
         : null
+  const statusPresentation = dailyResultStatusPresentation(phase)
+  const resultTitle = t[statusPresentation.titleKey]
 
   return (
     <section
@@ -246,9 +237,19 @@ export function DailyResultView({
         phase.kind === 'ready' ? phase.ranking.status : undefined
       }
     >
-      <h2 id="daily-result-title" className="group-result__title">
-        {t.groupResultTitle}
-      </h2>
+      <div className="daily-result__heading">
+        <h2
+          id="daily-result-title"
+          className="group-result__title daily-result__title"
+        >
+          {resultTitle}
+        </h2>
+        {statusPresentation.descriptionKey ? (
+          <p className="daily-result__provisional-note">
+            {withDuelNums(t[statusPresentation.descriptionKey])}
+          </p>
+        ) : null}
+      </div>
       <DailyResultRankingTable
         rows={model.rows}
         t={t}
@@ -256,17 +257,6 @@ export function DailyResultView({
         onOpenSelfDetails={onOpenSelfDetails}
       />
       <div className="daily-result__actions">
-        {model.showRankingRetry ? (
-          <button
-            type="button"
-            className="duel-btn"
-            disabled={rankingBusy}
-            onClick={onRetryRanking}
-            data-daily-ranking-retry=""
-          >
-            {t.groupResultRetry}
-          </button>
-        ) : null}
         <button
           type="button"
           className="duel-btn duel-btn--quiet-top group-result__top"
@@ -336,10 +326,7 @@ export function DailyResultScreen({
   const [phase, setPhase] = useState<DailyResultScreenPhase>(
     () => initialPhase ?? { kind: 'loading_self' },
   )
-  const [rankingBusy, setRankingBusy] = useState(false)
   const [showDetail, setShowDetail] = useState(false)
-  /** Bumped by TRY AGAIN to re-run the bootstrap effect without sync setState-in-effect. */
-  const [reloadNonce, setReloadNonce] = useState(0)
   const fetcher = fetchImpl ?? fetch
   const skipNetwork = initialPhase !== undefined
   const nowMsRef = useRef(nowMsProp)
@@ -392,10 +379,14 @@ export function DailyResultScreen({
         stopAutoRef.current = true
         return
       }
-      if (!cancelled) setRankingBusy(true)
       lastAttemptMsRef.current = readNow()
       try {
-        const ranking = await fetchDailyRanking(expectedDate, token, fetcher)
+        const ranking = await fetchDailyRanking(
+          expectedDate,
+          token,
+          fetcher,
+          'immediate',
+        )
         if (cancelled) return
         if (ranking.challengeDate !== expectedDate) {
           apply({ kind: 'ranking_error', self, code: 'error' })
@@ -426,8 +417,6 @@ export function DailyResultScreen({
           return
         }
         apply({ kind: 'ranking_error', self, code: 'error' })
-      } finally {
-        if (!cancelled) setRankingBusy(false)
       }
     }
 
@@ -466,7 +455,7 @@ export function DailyResultScreen({
     return () => {
       cancelled = true
     }
-  }, [challengeDate, fetcher, readNow, reloadNonce, skipNetwork, storage])
+  }, [challengeDate, fetcher, readNow, skipNetwork, storage])
 
   /**
    * Quiet ranking-only refresh on UTC boundaries / resume / limited stale retry.
@@ -532,8 +521,7 @@ export function DailyResultScreen({
 
       rankingInFlightRef.current = true
       lastAttemptMsRef.current = readNow()
-      // Quiet: do not flip the whole screen to LOADING; busy only for TRY AGAIN disable.
-      setRankingBusy(true)
+      // Quiet: do not flip the whole screen to LOADING.
       // After a boundary (+ safety) fire, expect the current inclusive UTC bucket.
       const expectedBucketMs = currentDailyRankingBucketMs(readNow())
 
@@ -625,7 +613,6 @@ export function DailyResultScreen({
         scheduleBoundary()
       } finally {
         rankingInFlightRef.current = false
-        if (!cancelled) setRankingBusy(false)
       }
     }
 
@@ -677,104 +664,6 @@ export function DailyResultScreen({
     storage,
   ])
 
-  const retry = useCallback(() => {
-    const current = phaseRef.current
-    const self = selfFromPhase(current)
-    // Quiet retry when we already have self (+ optional ranking): ranking only.
-    if (
-      self &&
-      (current.kind === 'ranking_pending' ||
-        current.kind === 'ranking_error' ||
-        current.kind === 'ranking_loading' ||
-        (current.kind === 'ready' && current.refreshError))
-    ) {
-      if (rankingInFlightRef.current) return
-      const token = readToken(challengeDate, storage)
-      if (!token) {
-        stopAutoRef.current = true
-        setPhase({ kind: 'ranking_error', self, code: 'unauthorized' })
-        return
-      }
-      rankingInFlightRef.current = true
-      setRankingBusy(true)
-      lastAttemptMsRef.current = readNow()
-      if (current.kind !== 'ready') {
-        setPhase({ kind: 'ranking_loading', self })
-      }
-      void (async () => {
-        try {
-          const ranking = await fetchDailyRanking(challengeDate, token, fetcher)
-          if (ranking.challengeDate !== challengeDate) {
-            setPhase({ kind: 'ranking_error', self, code: 'error' })
-            return
-          }
-          if (ranking.self.participantId !== self.participantId) {
-            setPhase({ kind: 'ranking_error', self, code: 'error' })
-            return
-          }
-          // Do not roll FINAL back via manual retry either.
-          if (
-            appliedStatusRef.current === 'final' &&
-            ranking.status === 'provisional'
-          ) {
-            if (current.kind === 'ready') {
-              setPhase({
-                kind: 'ready',
-                self: current.self,
-                ranking: current.ranking,
-              })
-            }
-            return
-          }
-          appliedAsOfMsRef.current = rankingAsOfMs(ranking)
-          appliedStatusRef.current = ranking.status
-          if (ranking.status === 'final') stopAutoRef.current = true
-          setPhase({ kind: 'ready', self, ranking })
-        } catch (error: unknown) {
-          if (error instanceof DailyRankingClientError) {
-            const classified = classifyDailyRankingLoadFailure(error.code)
-            if (classified === 'pending') {
-              setPhase({ kind: 'ranking_pending', self })
-              return
-            }
-            if (classified === 'unauthorized') {
-              stopAutoRef.current = true
-              setPhase({ kind: 'ranking_error', self, code: 'unauthorized' })
-              return
-            }
-            if (current.kind === 'ready') {
-              setPhase({
-                kind: 'ready',
-                self: current.self,
-                ranking: current.ranking,
-                refreshError: true,
-              })
-              return
-            }
-            setPhase({ kind: 'ranking_error', self, code: 'error' })
-            return
-          }
-          if (current.kind === 'ready') {
-            setPhase({
-              kind: 'ready',
-              self: current.self,
-              ranking: current.ranking,
-              refreshError: true,
-            })
-            return
-          }
-          setPhase({ kind: 'ranking_error', self, code: 'error' })
-        } finally {
-          rankingInFlightRef.current = false
-          setRankingBusy(false)
-        }
-      })()
-      return
-    }
-    setPhase({ kind: 'loading_self' })
-    setReloadNonce((value) => value + 1)
-  }, [challengeDate, fetcher, readNow, storage])
-
   const self = selfFromPhase(phase)
   if (showDetail && self && self.rounds.length === 20) {
     return (
@@ -791,8 +680,6 @@ export function DailyResultScreen({
       phase={phase}
       t={t}
       onGoTop={onGoTop}
-      onRetryRanking={retry}
-      rankingBusy={rankingBusy}
       onOpenSelfDetails={
         self && self.rounds.length === 20
           ? () => setShowDetail(true)

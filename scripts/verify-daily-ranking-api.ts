@@ -783,14 +783,21 @@ const midBucketDeps = {
       '2026-10-14T11:00:00.000Z',
       twenty((n) => round(n, 'cleared')),
     )
+    const sameBucketEarlierCand = candidate(
+      pid(81),
+      'SameBucketEarlier',
+      '2026-10-14T00:07:00.000Z',
+      '2026-10-14T12:14:00.000Z',
+      twenty((n) => round(n, 'timed_out')),
+    )
     // Mirror SQL provisional filter: completed_at <= rankingAsOf
     if (window.status === 'provisional') {
       const asOf = Date.parse(window.rankingAsOf)
-      return [otherCand, selfCand].filter(
+      return [otherCand, sameBucketEarlierCand, selfCand].filter(
         (c) => Date.parse(c.completedAt) <= asOf,
       )
     }
-    return [otherCand, selfCand]
+    return [otherCand, sameBucketEarlierCand, selfCand]
   },
 }
 
@@ -815,6 +822,49 @@ assert.doesNotMatch(
   JSON.stringify({ error: { code: 'ranking_unavailable' } }),
   /Other|participantId|topEntries/i,
 )
+
+// Initial RESULT request uses a server-timed immediate snapshot. It includes
+// every valid completer through server now, without accepting a client timestamp.
+let immediateModeSeen: string | undefined
+const immediateHandler = createDailyRankingHandler(
+  async (auth, _dependencies, snapshotMode) => {
+    immediateModeSeen = snapshotMode
+    return readDailyRanking(
+      auth,
+      {
+        ...midBucketDeps,
+        now: () => new Date('2026-10-14T12:17:00.000Z'),
+      },
+      snapshotMode,
+    )
+  },
+)
+const immediateResponse = await immediateHandler(
+  new Request(
+    `https://example.test/api/daily/challenges/${date}/ranking?snapshot=immediate`,
+    { headers: { authorization: bearer(token) } },
+  ),
+)
+assert.equal(immediateResponse.status, 200)
+assert.equal(immediateModeSeen, 'immediate')
+const immediateJson = (await immediateResponse.json()) as {
+  readonly status: string
+  readonly rankingAsOf: string
+  readonly self: { readonly participantId: string }
+  readonly totalRankedParticipants: number
+}
+assert.equal(immediateJson.status, 'provisional')
+assert.equal(immediateJson.rankingAsOf, '2026-10-14T12:17:00.000Z')
+assert.equal(immediateJson.self.participantId, SELF_ID)
+assert.equal(immediateJson.totalRankedParticipants, 3)
+
+const arbitrarySnapshot = await immediateHandler(
+  new Request(
+    `https://example.test/api/daily/challenges/${date}/ranking?snapshot=2026-10-14T23:59:59.000Z`,
+    { headers: { authorization: bearer(token) } },
+  ),
+)
+assert.equal(arbitrarySnapshot.status, 400)
 
 // Same finished self → RESULT API 200 with board fields (eng9D; ranking still 404)
 const resultWhileWaiting = await readDailyResult(
@@ -859,7 +909,7 @@ assert.equal(mid200Json.status, 'provisional')
 assert.equal(mid200Json.rankingAsOf, '2026-10-14T12:20:00.000Z')
 assert.equal(mid200Json.self.participantId, SELF_ID)
 assert.equal(mid200Json.self.isSelf, true)
-assert.equal(mid200Json.totalRankedParticipants, 2)
+assert.equal(mid200Json.totalRankedParticipants, 3)
 // UI can decide wait/retry from: 404 ranking_unavailable vs 200 + rankingAsOf/status
 assert.ok(typeof mid200Json.rankingAsOf === 'string')
 assert.ok(mid200Json.status === 'provisional' || mid200Json.status === 'final')

@@ -2,6 +2,12 @@ import type { RandomUuidCrypto } from '../browser/randomUuid'
 import { validateGroupNickname } from '../group/groupDomain'
 import { utcDailyChallengeDate, type DailyChallengeDate } from './dailyChallengeDate'
 import {
+  browserDailyJoinIntentStore,
+  type DailyJoinIntent,
+  type DailyJoinIntentStore,
+  validateDailyJoinIntent,
+} from './dailyJoinIntentStorage'
+import {
   createPendingDailyParticipant,
   dailyJoinLockName,
   readDailyParticipant,
@@ -23,6 +29,8 @@ export type DailyParticipantClientErrorCode =
   | 'TEMPORARY_FAILURE'
   | 'AUTHENTICATION_FAILED'
   | 'CHALLENGE_UNAVAILABLE'
+  | 'COORDINATION_UNAVAILABLE'
+  | 'COORDINATION_CONFLICT'
   | 'INVALID_RESPONSE'
 
 export class DailyParticipantClientError extends Error {
@@ -117,7 +125,10 @@ async function request(
   init: RequestInit,
 ): Promise<Response> {
   try {
-    return await fetcher(input, { ...init, cache: 'no-store' })
+    // Native window.fetch requires the Window receiver in some browsers.
+    // Use the same receiver contract for injected fetch implementations so
+    // JOIN and participant restore behave consistently.
+    return await fetcher.call(globalThis, input, { ...init, cache: 'no-store' })
   } catch {
     return fail('NETWORK_FAILURE')
   }
@@ -251,6 +262,8 @@ export interface DailyParticipantCoordinatorDependencies {
    * `null` forces the no-lock fallback (re-read before JOIN only).
    */
   readonly locks?: DailyJoinLockManager | null
+  /** Injected atomic fallback. `null` means unavailable; undefined uses IndexedDB. */
+  readonly joinIntents?: DailyJoinIntentStore | null
 }
 
 export interface DailyParticipantCoordinatorResult {
@@ -272,6 +285,23 @@ function resolveLocks(
     globalThis as { navigator?: { locks?: DailyJoinLockManager } }
   ).navigator?.locks
   return locks ?? null
+}
+
+function resolveJoinIntents(
+  override: DailyJoinIntentStore | null | undefined,
+): DailyJoinIntentStore | null {
+  return override === undefined ? browserDailyJoinIntentStore() : override
+}
+
+function samePendingAndIntent(
+  pending: PendingDailyParticipantRecord,
+  intent: DailyJoinIntent,
+): boolean {
+  return (
+    pending.challengeDate === intent.challengeDate &&
+    pending.joinRequestId === intent.joinRequestId &&
+    pending.nickname === intent.nickname
+  )
 }
 
 async function withDailyJoinLock<T>(
@@ -337,6 +367,8 @@ async function executeJoinOrRestore(
   challengeDate: DailyChallengeDate,
   dependencies: DailyParticipantCoordinatorDependencies,
   now: () => Date,
+  joinIntents: DailyJoinIntentStore | null,
+  hasJoinLock: boolean,
 ): Promise<DailyParticipantCoordinatorResult | 'date-changed'> {
   const existing = readDailyParticipant(dependencies.storage, challengeDate)
   if (existing?.phase === 'joined') {
@@ -352,13 +384,49 @@ async function executeJoinOrRestore(
     } catch {
       return fail('INVALID_INPUT')
     }
-    pending = createPendingDailyParticipant(
-      challengeDate,
-      validatedNickname,
-      dependencies.crypto,
-    )
-    saveDailyParticipant(dependencies.storage, pending)
+    pending = createPendingDailyParticipant(challengeDate, validatedNickname, dependencies.crypto)
   }
+
+  if (joinIntents) {
+    const proposed = validateDailyJoinIntent({
+      version: 1,
+      challengeDate,
+      nickname: pending.nickname,
+      joinRequestId: pending.joinRequestId,
+    })
+    let canonical: DailyJoinIntent
+    try {
+      canonical = await joinIntents.claim(proposed)
+    } catch {
+      return fail('COORDINATION_UNAVAILABLE')
+    }
+    if (existing?.phase === 'pending-join' && !samePendingAndIntent(existing, canonical)) {
+      // The existing request may already have reached the server. Never replace
+      // it with another id because that could create a second participant.
+      return fail('COORDINATION_CONFLICT')
+    }
+    pending = {
+      version: 1,
+      phase: 'pending-join',
+      challengeDate: canonical.challengeDate,
+      joinRequestId: canonical.joinRequestId,
+      nickname: canonical.nickname,
+    }
+  } else if (!hasJoinLock) {
+    return fail('COORDINATION_UNAVAILABLE')
+  }
+
+  const beforeSave = readDailyParticipant(dependencies.storage, challengeDate)
+  if (beforeSave?.phase === 'joined') {
+    return restoreJoined(beforeSave, dependencies.fetch)
+  }
+  if (
+    beforeSave?.phase === 'pending-join' &&
+    !samePendingAndIntent(beforeSave, pending)
+  ) {
+    return fail('COORDINATION_CONFLICT')
+  }
+  if (beforeSave === null) saveDailyParticipant(dependencies.storage, pending)
 
   /*
    * Prefer any record another tab may have written (especially without Web
@@ -394,6 +462,7 @@ async function runDailyParticipant(
   dependencies: DailyParticipantCoordinatorDependencies,
 ): Promise<DailyParticipantCoordinatorResult> {
   const locks = resolveLocks(dependencies.locks)
+  const joinIntents = locks ? null : resolveJoinIntents(dependencies.joinIntents)
   const now = () => dependencies.now?.() ?? new Date()
 
   for (let attempt = 0; attempt < DATE_ROLLOVER_ATTEMPTS; attempt += 1) {
@@ -411,6 +480,8 @@ async function runDailyParticipant(
           challengeDate,
           dependencies,
           now,
+          joinIntents,
+          locks !== null,
         )
         if (result === 'date-changed') return { kind: 'date-changed' }
         return { kind: 'ok', result }

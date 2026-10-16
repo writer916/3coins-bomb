@@ -60,10 +60,12 @@ export type AppStrings = {
   dailyConnectionError: string
   /** UTC challenge day closed (`expiredAt`). */
   dailyChallengeEndedLabel: string
+  /** First of three locale-specific DAILY rules paragraphs. */
+  dailyIntroRule: string
   dailyRankingRule: string
   /**
-   * EN: ranking still uses `dailyRankingRule`; this adds the server-arrival
-   * deadline. JA: empty when that condition is already in `dailyRankingRule`.
+   * Optional additional server-arrival paragraph. Currently empty because the
+   * condition is included in `dailyRankingRule` for both active locales.
    */
   dailyServerArrivalRule: string
   dailySameBrowserRule: string
@@ -75,6 +77,12 @@ export type AppStrings = {
   dailyStart: string
   dailyStartDisabledHint: string
   dailyJoinedStatus: (nickname: string) => string
+  dailyPlayingStatus: (nickname: string) => string
+  dailyCompletedStatus: (nickname: string) => string
+  dailyContinue: string
+  dailyViewResult: string
+  dailyStatusLoading: string
+  dailyStatusRetry: string
   dailyStorageReadError: string
   dailyRoundLabel: string
   dailyPlayError: string
@@ -86,6 +94,9 @@ export type AppStrings = {
    * `ranking_unavailable` (UTC 10-minute bucket wait). EN is fixed copy.
    */
   dailyRankingUpdatesEvery10Minutes: string
+  dailyProvisionalResultTitle: string
+  dailyProvisionalResultDescription: string
+  dailyFinalResultTitle: string
   groupRoundsHint: string
   groupRoundsLabel: string
   groupPlayersHint: string

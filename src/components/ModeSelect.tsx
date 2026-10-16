@@ -38,9 +38,11 @@ export function ModeSelect({ t, onSelect }: ModeSelectProps) {
         className="mode-card"
         onClick={() => onSelect('group')}
       >
-        <span className="mode-card-heading">
-          <span className="mode-card-title">{t.modeGroupName}</span>
-          <span className="mode-badge">{t.modeGroupBadge}</span>
+        <span className="mode-card-heading mode-card-heading--group">
+          <span className="mode-card-group-title-anchor">
+            <span className="mode-card-title">{t.modeGroupName}</span>
+            <span className="mode-badge">{t.modeGroupBadge}</span>
+          </span>
         </span>
         <span className="mode-card-desc">{withDuelNums(t.modeGroupDesc)}</span>
       </button>

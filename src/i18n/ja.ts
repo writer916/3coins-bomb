@@ -38,8 +38,8 @@ export const ja: AppStrings = {
   modeGroupName: 'GROUP',
   modeGroupDesc: '同じ出題をそれぞれ解いてスコアを競う',
   modeGroupBadge: '最大20人',
-  modeDailyName: 'DAILY',
-  modeDailyDesc: '毎日共通の20問チャレンジ',
+  modeDailyName: 'DAILY CHALLENGE',
+  modeDailyDesc: '参加者によるランキング形式の勝負',
   comingSoon: 'COMING SOON',
   dailyRoundsLabel: 'ROUNDS',
   dailyRoundsValue: (rounds) => String(rounds),
@@ -50,19 +50,32 @@ export const ja: AppStrings = {
   dailyConnectionErrorEnd: '通信エラーで終了',
   dailyConnectionError: '通信エラー',
   dailyChallengeEndedLabel: '開催終了',
+  dailyIntroRule:
+    '毎日1回参加できる、ランキング形式のゲームです。20ROUND制で、各ROUNDの制限時間1分。タイムアウトすると、そのROUNDで獲得したコインは0枚になります。',
   dailyRankingRule:
-    'ランキングに参加するには、開催時間内に全20ROUNDを終了し、最終操作がサーバーに到着している必要があります。',
+    'ランキングにあなたの結果を表示するには、開催時間内に20ROUNDを終了し、最終操作をサーバーが受信している必要があります。',
   dailyServerArrivalRule: '',
   dailySameBrowserRule:
-    'ゲームは開始した端末の同じブラウザで最後までプレイしてください。',
-  dailyPeriodLabel: '本日の開催時間（現地時間）',
-  dailyPeriodRange: (startsAt, endsAt) => `${startsAt} – ${endsAt}`,
+    '参加される場合は、同じ端末の同じブラウザで最後までプレイしてください。',
+  dailyPeriodLabel: '本日の開催時間',
+  dailyPeriodRange: (startsAt, endsAt) => {
+    const [date = '', startTime = ''] = startsAt.split(' ')
+    const [, month = '', day = ''] = date.split('-')
+    const endTime = endsAt.split(' ')[1] ?? ''
+    return `${Number(month)}月${Number(day)}日 ${startTime.replace(/^0/, '')} ～ 翌日 ${endTime.replace(/^0/, '')}`
+  },
   dailyNicknameLead: '本日のニックネーム',
   dailyNicknameLabel: 'ニックネーム',
   dailyNicknamePlaceholder: '1-20文字',
   dailyStart: 'START',
   dailyStartDisabledHint: 'プレイ開始はまだ準備中です。',
-  dailyJoinedStatus: (nickname) => `${nickname} として参加済み`,
+  dailyJoinedStatus: (nickname) => `「${nickname}」として参加済み`,
+  dailyPlayingStatus: (nickname) => `「${nickname}」として参加中`,
+  dailyCompletedStatus: (nickname) => `「${nickname}」として参加済み`,
+  dailyContinue: '続ける',
+  dailyViewResult: '結果を見る',
+  dailyStatusLoading: '確認中',
+  dailyStatusRetry: '再試行',
   dailyStorageReadError: 'この端末のDAILY保存データを読み取れませんでした。',
   dailyRoundLabel: 'ROUND',
   dailyPlayError: 'DAILYプレイを続行できませんでした。もう一度お試しください。',
@@ -70,6 +83,10 @@ export const ja: AppStrings = {
   dailyBombedLabel: 'BOMB',
   dailyChallengeComplete: '20 ROUNDS COMPLETE',
   dailyRankingUpdatesEvery10Minutes: 'RANKING UPDATES EVERY 10 MINUTES',
+  dailyProvisionalResultTitle: '暫定結果',
+  dailyProvisionalResultDescription:
+    '順位は10分ごとに更新され、日本時間9時に確定します。',
+  dailyFinalResultTitle: '最終結果',
   groupRoundsHint: 'ROUND数を決めてください',
   groupRoundsLabel: 'ROUNDS（1-20）',
   groupPlayersHint: '参加人数を決めてください',

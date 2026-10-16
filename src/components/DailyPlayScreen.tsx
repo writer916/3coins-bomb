@@ -30,7 +30,11 @@ import {
 } from '../daily/dailyPlayClient'
 import { DAILY_CHALLENGE_ROUNDS } from '../daily/dailyQuestionSet'
 import {
+  canOpenDailyResult,
+  canScheduleDailyRecoveryRetry,
   classifyInactivePlaySync,
+  dailyRecoveryRetryDelayMs,
+  dailyTerminalRemainingSeconds,
   hasInTimePendingAction,
   nextDailyStatusPollDelayMs,
   resolveDailyDisplayEndKind,
@@ -90,6 +94,17 @@ function endLabel(terminal: TerminalState, t: AppStrings): string {
       : t.dailyBombedLabel
   }
   return t.dailyTimeoutLabel
+}
+
+function terminalRemainingSeconds(terminal: TerminalState): number {
+  return dailyTerminalRemainingSeconds(
+    terminal.kind === 'open' || terminal.kind === 'cash'
+      ? {
+          kind: terminal.kind,
+          remainingSecondsAtTap: terminal.result.remainingSecondsAtTap,
+        }
+      : terminal,
+  )
 }
 
 function opensToResults(
@@ -180,10 +195,10 @@ export type DailyPlayScreenProps = {
   readonly t: AppStrings
   readonly onGoTop: () => void
   /**
-   * Fired once after ROUND 20 is finished and open FX has settled.
-   * RESULT／RANKING is shown by the parent — do not cut ROUND-end FX short.
+   * Invoked only by the explicit RESULT button after server-confirmed completion
+   * and ROUND-end FX settle. RESULT／RANKING is shown by the parent.
    */
-  readonly onChallengeComplete?: (input: {
+  readonly onShowResult?: (input: {
     readonly challengeDate: string
   }) => void
 }
@@ -193,7 +208,7 @@ export function DailyPlayScreen({
   coordinator,
   t,
   onGoTop,
-  onChallengeComplete,
+  onShowResult,
 }: DailyPlayScreenProps) {
   const [play, setPlay] = useState(initialState)
   const [openedResults, setOpenedResults] = useState<readonly DailyOpenResult[]>(
@@ -220,7 +235,13 @@ export function DailyPlayScreen({
     }
     return restored
   })
-  const [remaining, setRemaining] = useState(DAILY_CHALLENGE_ROUNDS > 0 ? 60 : 0)
+  const [remaining, setRemaining] = useState(() =>
+    terminal
+      ? terminalRemainingSeconds(terminal)
+      : initialState.activeAttempt && DAILY_CHALLENGE_ROUNDS > 0
+        ? 60
+        : 0,
+  )
   const [requestPending, setRequestPending] = useState(false)
   const [retryBag, setRetryBag] = useState<BagId | null>(null)
   const [connectionError, setConnectionError] = useState(false)
@@ -254,25 +275,6 @@ export function DailyPlayScreen({
     playRef.current = play
   }, [play])
 
-  const challengeCompleteNotifiedRef = useRef(false)
-  useEffect(() => {
-    if (!onChallengeComplete) return
-    if (challengeCompleteNotifiedRef.current) return
-    if (!play.completedAt) return
-    if (play.activeAttempt) return
-    if (fx !== null || requestPending) return
-    // Keep ROUND-end FX / terminal settle before leaving play.
-    challengeCompleteNotifiedRef.current = true
-    onChallengeComplete({ challengeDate: play.challengeDate })
-  }, [
-    fx,
-    onChallengeComplete,
-    play.activeAttempt,
-    play.challengeDate,
-    play.completedAt,
-    requestPending,
-  ])
-
   // Bootstrap GET has already confirmed this ROUND is terminal. Any restored
   // mutation belongs to that same ROUND (validated by the coordinator), so it
   // can now be discarded without retrying or starting the next ROUND.
@@ -293,6 +295,33 @@ export function DailyPlayScreen({
         : terminal.kind === 'open'
           ? terminal.result.participantCompleted
           : play.completedRounds >= DAILY_CHALLENGE_ROUNDS))
+  const resultReady = canOpenDailyResult({
+    completedAt: play.completedAt,
+    completedRounds: play.completedRounds,
+    hasTerminal: terminal !== null,
+    terminalParticipantCompleted:
+      terminal?.kind === 'cash' || terminal?.kind === 'open'
+        ? terminal.result.participantCompleted
+        : false,
+  })
+
+  const showResult = useCallback(() => {
+    if (
+      !onShowResult ||
+      !resultReady ||
+      requestPendingRef.current ||
+      fxRef.current !== null ||
+      lockRef.current
+    ) {
+      return
+    }
+    lockRef.current = true
+    try {
+      onShowResult({ challengeDate: play.challengeDate })
+    } catch {
+      lockRef.current = false
+    }
+  }, [onShowResult, play.challengeDate, resultReady])
 
   const opened = useMemo(
     () => new Set(openedResults.map((entry) => bagNumberToBagId(entry.bagNumber))),
@@ -672,12 +701,57 @@ export function DailyPlayScreen({
     }
   }, [coordinator, reconcileAfterMutationFailure])
 
+  // A transport failure must recover without waiting for online/visibility.
+  // Keep retries finite and serialized; the coordinator reuses the persisted
+  // request id and remainingSecondsAtTap for every attempt.
+  useEffect(() => {
+    if (!connectionError || terminal) return
+    if (!coordinator.getPendingOpen() && !coordinator.getPendingCashOut()) return
+
+    let cancelled = false
+    let attemptsCompleted = 0
+    let retryTimer: number | null = null
+
+    const wait = (delayMs: number) =>
+      new Promise<void>((resolve) => {
+        retryTimer = window.setTimeout(() => {
+          retryTimer = null
+          resolve()
+        }, delayMs)
+      })
+
+    const run = async () => {
+      while (
+        !cancelled &&
+        !terminalRef.current &&
+        canScheduleDailyRecoveryRetry(attemptsCompleted)
+      ) {
+        const mode = coordinator.getPendingOpen()
+          ? 'open'
+          : coordinator.getPendingCashOut()
+            ? 'cash'
+            : null
+        if (!mode) return
+
+        await wait(dailyRecoveryRetryDelayMs(attemptsCompleted + 1))
+        if (cancelled || terminalRef.current) return
+        if (reconcileInFlightRef.current) continue
+
+        attemptsCompleted += 1
+        await reconcileAfterMutationFailure(mode)
+      }
+    }
+
+    void run()
+    return () => {
+      cancelled = true
+      if (retryTimer !== null) window.clearTimeout(retryTimer)
+    }
+  }, [connectionError, coordinator, reconcileAfterMutationFailure, terminal])
+
   // Countdown from server deadline using a monotonic estimate of server now.
   useEffect(() => {
-    if (!active || terminal) {
-      setRemaining(0)
-      return
-    }
+    if (!active || terminal) return
     const serverNowAtAnchorMs = Date.parse(play.serverNow)
     const monoAtAnchorMs = performance.now()
     const deadlineMs = Date.parse(active.deadlineAt)
@@ -1032,6 +1106,9 @@ export function DailyPlayScreen({
   }, [canShowNextRound, challengeDate, coordinator])
 
   const soundEnabled = readSoundEnabled()
+  const displayedRemaining = terminal
+    ? terminalRemainingSeconds(terminal)
+    : remaining
   const timerExpired = remaining <= 0
   const showCashOut = canShowDailyCashOutButton(
     provisionalCoins,
@@ -1044,20 +1121,21 @@ export function DailyPlayScreen({
   )
 
   if (!active && !terminal && play.completedAt) {
-    // Parent switches to RESULT via onChallengeComplete; keep a stable status
-    // frame if the hand-off has not painted yet (or callback is absent in tests).
     return (
       <div className="duel-play daily-play" data-daily-play-complete="">
         <p className="duel-instruction" role="status">
           {withDuelNums(t.dailyChallengeComplete)}
         </p>
-        {!onChallengeComplete ? (
-          <div className="field-action">
-            <button type="button" className="dev-btn" onClick={onGoTop}>
-              {t.duelTop}
+        <div className="field-action daily-play__complete-actions">
+          {onShowResult ? (
+            <button type="button" className="dev-btn" onClick={showResult}>
+              {t.groupResultTitle}
             </button>
-          </div>
-        ) : null}
+          ) : null}
+          <button type="button" className="dev-btn" onClick={onGoTop}>
+            {t.duelReturnToTop}
+          </button>
+        </div>
       </div>
     )
   }
@@ -1110,7 +1188,7 @@ export function DailyPlayScreen({
         <span className="duel-num">{DAILY_CHALLENGE_ROUNDS}</span>
       </p>
       <p className="daily-play__timer" aria-live="polite">
-        <span className="duel-num">{remaining}</span>
+        <span className="duel-num">{displayedRemaining}</span>
       </p>
       {displayAttempt ? (
         <BagBoard
@@ -1184,15 +1262,6 @@ export function DailyPlayScreen({
             {t.nextRound}
           </button>
         ) : null}
-        {terminal &&
-        completed &&
-        fx === null &&
-        !requestPending &&
-        !onChallengeComplete ? (
-          <button type="button" className="dev-btn" onClick={onGoTop}>
-            {t.duelTop}
-          </button>
-        ) : null}
       </div>
       {terminal && fx === null ? (
         <p className="daily-play__end" role="status">
@@ -1203,6 +1272,18 @@ export function DailyPlayScreen({
         <p className="duel-instruction" role="status">
           {withDuelNums(t.dailyChallengeComplete)}
         </p>
+      ) : null}
+      {resultReady && fx === null && !requestPending ? (
+        <div className="field-action daily-play__complete-actions">
+          {onShowResult ? (
+            <button type="button" className="dev-btn" onClick={showResult}>
+              {t.groupResultTitle}
+            </button>
+          ) : null}
+          <button type="button" className="dev-btn" onClick={onGoTop}>
+            {t.duelReturnToTop}
+          </button>
+        </div>
       ) : null}
       {connectionError || cashOutError ? (
         <div

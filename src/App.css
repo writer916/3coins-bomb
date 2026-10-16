@@ -49,7 +49,10 @@
   }
 
   .app--top .mode-select {
+    flex: 0 0 auto;
+    justify-content: flex-start;
     padding-top: clamp(0.65rem, 2.8vh, 1.15rem);
+    padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px));
   }
 }
 
@@ -440,6 +443,27 @@
   gap: 0.45rem 0.55rem;
 }
 
+.mode-card-heading--group {
+  display: grid;
+  width: 100%;
+  place-items: center;
+}
+
+.mode-card-group-title-anchor {
+  position: relative;
+  display: inline-flex;
+}
+
+.mode-card-heading--group .mode-badge {
+  position: absolute;
+  left: calc(100% + 0.55rem);
+  top: 50%;
+  width: max-content;
+  min-width: max-content;
+  white-space: nowrap;
+  transform: translateY(-50%);
+}
+
 .mode-card-title {
   font-family: Georgia, 'Times New Roman', serif;
   font-size: clamp(1.25rem, 5vw, 1.55rem);
@@ -685,39 +709,95 @@
 */
 .daily-prestart__hero {
   width: 100%;
+  gap: 0;
 }
 
-.daily-prestart__rules {
-  margin: 0 0 0.85rem;
+.daily-prestart__prose {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   width: 100%;
+  min-block-size: 17.75rem;
 }
 
-.daily-prestart__ranking {
-  margin: 0 0 0.85rem;
+.app--daily-prestart .field-header {
+  margin-bottom: clamp(0.85rem, 2.8vh, 1.2rem);
+}
+
+/*
+  DAILY uses prose containing styled digit spans. Keep those spans inline;
+  the shared setup flex layout would otherwise turn text runs into separate
+  flex items and fragment Japanese copy on narrow phones.
+*/
+.duel-flow--setup.daily-prestart .duel-instruction {
+  display: block;
+  min-height: 0;
+  max-width: min(22rem, calc(100% - 1rem));
+  font-size: clamp(0.88rem, 3.6vw, 1rem);
+  line-height: 1.68;
+  letter-spacing: 0.01em;
+  overflow-wrap: break-word;
+  word-break: normal;
+}
+
+.duel-flow--setup.daily-prestart .daily-prestart__intro,
+.duel-flow--setup.daily-prestart .daily-prestart__ranking,
+.duel-flow--setup.daily-prestart .daily-prestart__server-arrival,
+.duel-flow--setup.daily-prestart .daily-prestart__same-browser {
+  align-self: center;
+  width: min(22rem, calc(100% - 1rem));
+  text-align: left;
+}
+
+.daily-prestart__intro,
+.daily-prestart__ranking,
+.daily-prestart__server-arrival {
+  margin: 0 0 0.8rem;
+}
+
+.daily-prestart__same-browser {
+  margin: 0 0 1.05rem;
+}
+
+.daily-prestart__period {
+  box-sizing: border-box;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  align-self: center;
+  gap: 0.15rem 1.1rem;
+  width: min(22rem, calc(100% - 1rem));
+  margin: 0 0 1rem;
+  line-height: 1.45;
+  text-align: left;
+  overflow-wrap: anywhere;
 }
 
 .daily-prestart__period-label {
-  margin: 0;
   font-family: Georgia, 'Times New Roman', serif;
   font-size: clamp(0.72rem, 2.8vw, 0.82rem);
   letter-spacing: 0.06em;
   color: #c4a574;
-  text-align: center;
+  white-space: nowrap;
 }
 
 .daily-prestart__period-value {
-  margin: 0.25rem 0 0.95rem;
   font-family: Georgia, 'Times New Roman', serif;
   font-size: clamp(0.82rem, 3.2vw, 0.95rem);
-  line-height: 1.35;
   color: #f2e6d0;
-  text-align: center;
+}
+
+.daily-prestart__nickname-lead {
+  margin: 0 0 0.55rem;
 }
 
 .daily-prestart__joined {
   margin: 0 0 0.75rem;
+  min-height: 1.2em;
   font-family: Georgia, 'Times New Roman', serif;
   font-size: clamp(0.85rem, 3.2vw, 0.98rem);
+  line-height: 1.2;
   color: #c4b49a;
   text-align: center;
 }
@@ -1584,6 +1664,16 @@
   padding: 0.25rem 0.35rem 0;
 }
 
+.daily-result {
+  --group-result-cols:
+    2.2rem
+    5em
+    minmax(1.65rem, 0.85fr)
+    minmax(2.6rem, 1.4fr)
+    minmax(2.5rem, 1.2fr)
+    2.85rem;
+}
+
 .group-result__title {
   flex: 0 0 auto;
   margin: 0;
@@ -1592,6 +1682,34 @@
   font-size: clamp(1.3rem, 5vw, 1.8rem);
   letter-spacing: 0.08em;
   text-align: center;
+}
+
+.daily-result__title {
+  max-width: 100%;
+  font-size: clamp(1.05rem, 5vw, 1.8rem);
+  white-space: nowrap;
+}
+
+.daily-result__heading {
+  box-sizing: border-box;
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: 0.45rem;
+  min-height: 5rem;
+}
+
+.daily-result__provisional-note {
+  flex: 0 0 auto;
+  margin: 0;
+  color: #c4b49a;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(0.62rem, 2.4vw, 0.82rem);
+  letter-spacing: 0.02em;
+  line-height: 1.35;
+  text-align: center;
+  overflow-wrap: anywhere;
 }
 
 .group-result__table {
@@ -1678,6 +1796,10 @@
   box-shadow: inset 0 0 0 1px rgb(196 165 116 / 45%);
 }
 
+.daily-result__entry--separated-self {
+  margin-top: 7.2rem;
+}
+
 .group-result__rank {
   color: #c4a574;
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
@@ -1686,6 +1808,24 @@
   font-variant-numeric: tabular-nums;
   text-align: center;
   line-height: 1.1;
+}
+
+.daily-result .group-result__rank {
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.daily-result__rank--3 {
+  font-size: clamp(0.78rem, 3vw, 0.94rem);
+}
+
+.daily-result__rank--4 {
+  font-size: clamp(0.68rem, 2.65vw, 0.82rem);
+}
+
+.daily-result__rank--5-plus {
+  font-size: clamp(0.58rem, 2.3vw, 0.72rem);
 }
 
 .group-result__nickname {
@@ -1698,6 +1838,11 @@
   text-align: left;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.daily-result .group-result__nickname {
+  box-sizing: border-box;
+  padding-inline-start: 0.5ch;
 }
 
 .group-result__metric {
@@ -1763,6 +1908,17 @@
   align-items: stretch;
   gap: 0.45rem;
   width: 100%;
+}
+
+.daily-play__complete-actions {
+  height: auto;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
+}
+
+.daily-play__complete-actions .dev-btn {
+  width: min(100%, 12rem);
 }
 
 .group-result__details-slot {
@@ -1975,6 +2131,15 @@
     --group-result-row-inline-pad: 0.22rem;
     padding-left: 0.28rem;
     padding-right: 0.28rem;
+  }
+  .daily-result {
+    --group-result-cols:
+      2rem
+      4.05em
+      minmax(0, 1fr)
+      minmax(0, 1.45fr)
+      minmax(0, 1.2fr)
+      2.55rem;
   }
   .group-result__entry { min-height: 1.95rem; padding: 0.2rem 0; }
   .group-result-detail__round { padding: 0.65rem 0.6rem; }

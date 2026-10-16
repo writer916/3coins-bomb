@@ -31,6 +31,7 @@
     "verify:daily-participant": "tsx scripts/verify-daily-participant.ts",
     "verify:daily-participant-api": "tsx scripts/verify-daily-participant-api.ts",
     "verify:daily-participant-client": "tsx scripts/verify-daily-participant-client.ts",
+    "verify:daily-join-intent-storage": "tsx scripts/verify-daily-join-intent-storage.ts",
     "verify:daily-prestart": "tsx scripts/verify-daily-prestart.ts",
     "verify:daily-play-db": "tsx scripts/verify-daily-play-db.ts",
     "verify:daily-play-api": "tsx scripts/verify-daily-play-api.ts",

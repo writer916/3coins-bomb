@@ -1,10 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { utcDailyChallengeDate } from '../daily/dailyChallengeDate'
-import { DAILY_CHALLENGE_ROUNDS } from '../daily/dailyQuestionSet'
 import {
   createDailyParticipantCoordinator,
   DailyParticipantClientError,
 } from '../daily/dailyParticipantClient'
+import { dailyEntryStateFromParticipant } from '../daily/dailyPreStartState'
 import {
   readDailyParticipant,
   type JoinedDailyParticipantRecord,
@@ -16,28 +16,56 @@ import {
   type DailyPlayCoordinator,
   type DailyPlayState,
 } from '../daily/dailyPlayClient'
-import {
-  DAILY_ROUND_LIMIT_SECONDS,
-  formatDailyChallengePeriod,
-} from '../daily/dailyTime'
+import { formatDailyChallengePeriod } from '../daily/dailyTime'
 import type { AppStrings } from '../i18n'
+import type { LocaleId } from '../i18n/types'
 import { withDuelNums } from '../ui/withDuelNums'
 
 export type DailyPreStartScreenProps = {
   readonly t: AppStrings
+  readonly locale: LocaleId
   readonly onGoTop: () => void
   readonly onEnterPlay: (input: {
     readonly state: DailyPlayState
     readonly coordinator: DailyPlayCoordinator
   }) => void
-  /** Injected for tests; defaults to the device zone. */
-  readonly timeZone?: string
+  readonly onShowResult: (challengeDate: string) => void
   /** Injected for tests; defaults to `Date`. */
   readonly now?: () => Date
   /** Injected for tests; defaults to `window.localStorage`. */
   readonly storage?: Storage
   readonly fetch?: typeof fetch
   readonly crypto?: Crypto
+}
+
+type DailyStartStage =
+  | 'participant-join'
+  | 'participant-restore'
+  | 'placements'
+  | 'play'
+  | 'round-start'
+  | 'play-state'
+
+type DailyEntryState =
+  | 'unjoined'
+  | 'checking'
+  | 'playing'
+  | 'completed'
+  | 'status-error'
+
+function reportDailyStartFailure(stage: DailyStartStage, caught: unknown): void {
+  if (!import.meta.env.DEV) return
+  const error = caught instanceof Error ? caught : null
+  const code =
+    error && 'code' in error && typeof error.code === 'string'
+      ? error.code
+      : undefined
+  // Never log request data, response bodies, participant details, or capabilities.
+  console.error('[DAILY START]', {
+    stage,
+    error: error?.name ?? 'UnknownError',
+    ...(code ? { code } : {}),
+  })
 }
 
 function readJoinedSnapshot(
@@ -68,9 +96,10 @@ function readJoinedSnapshot(
  */
 export function DailyPreStartScreen({
   t,
+  locale,
   onGoTop,
   onEnterPlay,
-  timeZone,
+  onShowResult,
   now,
   storage,
   fetch: fetchImpl,
@@ -82,13 +111,8 @@ export function DailyPreStartScreen({
   )
 
   const period = useMemo(() => {
-    const zone =
-      timeZone ??
-      (typeof Intl !== 'undefined'
-        ? Intl.DateTimeFormat().resolvedOptions().timeZone
-        : 'UTC')
-    return formatDailyChallengePeriod(challengeDate, zone)
-  }, [challengeDate, timeZone])
+    return formatDailyChallengePeriod(challengeDate, 'Asia/Tokyo')
+  }, [challengeDate])
 
   const initialJoined = useMemo(
     () => readJoinedSnapshot(challengeDate, storage),
@@ -102,6 +126,12 @@ export function DailyPreStartScreen({
   const [storageError] = useState(initialJoined.storageError)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(false)
+  const [entryState, setEntryState] = useState<DailyEntryState>(
+    initialJoined.joined ? 'checking' : 'unjoined',
+  )
+  const [statusRetry, setStatusRetry] = useState(0)
+  const startInFlightRef = useRef(false)
+  const mountedRef = useRef(true)
 
   const storageAdapter =
     storage ??
@@ -111,35 +141,120 @@ export function DailyPreStartScreen({
     cryptoImpl ??
     (typeof globalThis.crypto !== 'undefined' ? globalThis.crypto : undefined)
 
+  const participantCoordinator = useMemo(() => {
+    if (!storageAdapter || !cryptoApi) return null
+    return createDailyParticipantCoordinator({
+      storage: storageAdapter,
+      fetch: fetcher,
+      crypto: cryptoApi,
+      now: now ?? (() => new Date()),
+    })
+  }, [cryptoApi, fetcher, now, storageAdapter])
+
+  useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+    }
+  }, [])
+
+  useEffect(() => {
+    const participant = initialJoined.joined
+    if (!participant || !participantCoordinator) return
+    let cancelled = false
+    void participantCoordinator.run(participant.nickname).then(
+      (result) => {
+        if (cancelled || !mountedRef.current) return
+        setJoined(result.participant)
+        setEntryState(dailyEntryStateFromParticipant(result.view))
+      },
+      (caught: unknown) => {
+        if (cancelled || !mountedRef.current) return
+        reportDailyStartFailure('participant-restore', caught)
+        setEntryState('status-error')
+        setError(true)
+      },
+    )
+    return () => {
+      cancelled = true
+    }
+  }, [initialJoined.joined, participantCoordinator, statusRetry])
+
   const canStart =
     !storageError &&
     !busy &&
-    ((joined !== null) || nickname.trim().length > 0) &&
+    ((entryState === 'unjoined' && nickname.trim().length > 0) ||
+      entryState === 'playing') &&
     cryptoApi !== undefined &&
     storageAdapter !== undefined
 
+  const canPrimaryAction =
+    entryState === 'completed' ||
+    entryState === 'status-error' ||
+    canStart
+
+  const primaryLabel =
+    entryState === 'checking'
+      ? t.dailyStatusLoading
+      : entryState === 'playing'
+        ? t.dailyContinue
+        : entryState === 'completed'
+          ? t.dailyViewResult
+          : entryState === 'status-error'
+            ? t.dailyStatusRetry
+            : t.dailyStart
+
   const handleStart = async () => {
-    if (!canStart || !storageAdapter || !cryptoApi) return
+    if (
+      !canStart ||
+      !storageAdapter ||
+      !cryptoApi ||
+      !participantCoordinator ||
+      startInFlightRef.current
+    ) {
+      return
+    }
+    startInFlightRef.current = true
     setBusy(true)
     setError(false)
+    let stage: DailyStartStage = joined ? 'participant-restore' : 'participant-join'
     try {
-      const participantCoordinator = createDailyParticipantCoordinator({
-        storage: storageAdapter,
-        fetch: fetcher,
-        crypto: cryptoApi,
-        now: now ?? (() => new Date()),
-      })
       const participantResult = await participantCoordinator.run(
         joined?.nickname ?? nickname,
       )
-      setJoined(participantResult.participant)
+      if (mountedRef.current) setJoined(participantResult.participant)
+      const restoredEntryState = dailyEntryStateFromParticipant(
+        participantResult.view,
+      )
+      if (mountedRef.current) setEntryState(restoredEntryState)
+      if (restoredEntryState === 'completed') {
+        if (mountedRef.current) {
+          onShowResult(participantResult.participant.challengeDate)
+        }
+        return
+      }
 
       const playClient = createDailyPlayClient({
         storage: storageAdapter,
         fetch: fetcher,
         crypto: cryptoApi,
       })
-      const playCoordinator = createDailyPlayCoordinator(playClient, {
+      const diagnosticPlayClient = {
+        ...playClient,
+        async getPlacements(challengeDate: string) {
+          stage = 'placements'
+          return playClient.getPlacements(challengeDate)
+        },
+        async getPlay(challengeDate: string) {
+          stage = 'play'
+          return playClient.getPlay(challengeDate)
+        },
+        async startRound(challengeDate: string, requestId?: string) {
+          stage = 'round-start'
+          return playClient.startRound(challengeDate, requestId)
+        },
+      }
+      const playCoordinator = createDailyPlayCoordinator(diagnosticPlayClient, {
         storage: window.sessionStorage,
         participantId: participantResult.participant.participantId,
       })
@@ -156,70 +271,88 @@ export function DailyPreStartScreen({
         !state.completedAt &&
         !state.expiredAt
       ) {
+        stage = 'play-state'
         throw new Error('no active round')
       }
-      onEnterPlay({ state, coordinator: playCoordinator })
+      if (mountedRef.current) onEnterPlay({ state, coordinator: playCoordinator })
     } catch (caught: unknown) {
+      reportDailyStartFailure(stage, caught)
       if (
         caught instanceof DailyParticipantClientError ||
         caught instanceof DailyPlayClientError
       ) {
-        setError(true)
+        if (mountedRef.current) setError(true)
       } else {
-        setError(true)
+        if (mountedRef.current) setError(true)
       }
     } finally {
-      setBusy(false)
+      startInFlightRef.current = false
+      if (mountedRef.current) setBusy(false)
     }
   }
 
+  const handlePrimaryAction = () => {
+    if (entryState === 'completed' && joined) {
+      if (startInFlightRef.current) return
+      startInFlightRef.current = true
+      onShowResult(joined.challengeDate)
+      return
+    }
+    if (entryState === 'status-error') {
+      setEntryState('checking')
+      setError(false)
+      setStatusRetry((value) => value + 1)
+      return
+    }
+    void handleStart()
+  }
+
   return (
-    <div className="duel-flow duel-flow--setup daily-prestart">
+    <div
+      className={`duel-flow duel-flow--setup daily-prestart daily-prestart--${locale}`}
+    >
       <div className="duel-setup-hero daily-prestart__hero">
-        <ul className="duel-start-confirm__list daily-prestart__rules">
-          <li>
-            <span className="duel-start-confirm__label">{t.dailyRoundsLabel}</span>
-            <span className="duel-start-confirm__value">
-              {withDuelNums(t.dailyRoundsValue(DAILY_CHALLENGE_ROUNDS))}
-            </span>
-          </li>
-          <li>
-            <span className="duel-start-confirm__label">
-              {t.dailyTimeLimitLabel}
-            </span>
-            <span className="duel-start-confirm__value">
-              {withDuelNums(t.dailyTimeLimitValue(DAILY_ROUND_LIMIT_SECONDS))}
-            </span>
-          </li>
-          <li>
-            <span className="duel-start-confirm__label">{t.dailyTimeoutLabel}</span>
-            <span className="duel-start-confirm__value">
-              {withDuelNums(t.dailyTimeoutValue)}
-            </span>
-          </li>
-        </ul>
-        <p className="duel-instruction daily-prestart__ranking">
-          {withDuelNums(t.dailyRankingRule)}
-        </p>
-        {t.dailyServerArrivalRule ? (
-          <p className="duel-instruction daily-prestart__server-arrival">
-            {withDuelNums(t.dailyServerArrivalRule)}
+        <div className="daily-prestart__prose">
+          <p className="duel-instruction daily-prestart__intro">
+            {withDuelNums(t.dailyIntroRule)}
           </p>
-        ) : null}
-        <p className="duel-instruction daily-prestart__same-browser">
-          {withDuelNums(t.dailySameBrowserRule)}
+          <p className="duel-instruction daily-prestart__ranking">
+            {withDuelNums(t.dailyRankingRule)}
+          </p>
+          {t.dailyServerArrivalRule ? (
+            <p className="duel-instruction daily-prestart__server-arrival">
+              {withDuelNums(t.dailyServerArrivalRule)}
+            </p>
+          ) : null}
+          <p className="duel-instruction daily-prestart__same-browser">
+            {withDuelNums(t.dailySameBrowserRule)}
+          </p>
+        </div>
+        <p className="daily-prestart__period">
+          <span className="daily-prestart__period-label">{t.dailyPeriodLabel}</span>
+          <span className="daily-prestart__period-value">
+            {withDuelNums(t.dailyPeriodRange(period.startsAt, period.endsAt))}
+          </span>
         </p>
-        <p className="daily-prestart__period-label">{t.dailyPeriodLabel}</p>
-        <p className="daily-prestart__period-value">
-          {withDuelNums(t.dailyPeriodRange(period.startsAt, period.endsAt))}
-        </p>
-        {joined ? (
+        {entryState === 'checking' ? (
+          <p
+            className="daily-prestart__joined"
+            aria-hidden="true"
+            data-daily-status-placeholder=""
+          />
+        ) : joined && entryState === 'playing' ? (
           <p className="daily-prestart__joined" role="status">
-            {withDuelNums(t.dailyJoinedStatus(joined.nickname))}
+            {withDuelNums(t.dailyPlayingStatus(joined.nickname))}
           </p>
-        ) : (
+        ) : joined && entryState === 'completed' ? (
+          <p className="daily-prestart__joined" role="status">
+            {withDuelNums(t.dailyCompletedStatus(joined.nickname))}
+          </p>
+        ) : entryState === 'unjoined' ? (
           <>
-            <p className="duel-instruction">{t.dailyNicknameLead}</p>
+            <p className="duel-instruction daily-prestart__nickname-lead">
+              {t.dailyNicknameLead}
+            </p>
             <div className="duel-field">
               <input
                 id="daily-nickname"
@@ -235,7 +368,7 @@ export function DailyPreStartScreen({
               />
             </div>
           </>
-        )}
+        ) : null}
         {storageError ? (
           <p className="duel-lock-error" role="alert">
             {t.dailyStorageReadError}
@@ -253,13 +386,11 @@ export function DailyPreStartScreen({
           <button
             type="button"
             className="duel-btn duel-btn--primary"
-            disabled={!canStart}
-            aria-disabled={!canStart ? 'true' : undefined}
-            onClick={() => {
-              void handleStart()
-            }}
+            disabled={!canPrimaryAction}
+            aria-disabled={!canPrimaryAction ? 'true' : undefined}
+            onClick={handlePrimaryAction}
           >
-            {t.dailyStart}
+            {primaryLabel}
           </button>
           <button type="button" className="duel-btn" onClick={onGoTop} disabled={busy}>
             {t.duelTop}

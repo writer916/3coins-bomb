@@ -37,8 +37,8 @@ export const en: AppStrings = {
   modeGroupName: 'GROUP',
   modeGroupDesc: 'Same challenge — highest score wins',
   modeGroupBadge: 'UP TO 20',
-  modeDailyName: 'DAILY',
-  modeDailyDesc: 'One shared 20-round challenge each UTC day',
+  modeDailyName: 'DAILY CHALLENGE',
+  modeDailyDesc: 'Compete for a place in the daily ranking',
   comingSoon: 'COMING SOON',
   dailyRoundsLabel: 'ROUNDS',
   dailyRoundsValue: (rounds) => String(rounds),
@@ -49,19 +49,37 @@ export const en: AppStrings = {
   dailyConnectionErrorEnd: 'ROUND ENDED — CONNECTION ERROR',
   dailyConnectionError: 'CONNECTION ERROR',
   dailyChallengeEndedLabel: 'CHALLENGE ENDED',
-  dailyRankingRule: 'Finish all 20 ROUNDS to enter the ranking.',
-  dailyServerArrivalRule:
-    'Your final action must reach the server before the challenge period ends.',
-  dailySameBrowserRule:
-    'Play through to the end on the same device and browser you started with.',
-  dailyPeriodLabel: 'TODAY (LOCAL TIME)',
-  dailyPeriodRange: (startsAt, endsAt) => `${startsAt} – ${endsAt}`,
+  dailyIntroRule:
+    'You can enter this ranking challenge once every day. There are 20 ROUNDS, each with a 60-second time limit. If you time out, you earn 0 COINS for that ROUND.',
+  dailyRankingRule:
+    'To appear in the ranking, you must finish 20 ROUNDS during the challenge period, and your final action must reach the server before the period ends.',
+  dailyServerArrivalRule: '',
+  dailySameBrowserRule: 'Play all the way through on the same device and browser.',
+  dailyPeriodLabel: 'TODAY (JST)',
+  dailyPeriodRange: (startsAt, endsAt) => {
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ]
+    const format = (value: string): string => {
+      const [date = '', time = ''] = value.split(' ')
+      const [, month = '', day = ''] = date.split('-')
+      return `${months[Number(month) - 1] ?? ''} ${Number(day)} ${time}`
+    }
+    return `${format(startsAt)} – ${format(endsAt)}`
+  },
   dailyNicknameLead: "Nickname for today's challenge",
   dailyNicknameLabel: 'NICKNAME',
   dailyNicknamePlaceholder: '1-20 characters',
   dailyStart: 'START',
   dailyStartDisabledHint: 'Play start is not ready yet.',
   dailyJoinedStatus: (nickname) => `Joined as ${nickname}`,
+  dailyPlayingStatus: (nickname) => `Playing as ${nickname}`,
+  dailyCompletedStatus: (nickname) => `Completed as ${nickname}`,
+  dailyContinue: 'CONTINUE',
+  dailyViewResult: 'RESULT',
+  dailyStatusLoading: 'CHECKING',
+  dailyStatusRetry: 'RETRY',
   dailyStorageReadError: 'Could not read saved DAILY data on this device.',
   dailyRoundLabel: 'ROUND',
   dailyPlayError: 'Could not continue DAILY play. Please try again.',
@@ -69,6 +87,10 @@ export const en: AppStrings = {
   dailyBombedLabel: 'BOMB',
   dailyChallengeComplete: '20 ROUNDS COMPLETE',
   dailyRankingUpdatesEvery10Minutes: 'RANKING UPDATES EVERY 10 MINUTES',
+  dailyProvisionalResultTitle: 'PROVISIONAL RESULT',
+  dailyProvisionalResultDescription:
+    'Rankings update every 10 minutes and become final at 9:00 AM JST.',
+  dailyFinalResultTitle: 'FINAL RESULT',
   groupRoundsHint: 'Choose the number of rounds.',
   groupRoundsLabel: 'ROUNDS（1-20）',
   groupPlayersHint: 'Choose the number of players.',

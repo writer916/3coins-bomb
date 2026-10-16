@@ -13,6 +13,7 @@ export const DAILY_RANKING_TOP_LIMIT = 10 as const
 export const DAILY_RANKING_BUCKET_MS = 600_000 as const
 
 export type DailyRankingStatus = 'provisional' | 'final'
+export type DailyRankingSnapshotMode = 'scheduled' | 'immediate'
 
 export interface DailyRankingWindow {
   readonly challengeDate: string
@@ -94,6 +95,7 @@ export function dailyRankingBucketStartMs(unixMs: number): number {
 export function resolveDailyRankingWindow(
   challengeDate: string,
   now: Date = new Date(),
+  snapshotMode: DailyRankingSnapshotMode = 'scheduled',
 ): DailyRankingWindow {
   const date = validateDailyChallengeDate(challengeDate)
   if (!(now instanceof Date) || !Number.isFinite(now.getTime())) {
@@ -117,9 +119,10 @@ export function resolveDailyRankingWindow(
     }
   }
 
-  const bucketMs = dailyRankingBucketStartMs(nowMs)
-  // Bucket is never before challenge start on a live day (start aligns to a bucket).
-  const rankingAsOfMs = Math.max(bucketMs, startMs)
+  const rankingAsOfMs =
+    snapshotMode === 'immediate'
+      ? nowMs
+      : Math.max(dailyRankingBucketStartMs(nowMs), startMs)
   return {
     challengeDate: date,
     status: 'provisional',

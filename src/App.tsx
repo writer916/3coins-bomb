@@ -667,7 +667,7 @@ function App() {
             onGoTop={goTop}
             initialState={dailyPhase.state}
             coordinator={dailyPhase.coordinator}
-            onChallengeComplete={({ challengeDate }) => {
+            onShowResult={({ challengeDate }) => {
               setDailyPhase({ kind: 'result', challengeDate })
             }}
           />
@@ -696,7 +696,11 @@ function App() {
         ) : (
           <DailyPreStartScreen
             t={t}
+            locale={locale}
             onGoTop={goTop}
+            onShowResult={(challengeDate) => {
+              setDailyPhase({ kind: 'result', challengeDate })
+            }}
             onEnterPlay={({ state, coordinator }) => {
               if (state.completedAt) {
                 // Reload / re-entry of a finished day → RESULT, not re-play.

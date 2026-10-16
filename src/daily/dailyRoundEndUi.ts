@@ -44,6 +44,57 @@ export function nextDailyStatusPollDelayMs(previousDelayMs: number): number {
   return Math.min(max, Math.max(min, Math.floor(previousDelayMs * 2)))
 }
 
+/** Automatic recovery is deliberately finite; later online/visible events may restart it. */
+export const DAILY_RECOVERY_MAX_AUTOMATIC_RETRIES = 5
+
+/** 0.5s, 1s, 2s, 4s, 8s between same-command recovery attempts. */
+export function dailyRecoveryRetryDelayMs(attemptNumber: number): number {
+  const safeAttempt = Number.isInteger(attemptNumber)
+    ? Math.min(
+        DAILY_RECOVERY_MAX_AUTOMATIC_RETRIES,
+        Math.max(1, attemptNumber),
+      )
+    : 1
+  return 500 * 2 ** (safeAttempt - 1)
+}
+
+export function canScheduleDailyRecoveryRetry(
+  attemptsCompleted: number,
+): boolean {
+  return (
+    Number.isInteger(attemptsCompleted) &&
+    attemptsCompleted >= 0 &&
+    attemptsCompleted < DAILY_RECOVERY_MAX_AUTOMATIC_RETRIES
+  )
+}
+
+/** RESULT is available only after a server response/state confirms all rounds. */
+export function canOpenDailyResult(input: {
+  readonly completedAt: string | null
+  readonly completedRounds: number
+  readonly hasTerminal: boolean
+  readonly terminalParticipantCompleted: boolean
+}): boolean {
+  return (
+    input.completedAt !== null ||
+    input.terminalParticipantCompleted ||
+    (input.hasTerminal && input.completedRounds >= 20)
+  )
+}
+
+/** Freeze the player-visible ROUND clock at the accepted terminal operation. */
+export function dailyTerminalRemainingSeconds(
+  terminal:
+    | { readonly kind: 'open' | 'cash'; readonly remainingSecondsAtTap: number }
+    | {
+        readonly kind: 'timeout' | 'connection_error_end' | 'challenge_ended'
+      },
+): number {
+  if (terminal.kind !== 'open' && terminal.kind !== 'cash') return 0
+  if (!Number.isInteger(terminal.remainingSecondsAtTap)) return 0
+  return Math.min(60, Math.max(0, terminal.remainingSecondsAtTap))
+}
+
 /**
  * When GET play has no active ROUND, pending in-time ops must be recovered
  * (idempotent retry) before any player-facing end label is chosen.

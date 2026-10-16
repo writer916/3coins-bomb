@@ -21,11 +21,31 @@ import {
   type DailyStorageAdapter,
   type JoinedDailyParticipantRecord,
 } from '../src/daily/dailyParticipantStorage.ts'
+import type {
+  DailyJoinIntent,
+  DailyJoinIntentStore,
+} from '../src/daily/dailyJoinIntentStorage.ts'
 
 class MemoryStorage implements DailyStorageAdapter {
   readonly values = new Map<string, string>()
   getItem(key: string): string | null { return this.values.get(key) ?? null }
   setItem(key: string, value: string): void { this.values.set(key, value) }
+}
+
+class MemoryJoinIntentStore implements DailyJoinIntentStore {
+  private readonly values = new Map<string, DailyJoinIntent>()
+  private tail: Promise<void> = Promise.resolve()
+
+  claim(proposed: DailyJoinIntent): Promise<DailyJoinIntent> {
+    const result = this.tail.then(() => {
+      const existing = this.values.get(proposed.challengeDate)
+      if (existing) return existing
+      this.values.set(proposed.challengeDate, proposed)
+      return proposed
+    })
+    this.tail = result.then(() => undefined, () => undefined)
+    return result
+  }
 }
 
 /** Serializes same-named locks; models Web Locks across "tabs" in one process. */
@@ -74,6 +94,17 @@ const cryptoSource = {
   randomUUID: () => requestId as `${string}-${string}-${string}-${string}-${string}`,
 }
 
+function receiverSensitiveFetch(
+  response: () => Response,
+  onCall?: (input: RequestInfo | URL, init?: RequestInit) => void,
+): typeof fetch {
+  return async function (this: unknown, input, init) {
+    assert.equal(this, globalThis)
+    onCall?.(input, init)
+    return response()
+  }
+}
+
 assert.equal(
   dailyParticipantStorageKey(date1),
   '3cb:daily:v1:participant:2026-10-14',
@@ -97,6 +128,7 @@ const coordinator = createDailyParticipantCoordinator({
   storage,
   crypto: cryptoSource,
   locks: null,
+  joinIntents: new MemoryJoinIntentStore(),
   now: () => new Date('2026-10-14T23:59:59.999Z'),
   fetch: async (input, init) => {
     joinCalls += 1
@@ -125,11 +157,66 @@ assert.equal(first.participant.token, token)
 assert.equal(readDailyParticipant(storage, date1)?.phase, 'joined')
 assert.equal(joinCalls, 1)
 
+// Native browser fetch requires its Window/global receiver in some engines.
+// Prove both participant network paths preserve that receiver.
+{
+  const receiverStorage = new MemoryStorage()
+  let receiverJoinCalls = 0
+  const receiverJoin = createDailyParticipantCoordinator({
+    storage: receiverStorage,
+    crypto: cryptoSource,
+    locks: null,
+    joinIntents: new MemoryJoinIntentStore(),
+    now: () => new Date('2026-10-14T12:00:00.000Z'),
+    fetch: receiverSensitiveFetch(
+      () => Response.json({
+        challengeDate: date1,
+        participantId,
+        nickname: 'Receiver',
+        token,
+        acceptedAt,
+      }),
+      () => { receiverJoinCalls += 1 },
+    ),
+  })
+  const receiverJoined = await receiverJoin.run('Receiver')
+  assert.equal(receiverJoined.restored, false)
+  assert.equal(receiverJoinCalls, 1, 'one START must send one JOIN')
+  assert.equal(readDailyParticipant(receiverStorage, date1)?.phase, 'joined')
+
+  let receiverRestoreCalls = 0
+  const receiverRestore = createDailyParticipantCoordinator({
+    storage: receiverStorage,
+    crypto: cryptoSource,
+    locks: null,
+    joinIntents: new MemoryJoinIntentStore(),
+    now: () => new Date('2026-10-14T12:00:00.000Z'),
+    fetch: receiverSensitiveFetch(
+      () => Response.json({
+        challengeDate: date1,
+        participantId,
+        nickname: 'Receiver',
+        acceptedAt,
+        completedAt: null,
+        expiredAt: null,
+      }),
+      (_input, init) => {
+        receiverRestoreCalls += 1
+        assert.equal(init?.method, 'GET')
+      },
+    ),
+  })
+  const receiverRestored = await receiverRestore.run('Ignored')
+  assert.equal(receiverRestored.restored, true)
+  assert.equal(receiverRestoreCalls, 1)
+}
+
 let getCalls = 0
 const restoredCoordinator = createDailyParticipantCoordinator({
   storage,
   crypto: cryptoSource,
   locks: null,
+  joinIntents: new MemoryJoinIntentStore(),
   now: () => new Date('2026-10-14T12:00:00.000Z'),
   fetch: async (input, init) => {
     getCalls += 1
@@ -159,6 +246,7 @@ const failing = createDailyParticipantCoordinator({
   storage: retryStorage,
   crypto: cryptoSource,
   locks: null,
+  joinIntents: new MemoryJoinIntentStore(),
   now: () => new Date('2026-10-14T12:00:00.000Z'),
   fetch: async (_input, init) => {
     retryRequestId = (JSON.parse(String(init?.body)) as { joinRequestId: string }).joinRequestId
@@ -176,6 +264,7 @@ const retrying = createDailyParticipantCoordinator({
   storage: retryStorage,
   crypto: { randomUUID: () => { throw new Error('must not regenerate') } },
   locks: null,
+  joinIntents: new MemoryJoinIntentStore(),
   now: () => new Date('2026-10-14T12:00:00.000Z'),
   fetch: async (_input, init) => {
     const body = JSON.parse(String(init?.body)) as Record<string, unknown>
@@ -199,6 +288,7 @@ const authFailure = createDailyParticipantCoordinator({
   storage: authFailureStorage,
   crypto: cryptoSource,
   locks: null,
+  joinIntents: new MemoryJoinIntentStore(),
   now: () => new Date('2026-10-14T12:00:00.000Z'),
   fetch: async () => {
     authFetches += 1
@@ -218,6 +308,7 @@ const switched = createDailyParticipantCoordinator({
   storage: dateSwitchStorage,
   crypto: cryptoSource,
   locks: null,
+  joinIntents: new MemoryJoinIntentStore(),
   now: () => new Date('2026-10-15T00:00:00.000Z'),
   fetch: async (_input, init) => {
     newDateBody = JSON.parse(String(init?.body)) as Record<string, unknown>
@@ -258,6 +349,7 @@ await assert.rejects(
     storage: invalidInputStorage,
     crypto: cryptoSource,
     locks: null,
+    joinIntents: new MemoryJoinIntentStore(),
     now: () => new Date('2026-10-14T12:00:00.000Z'),
     fetch: async () => { throw new Error('must not fetch') },
   }).run('bad nickname'),
@@ -547,6 +639,7 @@ assert.throws(
     storage: noLockStorage,
     crypto: cryptoSource,
     locks: null,
+    joinIntents: new MemoryJoinIntentStore(),
     now: () => new Date('2026-10-14T12:00:00.000Z'),
     fetch: async (_input, init) => {
       bodies.push(JSON.parse(String(init?.body)))
@@ -579,6 +672,7 @@ assert.throws(
       },
     },
     locks: null,
+    joinIntents: new MemoryJoinIntentStore(),
     now: () => new Date('2026-10-14T12:00:00.000Z'),
     fetch: async (_input, init) => {
       usedId = (JSON.parse(String(init?.body)) as { joinRequestId: string }).joinRequestId
@@ -600,6 +694,7 @@ assert.throws(
     storage: joinedPref,
     crypto: cryptoSource,
     locks: null,
+    joinIntents: new MemoryJoinIntentStore(),
     now: () => new Date('2026-10-14T12:00:00.000Z'),
     fetch: async (input, init) => {
       methods.push(String(init?.method ?? 'GET'))
@@ -658,6 +753,7 @@ assert.throws(
     },
     crypto: cryptoSource,
     locks: null,
+    joinIntents: new MemoryJoinIntentStore(),
     now: () => new Date('2026-10-14T12:00:00.000Z'),
     fetch: async (input, init) => {
       assert.notEqual(init?.method, 'POST', 'must not JOIN after detecting joined')
@@ -675,6 +771,114 @@ assert.throws(
   const raced = await racing.run('Loser')
   assert.equal(raced.restored, true)
   assert.equal(raced.participant.nickname, 'Winner')
+}
+
+// --- No Web Locks: atomic intent selects one id/nickname across 10 tabs ---
+{
+  const sharedStorage = new MemoryStorage()
+  const sharedIntents = new MemoryJoinIntentStore()
+  const bodies: Array<{ joinRequestId: string; nickname: string }> = []
+  const coordinators = Array.from({ length: 10 }, (_, index) =>
+    createDailyParticipantCoordinator({
+      storage: sharedStorage,
+      crypto: {
+        randomUUID: () =>
+          `${String(index).padStart(8, '0')}-1111-4111-8111-111111111111` as `${string}-${string}-${string}-${string}-${string}`,
+      },
+      locks: null,
+      joinIntents: sharedIntents,
+      now: () => new Date('2026-10-14T12:00:00.000Z'),
+      fetch: async (_input, init) => {
+        if (init?.method !== 'POST') {
+          return Response.json({
+            challengeDate: date1,
+            participantId,
+            nickname: bodies[0]?.nickname ?? 'Tab0',
+            acceptedAt,
+            completedAt: null,
+            expiredAt: null,
+          })
+        }
+        const body = JSON.parse(String(init?.body)) as {
+          joinRequestId: string
+          nickname: string
+        }
+        bodies.push(body)
+        return Response.json({
+          challengeDate: date1,
+          participantId,
+          nickname: body.nickname,
+          token,
+          acceptedAt,
+        })
+      },
+    }),
+  )
+  await Promise.all(coordinators.map((item, index) => item.run(`Tab${index}`)))
+  assert.equal(bodies.length > 0, true)
+  assert.equal(new Set(bodies.map((body) => body.joinRequestId)).size, 1)
+  assert.equal(new Set(bodies.map((body) => body.nickname)).size, 1)
+}
+
+// --- No safe coordinator: fail closed before network; mismatches also stop ---
+{
+  let fetches = 0
+  const unavailable = createDailyParticipantCoordinator({
+    storage: new MemoryStorage(),
+    crypto: cryptoSource,
+    locks: null,
+    joinIntents: null,
+    now: () => new Date('2026-10-14T12:00:00.000Z'),
+    fetch: async () => {
+      fetches += 1
+      throw new Error('must not fetch')
+    },
+  })
+  await assert.rejects(
+    unavailable.run('Blocked'),
+    (error: unknown) =>
+      error instanceof DailyParticipantClientError &&
+      error.code === 'COORDINATION_UNAVAILABLE',
+  )
+
+  const conflictingStorage = new MemoryStorage()
+  saveDailyParticipant(conflictingStorage, {
+    version: 1,
+    phase: 'pending-join',
+    challengeDate: date1,
+    joinRequestId: requestIdB,
+    nickname: 'Pending',
+  })
+  const canonical = new MemoryJoinIntentStore()
+  await canonical.claim({
+    version: 1,
+    challengeDate: date1,
+    joinRequestId: requestId,
+    nickname: 'Canonical',
+  })
+  const conflicting = createDailyParticipantCoordinator({
+    storage: conflictingStorage,
+    crypto: cryptoSource,
+    locks: null,
+    joinIntents: canonical,
+    now: () => new Date('2026-10-14T12:00:00.000Z'),
+    fetch: async () => {
+      fetches += 1
+      throw new Error('must not fetch')
+    },
+  })
+  await assert.rejects(
+    conflicting.run('Ignored'),
+    (error: unknown) =>
+      error instanceof DailyParticipantClientError &&
+      error.code === 'COORDINATION_CONFLICT',
+  )
+  assert.equal(fetches, 0)
+  assert.equal(
+    (readDailyParticipant(conflictingStorage, date1) as { joinRequestId: string })
+      .joinRequestId,
+    requestIdB,
+  )
 }
 
 const root = resolve(import.meta.dirname, '..')

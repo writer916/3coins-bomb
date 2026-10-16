@@ -3,6 +3,7 @@ import {
   readDailyRanking,
   validateDailyRankingAuth,
 } from '../../../../server/daily/rankingApi.js'
+import type { DailyRankingSnapshotMode } from '../../../../src/daily/dailyRanking.js'
 
 type ReadRanking = typeof readDailyRanking
 
@@ -28,6 +29,13 @@ function routeDate(request: Request): string | null {
   }
 }
 
+function snapshotMode(request: Request): DailyRankingSnapshotMode {
+  const values = new URL(request.url).searchParams.getAll('snapshot')
+  if (values.length === 0) return 'scheduled'
+  if (values.length === 1 && values[0] === 'immediate') return 'immediate'
+  throw new DailyRankingApiError('INVALID_REQUEST')
+}
+
 function mapError(error: DailyRankingApiError): Response {
   if (error.code === 'INVALID_REQUEST') return errorResponse(400, 'invalid_request')
   if (error.code === 'UNAUTHORIZED') return errorResponse(401, 'unauthorized')
@@ -47,6 +55,8 @@ export function createDailyRankingHandler(
           routeDate(request),
           request.headers.get('authorization'),
         ),
+        undefined,
+        snapshotMode(request),
       )
       return Response.json(ranking, { status: 200, headers: JSON_HEADERS })
     } catch (error: unknown) {

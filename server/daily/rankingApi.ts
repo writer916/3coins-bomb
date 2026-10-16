@@ -10,6 +10,7 @@ import {
 import {
   buildDailyRankingSelection,
   resolveDailyRankingWindow,
+  type DailyRankingSnapshotMode,
   type DailyRankingCandidate,
   type DailyRankingSelection,
   type DailyRankingWindow,
@@ -150,17 +151,11 @@ export function validateDailyRankingAuth(
 export async function readDailyRanking(
   auth: DailyRankingAuth,
   dependencies: DailyRankingApiDependencies = {},
+  snapshotMode: DailyRankingSnapshotMode = 'scheduled',
 ): Promise<DailyRankingResponse> {
   const loadSelf = dependencies.loadSelf ?? loadDailyResultSource
   const loadCandidates = dependencies.loadCandidates ?? loadDailyRankingPool
   const now = dependencies.now ?? (() => new Date())
-
-  let window: DailyRankingWindow
-  try {
-    window = resolveDailyRankingWindow(auth.challengeDate, now())
-  } catch {
-    throw new DailyRankingApiError('UNAVAILABLE')
-  }
 
   const selfSource = await loadSelf({
     challengeDate: auth.challengeDate,
@@ -185,8 +180,22 @@ export async function readDailyRanking(
     throw new DailyRankingApiError('UNAVAILABLE')
   }
 
-  // Mid-bucket finishers wait until the next UTC 10-minute boundary.
-  if (window.status === 'provisional') {
+  // Capture server time after reading self so a just-committed completion cannot
+  // fall beyond the immediate snapshot because of acquisition order.
+  let window: DailyRankingWindow
+  try {
+    window = resolveDailyRankingWindow(
+      auth.challengeDate,
+      now(),
+      snapshotMode,
+    )
+  } catch {
+    throw new DailyRankingApiError('UNAVAILABLE')
+  }
+
+  // Scheduled snapshots remain bucket-bound. The initial immediate snapshot is
+  // server-timed and includes every valid completer up to that instant.
+  if (window.status === 'provisional' && snapshotMode === 'scheduled') {
     const completedMs = Date.parse(selfSource.participant.completedAt)
     const asOfMs = Date.parse(window.rankingAsOf)
     if (

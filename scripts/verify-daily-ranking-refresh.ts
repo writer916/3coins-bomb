@@ -246,6 +246,27 @@ assert.equal(
   'ignore',
 )
 
+// An immediate 12:17 snapshot must not regress to the scheduled 12:10 snapshot.
+assert.equal(
+  decideDailyRankingQuietRefresh({
+    phaseKind: 'ready',
+    appliedRankingAsOfMs: atUtc(2026, 10, 14, 12, 17, 0),
+    appliedRankingStatus: 'provisional',
+    expectedBucketMs: atUtc(2026, 10, 14, 12, 10, 0),
+    staleRetriesUsed: DAILY_RANKING_MAX_STALE_RETRIES,
+    response: {
+      kind: 'ok',
+      challengeDate: '2026-10-14',
+      expectedChallengeDate: '2026-10-14',
+      rankingAsOfMs: atUtc(2026, 10, 14, 12, 10, 0),
+      status: 'provisional',
+      selfParticipantId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      expectedParticipantId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    },
+  }).action,
+  'ignore',
+)
+
 // Wrong date / participant → ignore
 assert.equal(
   decideDailyRankingQuietRefresh({

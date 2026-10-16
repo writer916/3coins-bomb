@@ -411,11 +411,13 @@ export async function fetchDailyRanking(
   challengeDate: string,
   token: string,
   fetcher: typeof fetch = fetch,
+  snapshotMode: 'scheduled' | 'immediate' = 'scheduled',
 ): Promise<DailyRankingView> {
   const date = validateDailyChallengeDate(challengeDate)
+  const snapshotQuery = snapshotMode === 'immediate' ? '?snapshot=immediate' : ''
   const response = await request(
     fetcher,
-    `/api/daily/challenges/${encodeURIComponent(date)}/ranking`,
+    `/api/daily/challenges/${encodeURIComponent(date)}/ranking${snapshotQuery}`,
     {
       method: 'GET',
       headers: {

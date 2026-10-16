@@ -26,7 +26,12 @@ import {
   estimateDailyServerNowMs,
 } from '../src/daily/dailyTime.ts'
 import {
+  canOpenDailyResult,
+  canScheduleDailyRecoveryRetry,
   classifyInactivePlaySync,
+  DAILY_RECOVERY_MAX_AUTOMATIC_RETRIES,
+  dailyRecoveryRetryDelayMs,
+  dailyTerminalRemainingSeconds,
   hasInTimePendingAction,
   nextDailyStatusPollDelayMs,
   resolveDailyDisplayEndKind,
@@ -39,6 +44,57 @@ import { ja } from '../src/i18n/ja.ts'
 const root = resolve(import.meta.dirname, '..')
 const date = '2099-09-10'
 const otherDate = '2099-09-11'
+
+assert.equal(
+  canOpenDailyResult({
+    completedAt: null,
+    completedRounds: 19,
+    hasTerminal: true,
+    terminalParticipantCompleted: false,
+  }),
+  false,
+)
+assert.equal(
+  canOpenDailyResult({
+    completedAt: null,
+    completedRounds: 19,
+    hasTerminal: true,
+    terminalParticipantCompleted: true,
+  }),
+  true,
+)
+assert.equal(
+  canOpenDailyResult({
+    completedAt: '2099-09-10T12:20:00.000Z',
+    completedRounds: 20,
+    hasTerminal: false,
+    terminalParticipantCompleted: false,
+  }),
+  true,
+)
+assert.equal(
+  canOpenDailyResult({
+    completedAt: null,
+    completedRounds: 20,
+    hasTerminal: true,
+    terminalParticipantCompleted: false,
+  }),
+  true,
+)
+
+assert.equal(DAILY_RECOVERY_MAX_AUTOMATIC_RETRIES, 5)
+assert.deepEqual(
+  Array.from({ length: 5 }, (_, index) => dailyRecoveryRetryDelayMs(index + 1)),
+  [500, 1_000, 2_000, 4_000, 8_000],
+)
+assert.equal(canScheduleDailyRecoveryRetry(0), true)
+assert.equal(canScheduleDailyRecoveryRetry(4), true)
+assert.equal(canScheduleDailyRecoveryRetry(5), false)
+assert.equal(canScheduleDailyRecoveryRetry(-1), false)
+assert.equal(dailyTerminalRemainingSeconds({ kind: 'open', remainingSecondsAtTap: 37 }), 37)
+assert.equal(dailyTerminalRemainingSeconds({ kind: 'cash', remainingSecondsAtTap: 12 }), 12)
+assert.equal(dailyTerminalRemainingSeconds({ kind: 'timeout' }), 0)
+assert.equal(dailyTerminalRemainingSeconds({ kind: 'connection_error_end' }), 0)
 
 // Chrome's native window.fetch rejects a non-Window receiver. Keep the play
 // client from invoking a supplied fetch as a method of its dependency object.
@@ -494,6 +550,73 @@ const {
   assert.equal(ids.length, 1, 'retry must reuse first command including R')
 }
 
+// Response loss: the server applies once; retrying the persisted command with
+// the same id/R returns that result without a second logical OPEN.
+{
+  const commands: Array<{ requestId: string; remainingSecondsAtTap: number }> = []
+  let appliedOpens = 0
+  const responseLost = createDailyPlayCoordinator({
+    ...mockClient,
+    createOpenCommand: (
+      challengeDate: string,
+      bagNumber: number,
+      remainingSecondsAtTap: number,
+    ) => ({
+      challengeDate,
+      bagNumber,
+      remainingSecondsAtTap,
+      requestId: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+    }),
+    openBag: async (command: {
+      requestId: string
+      remainingSecondsAtTap: number
+    }) => {
+      commands.push(command)
+      if (commands.length === 1) {
+        appliedOpens += 1
+        throw new DailyPlayClientError('TEMPORARY_FAILURE')
+      }
+      return openResult
+    },
+  } as never)
+  await responseLost.loadOrStart(date)
+  await assert.rejects(() => responseLost.open(date, 2, 44))
+  assert.equal(responseLost.getPendingOpen()?.remainingSecondsAtTap, 44)
+  assert.equal((await responseLost.open(date, 2, 9)).bagNumber, 2)
+  assert.equal(appliedOpens, 1)
+  assert.equal(commands.length, 2)
+  assert.equal(commands[0]?.requestId, commands[1]?.requestId)
+  assert.equal(commands[0]?.remainingSecondsAtTap, 44)
+  assert.equal(commands[1]?.remainingSecondsAtTap, 44)
+}
+
+// A second OPEN cannot overlap an in-flight OPEN.
+{
+  let releaseFirst!: () => void
+  const firstBlocked = new Promise<void>((resolve) => {
+    releaseFirst = resolve
+  })
+  let openCalls = 0
+  const serialized = createDailyPlayCoordinator({
+    ...mockClient,
+    openBag: async () => {
+      openCalls += 1
+      await firstBlocked
+      return openResult
+    },
+  } as never)
+  await serialized.loadOrStart(date)
+  const firstOpen = serialized.open(date, 2, 50)
+  await assert.rejects(
+    () => serialized.open(date, 2, 50),
+    (error: unknown) =>
+      error instanceof DailyPlayClientError && error.code === 'CONFLICT',
+  )
+  assert.equal(openCalls, 1)
+  releaseFirst()
+  await firstOpen
+}
+
 const started = Date.parse('2099-09-10T12:00:00.000Z')
 assert.equal(
   calculateDailyRemainingSeconds(started + 60_000, started + 10_000),
@@ -685,7 +808,10 @@ assert.match(playScreen, /playEpochRef/)
 assert.match(playScreen, /reconcileInFlightRef/)
 
 assert.equal(en.dailyTimeoutLabel, 'TIME OUT')
-assert.equal(en.dailyRankingRule, 'Finish all 20 ROUNDS to enter the ranking.')
+assert.equal(
+  en.dailyRankingRule,
+  'To appear in the ranking, you must finish 20 ROUNDS during the challenge period, and your final action must reach the server before the period ends.',
+)
 assert.equal(en.dailyConnectionErrorEnd, 'ROUND ENDED — CONNECTION ERROR')
 assert.equal(en.dailyConnectionError, 'CONNECTION ERROR')
 assert.equal(en.dailyChallengeEndedLabel, 'CHALLENGE ENDED')
