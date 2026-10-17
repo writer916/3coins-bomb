@@ -2275,13 +2275,15 @@
   margin-top: 0.15rem;
 }
 
-.duel-final-view-details,
-.duel-final-return,
-.duel-final-home-install {
+.duel-final-actions > .duel-final-view-details,
+.duel-final-actions > .duel-final-return,
+.duel-final-actions > .duel-final-home-install {
   /* Override quiet-top's margin-top:auto — sit under RESULT body, not viewport foot. */
   margin-top: 0;
   width: 100%;
+  min-width: 0;
   max-width: 100%;
+  font-size: clamp(0.72rem, 3.2vw, 0.84rem);
 }
 
 .duel-final-view-details {

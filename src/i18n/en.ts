@@ -187,7 +187,7 @@ export const en: AppStrings = {
   duelSelfUrlIntro:
     'Once your opponent finishes placing their coins and bomb, you can start the match from this URL. Keep it until the match ends.',
   duelReturnToTop: 'BACK TO TOP',
-  duelAddToHomeScreen: 'ADD TO HOME SCREEN',
+  duelAddToHomeScreen: 'ADD TO HOME',
   duelAddToHomeGuideIos:
     'In the Safari browser, open “Share” from the “…” menu,\nthen choose “Add to Home Screen”.',
   duelAddToHomeGuideAndroid:

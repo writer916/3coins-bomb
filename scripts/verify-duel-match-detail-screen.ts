@@ -369,7 +369,7 @@ for (const roundNumber of [1, 9, 10, 20]) {
 /* Existing EN RESULT copy untouched */
 assert.equal(en.duelViewResult, 'VIEW RESULT')
 assert.equal(en.duelReturnToTop, 'BACK TO TOP')
-assert.equal(en.duelAddToHomeScreen, 'ADD TO HOME SCREEN')
+assert.equal(en.duelAddToHomeScreen, 'ADD TO HOME')
 assert.equal(en.duelThreeCoinsComplete, '3COINS COMPLETE')
 
 console.log('verify:duel-match-detail-screen OK')

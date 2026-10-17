@@ -84,7 +84,7 @@ assert.match(appCss, /\.duel-final-home-install\s*{/)
 
 /* i18n */
 assert.equal(ja.duelAddToHomeScreen, 'ホーム画面に追加')
-assert.equal(en.duelAddToHomeScreen, 'ADD TO HOME SCREEN')
+assert.equal(en.duelAddToHomeScreen, 'ADD TO HOME')
 assert.equal(
   ja.duelAddToHomeGuideIos,
   'Safariブラウザの「…」メニューから「共有」を開き、\n「ホーム画面に追加」を選んでください。',

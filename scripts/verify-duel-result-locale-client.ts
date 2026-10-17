@@ -22,7 +22,7 @@ assert.equal(en.duelViewResult, 'VIEW RESULT')
 assert.equal(ja.duelReturnToTop, 'トップへ戻る')
 assert.equal(en.duelReturnToTop, 'BACK TO TOP')
 assert.equal(ja.duelAddToHomeScreen, 'ホーム画面に追加')
-assert.equal(en.duelAddToHomeScreen, 'ADD TO HOME SCREEN')
+assert.equal(en.duelAddToHomeScreen, 'ADD TO HOME')
 assert.equal(ja.duelYou, 'あなた')
 assert.equal(en.duelYou, 'YOU')
 assert.equal(ja.duelOpponent, '相手')
@@ -111,5 +111,9 @@ assert.ok(
 )
 assert.doesNotMatch(completionShell, /duelAddToHomeScreen|duel-final-home-install/)
 assert.doesNotMatch(completionShell, /duelViewDetails|duel-final-view-details/)
+assert.match(
+  appCss,
+  /\.duel-final-actions\s*>\s*\.duel-final-view-details[\s\S]*?\.duel-final-actions\s*>\s*\.duel-final-home-install\s*{[^}]*width:\s*100%;[^}]*min-width:\s*0;[^}]*max-width:\s*100%;[^}]*font-size:\s*clamp\(0\.72rem,\s*3\.2vw,\s*0\.84rem\)/s,
+)
 
 console.log('verify-duel-result-locale-client: all checks passed')
