@@ -2,6 +2,7 @@ import { useCallback, useRef, useState } from 'react'
 import {
   GROUP_PLAYERS_MAX,
   GROUP_PLAYERS_MIN,
+  GROUP_ROUNDS_DEFAULT,
   GROUP_ROUNDS_MAX,
   GROUP_ROUNDS_MIN,
 } from '../group/groupDomain'
@@ -28,7 +29,7 @@ function initialSettings(): { totalRounds: number; playerLimit: number } {
   } catch {
     /* The create action will show the normal safe error. */
   }
-  return { totalRounds: 3, playerLimit: 2 }
+  return { totalRounds: GROUP_ROUNDS_DEFAULT, playerLimit: 2 }
 }
 
 function ConfigShell({

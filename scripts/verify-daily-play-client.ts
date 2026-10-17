@@ -186,6 +186,8 @@ const playState = parseDailyPlayState(
     serverNow: '2099-09-10T12:00:00.000Z',
     challengeEndsAt: '2099-09-11T00:00:00.000Z',
     completedRounds: 0,
+    totalCoins: 0,
+    threeCoinsComplete: 0,
     nextRoundNumber: 1,
     completedAt: null,
     expiredAt: null,
@@ -661,7 +663,8 @@ assert.match(playScreen, /addEventListener\('online'/)
 assert.doesNotMatch(playScreen, /attempt < 8/)
 assert.match(playScreen, /requestPendingRef/)
 assert.match(playScreen, /fxRef/)
-assert.match(playScreen, /dailyConnectionErrorEnd/)
+// ROUND-end copy under the board was removed; keep the terminal kind wiring.
+assert.match(playScreen, /connection_error_end/)
 assert.match(playScreen, /dailyConnectionError/)
 assert.match(playScreen, /dailyChallengeEndedLabel/)
 assert.match(read('src/daily/dailyPlayClient.ts'), /getPlacements/)
@@ -676,6 +679,8 @@ const idleEnded = {
   serverNow: '2099-09-10T12:01:02.000Z',
   challengeEndsAt: '2099-09-11T00:00:00.000Z',
   completedRounds: 1,
+  totalCoins: 0,
+  threeCoinsComplete: 0,
   nextRoundNumber: 2,
   activeAttempt: null,
   completedAt: null,

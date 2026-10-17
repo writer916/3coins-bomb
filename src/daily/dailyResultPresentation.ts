@@ -174,20 +174,22 @@ export function dailyResultViewModel(
     }
   }
   if (phase.kind === 'ranking_loading') {
+    // Wait UI only — never flash a partial RESULT / self table before ranking.
     return {
-      rows: [buildDailyResultPendingSelfRow(phase.self)],
-      statusKey: 'none',
+      rows: [],
+      statusKey: 'groupResultLoading',
       showRankingRetry: false,
-      showSelfScores: true,
+      showSelfScores: false,
       phaseKind: phase.kind,
     }
   }
   if (phase.kind === 'ranking_pending') {
+    // Bucket wait: status copy only (not a finished provisional ranking).
     return {
-      rows: [buildDailyResultPendingSelfRow(phase.self)],
+      rows: [],
       statusKey: 'dailyRankingUpdatesEvery10Minutes',
       showRankingRetry: true,
-      showSelfScores: true,
+      showSelfScores: false,
       phaseKind: phase.kind,
     }
   }

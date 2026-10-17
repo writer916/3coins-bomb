@@ -1,5 +1,7 @@
 export const GROUP_ROUNDS_MIN = 1
 export const GROUP_ROUNDS_MAX = 20
+/** Fresh GROUP create draft only — does not rewrite restored / in-flight settings. */
+export const GROUP_ROUNDS_DEFAULT = 5
 export const GROUP_PLAYERS_MIN = 2
 export const GROUP_PLAYERS_MAX = 20
 export const GROUP_NICKNAME_MIN_GRAPHEMES = 1

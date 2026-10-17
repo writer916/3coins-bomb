@@ -224,10 +224,10 @@ const loadingRankVm = dailyResultViewModel({
   kind: 'ranking_loading',
   self: selfView,
 })
-assert.equal(loadingRankVm.statusKey, 'none')
-assert.equal(loadingRankVm.showSelfScores, true)
+assert.equal(loadingRankVm.statusKey, 'groupResultLoading')
+assert.equal(loadingRankVm.showSelfScores, false)
 assert.equal(loadingRankVm.showRankingRetry, false)
-assert.equal(loadingRankVm.rows[0]!.totalCoins, 12)
+assert.equal(loadingRankVm.rows.length, 0)
 
 const pendingVm = dailyResultViewModel({
   kind: 'ranking_pending',
@@ -238,10 +238,9 @@ assert.equal(
   en.dailyRankingUpdatesEvery10Minutes,
   'RANKING UPDATES EVERY 10 MINUTES',
 )
-assert.equal(pendingVm.showSelfScores, true)
+assert.equal(pendingVm.showSelfScores, false)
 assert.equal(pendingVm.showRankingRetry, true)
-assert.equal(pendingVm.rows[0]!.totalCoins, 12)
-assert.equal(pendingVm.rows[0]!.rank, null)
+assert.equal(pendingVm.rows.length, 0)
 // 404 pending must NOT use fault or generic LOADING copy
 assert.notEqual(pendingVm.statusKey, 'groupResultError')
 assert.notEqual(pendingVm.statusKey, 'groupResultLoading')

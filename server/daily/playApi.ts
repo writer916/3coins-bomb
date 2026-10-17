@@ -73,6 +73,8 @@ export interface DailyPlayResponse {
   readonly serverNow: string
   readonly challengeEndsAt: string
   readonly completedRounds: number
+  readonly totalCoins: number
+  readonly threeCoinsComplete: number
   readonly nextRoundNumber: number | null
   readonly activeAttempt: DailyPlayActiveAttemptView | null
   readonly latestTerminalAttempt: DailyPlayTerminalAttemptView | null
@@ -93,6 +95,8 @@ export function toDailyPlayResponse(
     serverNow: state.serverNow,
     challengeEndsAt: state.challengeEndsAt,
     completedRounds: state.completedRounds,
+    totalCoins: state.totalCoins,
+    threeCoinsComplete: state.threeCoinsComplete,
     nextRoundNumber: state.nextRoundNumber,
     completedAt: state.completedAt,
     expiredAt: state.expiredAt,

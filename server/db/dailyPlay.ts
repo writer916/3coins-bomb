@@ -54,6 +54,9 @@ export interface PersistedDailyPlayState {
   readonly completedAt: string | null
   readonly expiredAt: string | null
   readonly completedRounds: number
+  /** Confirmed ROUNDs only — same scoring as finished RESULT aggregation. */
+  readonly totalCoins: number
+  readonly threeCoinsComplete: number
   readonly nextRoundNumber: number | null
   readonly activeAttempt: DailyActiveAttemptView | null
   readonly latestTerminalAttempt: DailyTerminalAttemptView | null
@@ -98,6 +101,8 @@ interface StateRow extends Record<string, unknown> {
   readonly terminal_count: number
   readonly terminal_first: number | null
   readonly terminal_last: number | null
+  readonly total_coins: number
+  readonly three_coins_complete: number
   readonly active_count: number
   readonly active_round: number | null
   readonly active_started_at: Date | string | null
@@ -253,6 +258,12 @@ function toState(row: StateRow): PersistedDailyPlayState {
     completedAt,
     expiredAt,
     completedRounds: terminalCount,
+    totalCoins: asInteger(row.total_coins, 0, DAILY_CHALLENGE_ROUNDS * 3),
+    threeCoinsComplete: asInteger(
+      row.three_coins_complete,
+      0,
+      DAILY_CHALLENGE_ROUNDS,
+    ),
     nextRoundNumber: finished
       ? null
       : (activeAttempt?.roundNumber ?? terminalCount + 1),
@@ -404,6 +415,15 @@ async function readDailyPlayState(input: {
       max(attempt.round_number) filter (
         where attempt.status <> 'active'
       )::integer as terminal_last,
+      coalesce(
+        sum(attempt.captured_coins) filter (
+          where attempt.status <> 'active'
+        ),
+        0
+      )::integer as total_coins,
+      count(attempt.*) filter (
+        where attempt.status = 'cleared'
+      )::integer as three_coins_complete,
       count(attempt.*) filter (
         where attempt.status = 'active'
       )::integer as active_count,

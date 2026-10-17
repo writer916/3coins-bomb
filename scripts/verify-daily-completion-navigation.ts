@@ -30,15 +30,20 @@ assert.match(play, /if \([\s\S]*?!resultReady[\s\S]*?lockRef\.current[\s\S]*?\) 
 assert.match(app, /onShowResult=\{\(\{ challengeDate \}\) => \{\s*setDailyPhase\(\{ kind: 'result', challengeDate \}\)/)
 assert.match(app, /const goTop = useCallback\([\s\S]*?setScreen\('top'\)[\s\S]*?setDailyPhase\(\{ kind: 'prestart' \}\)/)
 
-// DAILY RESULT keeps retrieval/detail/automatic ranking recovery, but exposes
-// only BACK TO TOP (no TRY AGAIN control).
-assert.doesNotMatch(result, /groupResultRetry|data-daily-ranking-retry|onRetryRanking/)
+// DAILY RESULT keeps retrieval/detail/automatic ranking recovery, BACK TO TOP,
+// and explicit TRY AGAIN on load failures (aligned with verify-daily-result-ui).
+assert.match(result, /groupResultRetry/)
+assert.match(result, /data-daily-result-retry/)
+assert.match(result, /handleRetry/)
+assert.doesNotMatch(result, /data-daily-ranking-retry|onRetryRanking/)
 assert.match(result, /fetchDailySelfResult/)
 assert.match(result, /fetchDailyRanking/)
 assert.match(result, /msUntilNextDailyRankingRefresh/)
 assert.match(result, /visibilitychange/)
 assert.match(result, /DailyResultDetailScreen/)
 assert.match(result, /onClick=\{onGoTop\}/)
+// ranking_loading must stay a wait UI (no unfinished RESULT table flash).
+assert.match(result, /phase\.kind === 'loading_self' \|\| phase\.kind === 'ranking_loading'/)
 
 // Existing re-entry of a completed participant still opens RESULT.
 assert.match(app, /if \(state\.completedAt\) \{[\s\S]*?kind: 'result'/)

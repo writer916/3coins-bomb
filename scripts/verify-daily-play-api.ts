@@ -45,6 +45,8 @@ const baseState: PersistedDailyPlayState = {
   completedAt: null,
   expiredAt: null,
   completedRounds: 0,
+  totalCoins: 0,
+  threeCoinsComplete: 0,
   nextRoundNumber: 1,
   activeAttempt: null,
   latestTerminalAttempt: null,
@@ -73,6 +75,8 @@ assert.deepEqual(Object.keys(toDailyPlayResponse(activeState)).sort(), [
   'nextRoundNumber',
   'latestTerminalAttempt',
   'serverNow',
+  'threeCoinsComplete',
+  'totalCoins',
 ].sort())
 assert.doesNotMatch(JSON.stringify(toDailyPlayResponse(activeState)), /bomb/i)
 assert.doesNotMatch(JSON.stringify(toDailyPlayResponse(activeState)), /coinBag/i)
@@ -84,6 +88,8 @@ assert.doesNotMatch(
 const terminalState: PersistedDailyPlayState = {
   ...baseState,
   completedRounds: 1,
+  totalCoins: 2,
+  threeCoinsComplete: 0,
   nextRoundNumber: 2,
   latestTerminalAttempt: {
     roundNumber: 1,
@@ -109,6 +115,8 @@ const terminalState: PersistedDailyPlayState = {
 const terminalResponse = toDailyPlayResponse(terminalState)
 assert.equal(terminalResponse.latestTerminalAttempt?.endReason, 'cashed_out')
 assert.equal(terminalResponse.latestTerminalAttempt?.capturedCoins, 2)
+assert.equal(terminalResponse.totalCoins, 2)
+assert.equal(terminalResponse.threeCoinsComplete, 0)
 assert.doesNotMatch(
   JSON.stringify(terminalResponse),
   /participantId|displayNickname|token|bombBagNumber|coinBagNumbers/,

@@ -28,6 +28,14 @@ import {
   type DailyPlayState,
   type DailyPlayTerminalAttempt,
 } from '../daily/dailyPlayClient'
+import {
+  applyConfirmedCashOutToTotals,
+  applyConfirmedOpenResultToTotals,
+  hydrateDailyPlayScoreTotals,
+  mergeServerPlayTotals,
+  scheduleWriteDailyPlayScoreTotals,
+  type DailyPlayScoreTotals,
+} from '../daily/dailyPlayScoreTotals'
 import { DAILY_CHALLENGE_ROUNDS } from '../daily/dailyQuestionSet'
 import {
   canOpenDailyResult,
@@ -81,19 +89,6 @@ function isRoundEndTerminal(terminal: TerminalState): boolean {
     terminal.kind === 'connection_error_end' ||
     terminal.kind === 'challenge_ended'
   )
-}
-
-function endLabel(terminal: TerminalState, t: AppStrings): string {
-  if (terminal.kind === 'timeout') return t.dailyTimeoutLabel
-  if (terminal.kind === 'connection_error_end') return t.dailyConnectionErrorEnd
-  if (terminal.kind === 'challenge_ended') return t.dailyChallengeEndedLabel
-  if (terminal.kind === 'cash') return t.cashOut
-  if (terminal.kind === 'open') {
-    return terminal.result.endReason === 'cleared'
-      ? t.dailyClearedLabel
-      : t.dailyBombedLabel
-  }
-  return t.dailyTimeoutLabel
 }
 
 function terminalRemainingSeconds(terminal: TerminalState): number {
@@ -242,6 +237,14 @@ export function DailyPlayScreen({
         ? 60
         : 0,
   )
+  const scoreStorage =
+    typeof window !== 'undefined' ? window.localStorage : null
+  const [scoreTotals, setScoreTotals] = useState<DailyPlayScoreTotals>(() =>
+    hydrateDailyPlayScoreTotals({
+      play: initialState,
+      storage: scoreStorage,
+    }),
+  )
   const [requestPending, setRequestPending] = useState(false)
   const [retryBag, setRetryBag] = useState<BagId | null>(null)
   const [connectionError, setConnectionError] = useState(false)
@@ -261,6 +264,51 @@ export function DailyPlayScreen({
   /** Bumped on ROUND advance / unmount-sensitive sync so stale GET play is ignored. */
   const playEpochRef = useRef(0)
   const reconcileInFlightRef = useRef(false)
+
+  const syncScoreTotalsFromPlay = useCallback(
+    (state: DailyPlayState) => {
+      setScoreTotals((prev) => {
+        const next = mergeServerPlayTotals(prev, state)
+        if (
+          prev.challengeDate === next.challengeDate &&
+          prev.appliedRoundNumber === next.appliedRoundNumber &&
+          prev.totalCoins === next.totalCoins &&
+          prev.threeCoinsComplete === next.threeCoinsComplete &&
+          prev.ready === next.ready
+        ) {
+          return prev
+        }
+        scheduleWriteDailyPlayScoreTotals(next, scoreStorage)
+        return next
+      })
+    },
+    [scoreStorage],
+  )
+
+  const noteConfirmedOpenTotals = useCallback(
+    (result: DailyOpenResult) => {
+      if (!result.roundEnded) return
+      setScoreTotals((prev) => {
+        const next = applyConfirmedOpenResultToTotals(prev, result)
+        if (next === prev) return prev
+        scheduleWriteDailyPlayScoreTotals(next, scoreStorage)
+        return next
+      })
+    },
+    [scoreStorage],
+  )
+
+  const noteConfirmedCashTotals = useCallback(
+    (result: DailyCashOutResult) => {
+      setScoreTotals((prev) => {
+        const next = applyConfirmedCashOutToTotals(prev, result)
+        if (next === prev) return prev
+        scheduleWriteDailyPlayScoreTotals(next, scoreStorage)
+        return next
+      })
+    },
+    [scoreStorage],
+  )
 
   useEffect(() => {
     requestPendingRef.current = requestPending
@@ -400,6 +448,7 @@ export function DailyPlayScreen({
       if (coordinator.getPendingOpen()) coordinator.clearPendingOpen()
       if (coordinator.getPendingCashOut()) coordinator.clearPendingCashOut()
       setPlay(state)
+      syncScoreTotalsFromPlay(state)
       setTerminal(nextTerminal)
       const attempt = state.latestTerminalAttempt
       setOpenedResults(
@@ -413,7 +462,7 @@ export function DailyPlayScreen({
       setRetryBag(null)
       return true
     },
-    [coordinator, readInTimePending],
+    [coordinator, readInTimePending, syncScoreTotalsFromPlay],
   )
 
   const syncFromPlayState = useCallback(
@@ -426,6 +475,7 @@ export function DailyPlayScreen({
       })
       if (phase === 'active' && state.activeAttempt) {
         setPlay(state)
+        syncScoreTotalsFromPlay(state)
         const nextOpens = opensToResults(
           state.challengeDate,
           state.activeAttempt.roundNumber,
@@ -450,11 +500,17 @@ export function DailyPlayScreen({
       }
       // Keep server clocks / counts, but do not invent an end label yet.
       setPlay(state)
+      syncScoreTotalsFromPlay(state)
       if (phase === 'defer_end_for_recovery') return 'defer_end_for_recovery'
       if (applyRoundEndFromState(state)) return 'ended'
       return 'unchanged'
     },
-    [applyRoundEndFromState, coordinator, readInTimePending],
+    [
+      applyRoundEndFromState,
+      coordinator,
+      readInTimePending,
+      syncScoreTotalsFromPlay,
+    ],
   )
 
   /**
@@ -511,7 +567,10 @@ export function DailyPlayScreen({
               setProvisionalCoins(result.provisionalCoins)
               setRetryBag(null)
               setConnectionError(false)
-              if (result.roundEnded) setTerminal({ kind: 'open', result })
+              if (result.roundEnded) {
+                setTerminal({ kind: 'open', result })
+                noteConfirmedOpenTotals(result)
+              }
             } catch {
               // Keep the exact persisted command for the next bounded retry.
             }
@@ -525,6 +584,7 @@ export function DailyPlayScreen({
                 pendingCash.remainingSecondsAtTap,
               )
               setTerminal({ kind: 'cash', result })
+              noteConfirmedCashTotals(result)
               setConnectionError(false)
               setCashOutError(false)
             } catch {
@@ -564,8 +624,10 @@ export function DailyPlayScreen({
             setProvisionalCoins(result.provisionalCoins)
             setRetryBag(null)
             setConnectionError(false)
-            if (result.roundEnded) setTerminal({ kind: 'open', result })
-            else {
+            if (result.roundEnded) {
+              setTerminal({ kind: 'open', result })
+              noteConfirmedOpenTotals(result)
+            } else {
               state = await coordinator.refresh(challengeDate)
               if (
                 !shouldDiscardStalePlaySync({
@@ -620,6 +682,7 @@ export function DailyPlayScreen({
               return
             }
             setTerminal({ kind: 'cash', result })
+            noteConfirmedCashTotals(result)
             setRetryBag(null)
             setConnectionError(false)
             setCashOutError(false)
@@ -668,6 +731,8 @@ export function DailyPlayScreen({
       applyRoundEndFromState,
       challengeDate,
       coordinator,
+      noteConfirmedCashTotals,
+      noteConfirmedOpenTotals,
       readInTimePending,
       syncFromPlayState,
     ],
@@ -987,7 +1052,10 @@ export function DailyPlayScreen({
         setRetryBag(null)
         setOpenedResults((current) => [...current, result])
         setProvisionalCoins(result.provisionalCoins)
-        if (result.roundEnded) setTerminal({ kind: 'open', result })
+        if (result.roundEnded) {
+          setTerminal({ kind: 'open', result })
+          noteConfirmedOpenTotals(result)
+        }
         if (markOptimisticServerDone(gate)) unlock()
       } catch {
         markOptimisticFailed(gate)
@@ -1007,6 +1075,7 @@ export function DailyPlayScreen({
       active,
       challengeDate,
       coordinator,
+      noteConfirmedOpenTotals,
       opened,
       openedResults.length,
       provisionalCoins,
@@ -1051,6 +1120,7 @@ export function DailyPlayScreen({
         throw new Error('mismatch')
       }
       setTerminal({ kind: 'cash', result })
+      noteConfirmedCashTotals(result)
       setRetryBag(null)
     } catch {
       await reconcileAfterMutationFailure('cash')
@@ -1063,6 +1133,7 @@ export function DailyPlayScreen({
     challengeDate,
     coordinator,
     fx,
+    noteConfirmedCashTotals,
     openedResults.length,
     provisionalCoins,
     reconcileAfterMutationFailure,
@@ -1090,6 +1161,7 @@ export function DailyPlayScreen({
       const nextState = await coordinator.startNext(challengeDate)
       playEpochRef.current += 1
       setPlay(nextState)
+      syncScoreTotalsFromPlay(nextState)
       setOpenedResults([])
       setProvisionalCoins(0)
       setTerminal(null)
@@ -1103,7 +1175,12 @@ export function DailyPlayScreen({
       lockRef.current = false
       setRequestPending(false)
     }
-  }, [canShowNextRound, challengeDate, coordinator])
+  }, [
+    canShowNextRound,
+    challengeDate,
+    coordinator,
+    syncScoreTotalsFromPlay,
+  ])
 
   const soundEnabled = readSoundEnabled()
   const displayedRemaining = terminal
@@ -1120,6 +1197,11 @@ export function DailyPlayScreen({
     timerExpired,
   )
 
+  const displayTotals =
+    scoreTotals.ready && scoreTotals.challengeDate === challengeDate
+      ? scoreTotals
+      : null
+
   if (resultReady && fx === null && !requestPending) {
     return (
       <div
@@ -1129,6 +1211,22 @@ export function DailyPlayScreen({
         <p className="duel-instruction" role="status">
           {withDuelNums(t.dailyChallengeComplete)}
         </p>
+        <div className="daily-play__scores" aria-live="polite">
+          <p className="daily-play__score">
+            <span className="daily-play__score-label">{t.duelTotalCoins}</span>
+            <span className="daily-play__score-value duel-num">
+              {displayTotals ? displayTotals.totalCoins : '\u00a0'}
+            </span>
+          </p>
+          <p className="daily-play__score">
+            <span className="daily-play__score-label">
+              {withDuelNums(t.duelThreeCoinsComplete)}
+            </span>
+            <span className="daily-play__score-value duel-num">
+              {displayTotals ? displayTotals.threeCoinsComplete : '\u00a0'}
+            </span>
+          </p>
+        </div>
         <div className="duel-final-actions daily-play__complete-actions">
           {onShowResult ? (
             <button
@@ -1200,59 +1298,77 @@ export function DailyPlayScreen({
         {' / '}
         <span className="duel-num">{DAILY_CHALLENGE_ROUNDS}</span>
       </p>
+      {displayAttempt ? (
+        <div className="daily-play__board">
+          <BagBoard
+            bagCount={bagCount}
+            hiddenBagIds={hidden}
+            onBagTap={(bagId) => {
+              void tap(bagId)
+            }}
+            interactive={
+              active !== null && !requestPending && !terminal && remaining > 0
+            }
+            boardAriaLabel={t.bagsMeta(bagCount)}
+            bagAriaLabel={t.bagLabel}
+          >
+            {fx?.kind === 'coins' ? (
+              <CoinOpenFx
+                key={fx.runId}
+                bagId={fx.bagId}
+                bagCount={bagCount}
+                coinCount={fx.count}
+                clearsRound={fx.clearsRound}
+                soundEnabled={soundEnabled}
+                presentationGen={fx.presentationGen}
+                onSample={setCoinFxSample}
+                onVisualComplete={fx.clearsRound ? undefined : fxComplete}
+                onComplete={fxComplete}
+              />
+            ) : null}
+            {fx?.kind === 'empty' ? (
+              <EmptyOpenFx
+                key={fx.runId}
+                bagId={fx.bagId}
+                bagCount={bagCount}
+                presentationGen={fx.presentationGen}
+                onVisualComplete={fxComplete}
+                onComplete={fxComplete}
+              />
+            ) : null}
+            {fx?.kind === 'bomb' ? (
+              <BombOpenFx
+                key={fx.runId}
+                bagId={fx.bagId}
+                bagCount={bagCount}
+                hiddenBagIds={hidden}
+                soundEnabled={soundEnabled}
+                presentationGen={fx.presentationGen}
+                onComplete={fxComplete}
+              />
+            ) : null}
+          </BagBoard>
+        </div>
+      ) : null}
       <p className="daily-play__timer" aria-live="polite">
         <span className="duel-num">{displayedRemaining}</span>
       </p>
-      {displayAttempt ? (
-        <BagBoard
-          bagCount={bagCount}
-          hiddenBagIds={hidden}
-          onBagTap={(bagId) => {
-            void tap(bagId)
-          }}
-          interactive={
-            active !== null && !requestPending && !terminal && remaining > 0
-          }
-          boardAriaLabel={t.bagsMeta(bagCount)}
-          bagAriaLabel={t.bagLabel}
-        >
-          {fx?.kind === 'coins' ? (
-            <CoinOpenFx
-              key={fx.runId}
-              bagId={fx.bagId}
-              bagCount={bagCount}
-              coinCount={fx.count}
-              clearsRound={fx.clearsRound}
-              soundEnabled={soundEnabled}
-              presentationGen={fx.presentationGen}
-              onSample={setCoinFxSample}
-              onVisualComplete={fx.clearsRound ? undefined : fxComplete}
-              onComplete={fxComplete}
-            />
-          ) : null}
-          {fx?.kind === 'empty' ? (
-            <EmptyOpenFx
-              key={fx.runId}
-              bagId={fx.bagId}
-              bagCount={bagCount}
-              presentationGen={fx.presentationGen}
-              onVisualComplete={fxComplete}
-              onComplete={fxComplete}
-            />
-          ) : null}
-          {fx?.kind === 'bomb' ? (
-            <BombOpenFx
-              key={fx.runId}
-              bagId={fx.bagId}
-              bagCount={bagCount}
-              hiddenBagIds={hidden}
-              soundEnabled={soundEnabled}
-              presentationGen={fx.presentationGen}
-              onComplete={fxComplete}
-            />
-          ) : null}
-        </BagBoard>
-      ) : null}
+      <div className="daily-play__scores" aria-live="polite">
+        <p className="daily-play__score">
+          <span className="daily-play__score-label">{t.duelTotalCoins}</span>
+          <span className="daily-play__score-value duel-num">
+            {displayTotals ? displayTotals.totalCoins : '\u00a0'}
+          </span>
+        </p>
+        <p className="daily-play__score">
+          <span className="daily-play__score-label">
+            {withDuelNums(t.duelThreeCoinsComplete)}
+          </span>
+          <span className="daily-play__score-value duel-num">
+            {displayTotals ? displayTotals.threeCoinsComplete : '\u00a0'}
+          </span>
+        </p>
+      </div>
       <div className="field-action" aria-live="polite">
         {showCashOut ? (
           <button
@@ -1278,13 +1394,6 @@ export function DailyPlayScreen({
           </button>
         ) : null}
       </div>
-      <p
-        className="daily-play__end daily-play__end-slot"
-        role={terminal && fx === null ? 'status' : undefined}
-        aria-hidden={terminal && fx === null ? undefined : true}
-      >
-        {terminal && fx === null ? endLabel(terminal, t) : '\u00a0'}
-      </p>
       {connectionError || cashOutError ? (
         <div
           className="duel-play-error stable-message-slot stable-message-slot--play-error"

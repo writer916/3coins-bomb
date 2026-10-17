@@ -1950,6 +1950,107 @@
   scrollbar-gutter: stable;
 }
 
+/* Title ↔ ROUND breathing room (DAILY play only). */
+.app--daily-play .field-header {
+  margin-bottom: clamp(0.35rem, 1.4vh, 0.7rem);
+}
+
+.app--daily-play .daily-play {
+  justify-content: flex-start;
+  gap: clamp(0.4rem, 1.35vh, 0.75rem);
+  padding-bottom: max(0.55rem, env(safe-area-inset-bottom, 0px));
+}
+
+.app--daily-play .daily-play > .duel-round-index {
+  margin-top: clamp(0.15rem, 0.8vh, 0.4rem);
+  margin-bottom: clamp(0.1rem, 0.6vh, 0.3rem);
+}
+
+/* Shift bag field slightly upward to free space for timer + cumulative scores. */
+.app--daily-play .daily-play__board {
+  flex: 0 1 auto;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  margin-top: clamp(-0.55rem, -1.8vh, -0.15rem);
+  margin-bottom: clamp(0.05rem, 0.5vh, 0.25rem);
+}
+
+.app--daily-play .daily-play__board .bag-board {
+  /* Keep bag asset size; only cap board height a touch on short viewports. */
+  max-height: min(56vh, 32rem);
+}
+
+.app--daily-play .daily-play__timer {
+  flex: 0 0 auto;
+  margin: 0;
+  font-size: clamp(1.35rem, 5.2vw, 1.75rem);
+  line-height: 1.1;
+  letter-spacing: 0.04em;
+  color: #f5ebd8;
+  text-align: center;
+}
+
+.app--daily-play .daily-play__scores {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: flex-start;
+  justify-content: center;
+  gap: clamp(1.1rem, 5vw, 2rem);
+  width: 100%;
+  max-width: 22rem;
+  margin: 0 auto;
+}
+
+.app--daily-play .daily-play__score {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.app--daily-play .daily-play__score-label {
+  font-family: Georgia, 'Times New Roman', Times, serif;
+  font-size: clamp(0.68rem, 2.5vw, 0.78rem);
+  letter-spacing: 0.05em;
+  color: #c4b49a;
+  white-space: nowrap;
+}
+
+.app--daily-play .daily-play__score-value {
+  font-size: clamp(1.05rem, 4vw, 1.25rem);
+  line-height: 1.1;
+  color: #f5ebd8;
+  min-height: 1.1em;
+}
+
+.app--daily-play .daily-play > .field-action {
+  margin-top: clamp(0.15rem, 0.8vh, 0.4rem);
+}
+
+.daily-result__pending {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.85rem;
+  width: min(100%, 30rem);
+  margin: 0 auto;
+  padding-bottom: max(0.8rem, env(safe-area-inset-bottom, 0px));
+}
+
+.daily-result__pending-copy {
+  margin: 0;
+  color: #f2e6d0;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(1rem, 4vw, 1.25rem);
+  letter-spacing: 0.05em;
+  text-align: center;
+}
+
 .daily-play__end-slot {
   flex: 0 0 auto;
   min-height: 1.4em;

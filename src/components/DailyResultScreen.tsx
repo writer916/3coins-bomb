@@ -195,11 +195,50 @@ export function DailyResultView({
   readonly onRetry?: () => void
   readonly retryBusy?: boolean
 }) {
-  if (phase.kind === 'loading_self') {
+  if (phase.kind === 'loading_self' || phase.kind === 'ranking_loading') {
     return (
-      <div className="group-result-detail-status" role="status">
+      <div
+        className="group-result-detail-status"
+        role="status"
+        data-daily-result-phase={phase.kind}
+      >
         {t.groupResultLoading}
       </div>
+    )
+  }
+
+  if (phase.kind === 'ranking_pending') {
+    return (
+      <section
+        className="group-result-detail-status daily-result__pending"
+        role="status"
+        data-daily-result-phase="ranking_pending"
+      >
+        <p className="daily-result__pending-copy">
+          {withDuelNums(t.dailyRankingUpdatesEvery10Minutes)}
+        </p>
+        <div className="daily-result__actions">
+          {onRetry != null ? (
+            <button
+              type="button"
+              className="duel-btn"
+              disabled={retryBusy}
+              onClick={onRetry}
+              data-daily-result-retry=""
+            >
+              {t.groupResultRetry}
+            </button>
+          ) : null}
+          <button
+            type="button"
+            className="duel-btn duel-btn--quiet-top"
+            disabled={retryBusy}
+            onClick={onGoTop}
+          >
+            {t.duelReturnToTop}
+          </button>
+        </div>
+      </section>
     )
   }
 
@@ -244,10 +283,7 @@ export function DailyResultView({
         : null
   const statusPresentation = dailyResultStatusPresentation(phase)
   const resultTitle = t[statusPresentation.titleKey]
-  const showRetry =
-    model.showRankingRetry &&
-    onRetry != null &&
-    phase.kind !== 'ranking_pending'
+  const showRetry = model.showRankingRetry && onRetry != null
 
   return (
     <section

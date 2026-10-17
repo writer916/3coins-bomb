@@ -220,6 +220,8 @@ const timed = await getDailyPlayState({
 })
 assert.equal(timed?.activeAttempt, null)
 assert.equal(timed?.completedRounds, 1)
+assert.equal(timed?.totalCoins, 0)
+assert.equal(timed?.threeCoinsComplete, 0)
 assert.equal(timed?.nextRoundNumber, 2)
 assert.equal(timed?.completedAt, null)
 

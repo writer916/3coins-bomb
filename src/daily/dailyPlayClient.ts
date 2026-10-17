@@ -92,6 +92,9 @@ export interface DailyPlayState {
   readonly serverNow: string
   readonly challengeEndsAt: string
   readonly completedRounds: number
+  /** Confirmed ROUNDs only — mirrors GET play aggregates. */
+  readonly totalCoins: number
+  readonly threeCoinsComplete: number
   readonly nextRoundNumber: number | null
   readonly activeAttempt: DailyPlayActiveAttempt | null
   readonly latestTerminalAttempt: DailyPlayTerminalAttempt | null
@@ -224,6 +227,8 @@ export function parseDailyPlayState(
     'serverNow',
     'challengeEndsAt',
     'completedRounds',
+    'totalCoins',
+    'threeCoinsComplete',
     'nextRoundNumber',
     'activeAttempt',
     'latestTerminalAttempt',
@@ -234,6 +239,12 @@ export function parseDailyPlayState(
   if (challengeDate !== expectedDate) return fail()
   const completedRounds = integer(
     state.completedRounds,
+    0,
+    DAILY_CHALLENGE_ROUNDS,
+  )
+  const totalCoins = integer(state.totalCoins, 0, DAILY_CHALLENGE_ROUNDS * 3)
+  const threeCoinsComplete = integer(
+    state.threeCoinsComplete,
     0,
     DAILY_CHALLENGE_ROUNDS,
   )
@@ -385,11 +396,19 @@ export function parseDailyPlayState(
   ) {
     return fail()
   }
+  if (
+    threeCoinsComplete > completedRounds ||
+    totalCoins > completedRounds * 3
+  ) {
+    return fail()
+  }
   return {
     challengeDate,
     serverNow: iso(state.serverNow),
     challengeEndsAt: iso(state.challengeEndsAt),
     completedRounds,
+    totalCoins,
+    threeCoinsComplete,
     nextRoundNumber,
     activeAttempt,
     latestTerminalAttempt,

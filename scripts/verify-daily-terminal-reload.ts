@@ -14,6 +14,9 @@ const iso = '2099-09-10T12:00:20.000Z'
 function dto(endReason: DailyRoundEndReason) {
   const capturedCoins =
     endReason === 'cleared' ? 3 : endReason === 'cashed_out' ? 2 : 0
+  // Aggregates for the single completed ROUND must match its terminal result.
+  const totalCoins = capturedCoins
+  const threeCoinsComplete = endReason === 'cleared' ? 1 : 0
   const elapsedSeconds = endReason === 'timed_out' ? 60 : 20
   const opens =
     endReason === 'timed_out'
@@ -33,6 +36,8 @@ function dto(endReason: DailyRoundEndReason) {
     serverNow: iso,
     challengeEndsAt: '2099-09-11T00:00:00.000Z',
     completedRounds: 1,
+    totalCoins,
+    threeCoinsComplete,
     nextRoundNumber: 2,
     activeAttempt: null,
     latestTerminalAttempt: {
@@ -57,10 +62,16 @@ for (const reason of [
   'cleared',
   'timed_out',
 ] as const) {
-  const state = parseDailyPlayState(dto(reason), date)
+  const body = dto(reason)
+  const state = parseDailyPlayState(body, date)
   assert.equal(state.latestTerminalAttempt?.endReason, reason)
   assert.equal(state.latestTerminalAttempt?.roundNumber, 1)
   assert.equal(state.activeAttempt, null)
+  assert.equal(state.completedRounds, 1)
+  assert.equal(state.totalCoins, body.totalCoins)
+  assert.equal(state.threeCoinsComplete, body.threeCoinsComplete)
+  assert.equal(state.totalCoins, state.latestTerminalAttempt?.capturedCoins)
+  assert.equal(state.threeCoinsComplete, reason === 'cleared' ? 1 : 0)
 }
 
 let starts = 0
