@@ -109,13 +109,46 @@ for (const [width, height] of viewports) {
         const shell = document.querySelector(shellSelector)
         const roundList = document.querySelector(roundsSelector)
         const back = document.querySelector(backSelector)
+        const rect = element => {
+          const value = element.getBoundingClientRect()
+          return {
+            top: value.top,
+            bottom: value.bottom,
+            height: value.height,
+            width: value.width,
+            center: value.top + value.height / 2,
+          }
+        }
+        const duelInternals = '${mode}' === 'duel' ? (() => {
+          const you = shell.querySelector('[data-duel-match-detail-side="you"]')
+          const opponent = shell.querySelector('[data-duel-match-detail-side="opponent"]')
+          const firstRound = side => side.querySelector('[data-duel-match-detail-round="1"]')
+          const collectSide = side => {
+            const round = firstRound(side)
+            const title = side.querySelector('.duel-match-detail__side-title')
+            return {
+              title: rect(title),
+              titleClipped: title.scrollHeight > title.clientHeight + 1,
+              roundHead: rect(round.querySelector('.match-detail-round__head')),
+              stats: rect(round.querySelector('.match-detail-round__stats')),
+              board: rect(round.querySelector('.duel-match-detail-board')),
+            }
+          }
+          return {
+            you: collectSide(you),
+            separator: rect(opponent),
+            opponent: collectSide(opponent),
+          }
+        })() : null
         const after = {
           height: roundList.getBoundingClientRect().height,
           scrollHeight: roundList.scrollHeight,
           backTop: back.getBoundingClientRect().top,
           backBottom: back.getBoundingClientRect().bottom,
+          back: rect(back),
           shellTop: shell.getBoundingClientRect().top,
           shellBottom: shell.getBoundingClientRect().bottom,
+          duelInternals,
         }
         const brand = document.createElement('h1')
         brand.className = 'brand-title duel-final-brand'
@@ -165,9 +198,65 @@ for (const [width, height] of viewports) {
     assert.ok(ja && en)
     assert.ok(Math.abs(ja.height - en.height) <= 1, `${mode} ${width}x${height}: locale height drift`)
     assert.ok(Math.abs(ja.backTop - en.backTop) <= 1, `${mode} ${width}x${height}: locale button drift`)
+    if (mode === 'duel') {
+      const elementPaths = [
+        ['you', 'title'],
+        ['you', 'roundHead'],
+        ['you', 'stats'],
+        ['you', 'board'],
+        ['opponent', 'title'],
+        ['opponent', 'roundHead'],
+        ['opponent', 'stats'],
+        ['opponent', 'board'],
+      ]
+      for (const [side, element] of elementPaths) {
+        for (const metric of ['top', 'bottom', 'height', 'width', 'center']) {
+          const delta = Math.abs(
+            ja.duelInternals[side][element][metric] - en.duelInternals[side][element][metric],
+          )
+          assert.ok(delta <= 0.01, `duel ${width}x${height}: ${side}.${element}.${metric} drift ${delta}px`)
+        }
+      }
+      for (const metric of ['top', 'bottom', 'height', 'center']) {
+        const separatorDelta = Math.abs(
+          ja.duelInternals.separator[metric] - en.duelInternals.separator[metric],
+        )
+        const backDelta = Math.abs(ja.back[metric] - en.back[metric])
+        assert.ok(separatorDelta <= 0.01, `duel ${width}x${height}: separator.${metric} drift ${separatorDelta}px`)
+        assert.ok(backDelta <= 0.01, `duel ${width}x${height}: back.${metric} drift ${backDelta}px`)
+      }
+      assert.equal(ja.duelInternals.you.titleClipped, false)
+      assert.equal(ja.duelInternals.opponent.titleClipped, false)
+      assert.equal(en.duelInternals.you.titleClipped, false)
+      assert.equal(en.duelInternals.opponent.titleClipped, false)
+      for (const localeResult of [ja, en]) {
+        for (const side of ['you', 'opponent']) {
+          const measured = localeResult.duelInternals[side]
+          assert.ok(measured.title.bottom <= measured.roundHead.top)
+          assert.ok(measured.roundHead.bottom <= measured.stats.top)
+          assert.ok(measured.stats.bottom <= measured.board.top)
+        }
+      }
+    }
   }
 }
 
-console.log(JSON.stringify(report, null, 2))
+const duelCoordinateSummary = report
+  .filter((entry) => entry.mode === 'duel')
+  .map((entry) => ({
+    viewport: entry.viewport,
+    locale: entry.locale,
+    youTitle: entry.duelInternals.you.title,
+    youRound: entry.duelInternals.you.roundHead,
+    youStats: entry.duelInternals.you.stats,
+    youBoard: entry.duelInternals.you.board,
+    separator: entry.duelInternals.separator,
+    opponentTitle: entry.duelInternals.opponent.title,
+    opponentRound: entry.duelInternals.opponent.roundHead,
+    opponentStats: entry.duelInternals.opponent.stats,
+    opponentBoard: entry.duelInternals.opponent.board,
+    back: entry.back,
+  }))
+console.log(JSON.stringify(duelCoordinateSummary, null, 2))
 console.log('verify:result-detail-scroll-browser OK')
 socket.close()

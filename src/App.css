@@ -1691,8 +1691,13 @@
 }
 
 .daily-result__title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   max-width: 100%;
+  min-height: 1.2em;
   font-size: clamp(1.05rem, 5vw, 1.8rem);
+  line-height: 1.2;
   white-space: nowrap;
 }
 
@@ -1707,6 +1712,9 @@
 }
 
 .daily-result__provisional-note {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex: 0 0 auto;
   margin: 0;
   color: #c4b49a;
@@ -1716,6 +1724,18 @@
   line-height: 1.35;
   text-align: center;
   overflow-wrap: anywhere;
+}
+
+.app--daily-result .group-result-detail-status {
+  justify-content: center;
+  min-height: 1.25em;
+  line-height: 1.25;
+}
+
+@media (max-width: 340px) {
+  .daily-result__provisional-note {
+    min-height: 2.7em;
+  }
 }
 
 .group-result__table {
@@ -2345,10 +2365,16 @@
 }
 
 .duel-match-detail__side-title {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(1.15rem * 1.35);
   margin: 0;
   font-family: Georgia, 'Times New Roman', serif;
   font-size: clamp(0.95rem, 3.6vw, 1.15rem);
   font-weight: 700;
+  line-height: 1.35;
   letter-spacing: 0.06em;
   color: #c4a574;
   text-align: center;
@@ -2389,6 +2415,11 @@
   box-sizing: border-box;
   text-align: center;
   color: #e8dcc8;
+}
+
+.duel-match-detail-status {
+  min-height: calc((1em * 1.35) + 2.5rem);
+  line-height: 1.35;
 }
 
 .duel-match-detail-error__copy {
@@ -2616,6 +2647,12 @@
   line-height: 1.55;
   letter-spacing: 0.01em;
   text-align: left;
+}
+
+@media (max-width: 340px) {
+  .duel-flow--invite .duel-invite-page .duel-invite-note {
+    min-height: calc(0.86rem * 1.55 * 4);
+  }
 }
 
 .duel-invite-url-bar {
