@@ -74,7 +74,6 @@ import {
 import { getStrings, type LocaleId } from './i18n'
 import { isDuelMatchRouteUrl } from './duel/duelInvitation'
 import { isGroupRouteUrl } from './group/groupInvitation'
-import { BrandTitle } from './ui/BrandTitle'
 import { brandTitleNodes } from './ui/brandTitleNodes'
 import { withDuelNums } from './ui/withDuelNums'
 import './App.css'
@@ -609,13 +608,30 @@ function App() {
   if (screen === 'top') {
     return (
       <main className="app app--top">
-        <div className="field-header">
-          {topControls}
-          <header className="app-header">
-            <BrandTitle title={t.brandTitle} />
-          </header>
+        <div className="home-stage">
+          <div className="home-bg" aria-hidden="true">
+            <picture>
+              <source
+                media="(max-width: 430px)"
+                type="image/webp"
+                srcSet="/home/3cb-home-background-small.webp"
+              />
+              <img
+                className="home-bg__img"
+                src="/home/3cb-home-background.webp"
+                width={1024}
+                height={1536}
+                alt=""
+                decoding="async"
+                fetchPriority="high"
+              />
+            </picture>
+          </div>
+          <div className="home-topbar-slot">{topControls}</div>
+          <h1 className="home-heading-accessible">{t.brandTitle}</h1>
+          <div className="home-art-spacer" aria-hidden="true" />
+          <ModeSelect t={t} onSelect={handleModeSelect} />
         </div>
-        <ModeSelect t={t} onSelect={handleModeSelect} />
       </main>
     )
   }
