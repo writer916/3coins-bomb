@@ -2280,10 +2280,9 @@
 .duel-final-actions > .duel-final-home-install {
   /* Override quiet-top's margin-top:auto — sit under RESULT body, not viewport foot. */
   margin-top: 0;
-  width: 100%;
+  width: min(100%, 8.5rem);
   min-width: 0;
-  max-width: 100%;
-  font-size: clamp(0.72rem, 3.2vw, 0.84rem);
+  max-width: 8.5rem;
 }
 
 .duel-final-view-details {

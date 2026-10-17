@@ -113,7 +113,7 @@ assert.doesNotMatch(completionShell, /duelAddToHomeScreen|duel-final-home-instal
 assert.doesNotMatch(completionShell, /duelViewDetails|duel-final-view-details/)
 assert.match(
   appCss,
-  /\.duel-final-actions\s*>\s*\.duel-final-view-details[\s\S]*?\.duel-final-actions\s*>\s*\.duel-final-home-install\s*{[^}]*width:\s*100%;[^}]*min-width:\s*0;[^}]*max-width:\s*100%;[^}]*font-size:\s*clamp\(0\.72rem,\s*3\.2vw,\s*0\.84rem\)/s,
+  /\.duel-final-actions\s*>\s*\.duel-final-view-details[\s\S]*?\.duel-final-actions\s*>\s*\.duel-final-home-install\s*{[^}]*width:\s*min\(100%,\s*8\.5rem\);[^}]*min-width:\s*0;[^}]*max-width:\s*8\.5rem/s,
 )
 
 console.log('verify-duel-result-locale-client: all checks passed')
