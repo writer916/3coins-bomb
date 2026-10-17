@@ -1911,14 +1911,38 @@
 }
 
 .daily-play__complete-actions {
-  height: auto;
   flex-direction: column;
   gap: 0.55rem;
-  padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
+  margin-top: 0;
 }
 
-.daily-play__complete-actions .dev-btn {
-  width: min(100%, 12rem);
+.daily-play__complete-actions .duel-btn {
+  width: 100%;
+  max-width: 100%;
+  margin-top: 0;
+}
+
+/* DAILY PLAY owns one fixed viewport so ROUND-end DOM changes cannot toggle
+   the document scrollbar. Any exceptional short viewport scroll stays local. */
+.app--daily-play {
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+
+.daily-play__end-slot {
+  flex: 0 0 auto;
+  min-height: 1.4em;
+  margin: 0;
+}
+
+.daily-play--complete {
+  justify-content: center;
+  gap: clamp(1.35rem, 4vh, 2.25rem);
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
 }
 
 .group-result__details-slot {

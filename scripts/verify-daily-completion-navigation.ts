@@ -21,6 +21,10 @@ const resultAt = play.indexOf('onClick={showResult}', actionsAt)
 const topAt = play.indexOf('onClick={onGoTop}', actionsAt)
 assert.ok(resultAt > actionsAt)
 assert.ok(topAt > resultAt)
+assert.match(play, /\{t\.dailyViewResult\}/)
+assert.doesNotMatch(play, /\{t\.groupResultTitle\}/)
+assert.match(play, /className="duel-btn duel-btn--primary"/)
+assert.match(play, /className="duel-btn duel-btn--quiet-top"/)
 assert.match(play, /resultReady && fx === null && !requestPending/)
 assert.match(play, /if \([\s\S]*?!resultReady[\s\S]*?lockRef\.current[\s\S]*?\) \{\s*return/)
 assert.match(app, /onShowResult=\{\(\{ challengeDate \}\) => \{\s*setDailyPhase\(\{ kind: 'result', challengeDate \}\)/)
@@ -40,8 +44,11 @@ assert.match(result, /onClick=\{onGoTop\}/)
 assert.match(app, /if \(state\.completedAt\) \{[\s\S]*?kind: 'result'/)
 assert.match(app, /DailyPriorFinalScreen/)
 
-// Two vertical buttons remain reachable above the phone safe area.
+// Completion replaces the play board after FX, and the two vertical buttons
+// remain reachable inside DAILY's fixed viewport shell.
 assert.match(css, /\.daily-play__complete-actions \{[\s\S]*?flex-direction: column/)
-assert.match(css, /\.daily-play__complete-actions \{[\s\S]*?safe-area-inset-bottom/)
+assert.match(css, /\.app--daily-play \{[\s\S]*?height: 100dvh;[\s\S]*?scrollbar-gutter: stable/)
+assert.match(css, /\.daily-play--complete \{[\s\S]*?safe-area-inset-bottom/)
+assert.match(css, /\.daily-play__end-slot \{[\s\S]*?min-height:/)
 
 console.log('daily completion navigation verification: PASS')

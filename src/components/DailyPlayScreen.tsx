@@ -1120,19 +1120,32 @@ export function DailyPlayScreen({
     timerExpired,
   )
 
-  if (!active && !terminal && play.completedAt) {
+  if (resultReady && fx === null && !requestPending) {
     return (
-      <div className="duel-play daily-play" data-daily-play-complete="">
+      <div
+        className="duel-play daily-play daily-play--complete"
+        data-daily-play-complete=""
+      >
         <p className="duel-instruction" role="status">
           {withDuelNums(t.dailyChallengeComplete)}
         </p>
-        <div className="field-action daily-play__complete-actions">
+        <div className="duel-final-actions daily-play__complete-actions">
           {onShowResult ? (
-            <button type="button" className="dev-btn" onClick={showResult}>
-              {t.groupResultTitle}
+            <button
+              type="button"
+              className="duel-btn duel-btn--primary"
+              data-duel-metric="primary"
+              onClick={showResult}
+            >
+              {t.dailyViewResult}
             </button>
           ) : null}
-          <button type="button" className="dev-btn" onClick={onGoTop}>
+          <button
+            type="button"
+            className="duel-btn duel-btn--quiet-top"
+            data-duel-metric="secondary"
+            onClick={onGoTop}
+          >
             {t.duelReturnToTop}
           </button>
         </div>
@@ -1263,28 +1276,13 @@ export function DailyPlayScreen({
           </button>
         ) : null}
       </div>
-      {terminal && fx === null ? (
-        <p className="daily-play__end" role="status">
-          {endLabel(terminal, t)}
-        </p>
-      ) : null}
-      {completed && fx === null ? (
-        <p className="duel-instruction" role="status">
-          {withDuelNums(t.dailyChallengeComplete)}
-        </p>
-      ) : null}
-      {resultReady && fx === null && !requestPending ? (
-        <div className="field-action daily-play__complete-actions">
-          {onShowResult ? (
-            <button type="button" className="dev-btn" onClick={showResult}>
-              {t.groupResultTitle}
-            </button>
-          ) : null}
-          <button type="button" className="dev-btn" onClick={onGoTop}>
-            {t.duelReturnToTop}
-          </button>
-        </div>
-      ) : null}
+      <p
+        className="daily-play__end daily-play__end-slot"
+        role={terminal && fx === null ? 'status' : undefined}
+        aria-hidden={terminal && fx === null ? undefined : true}
+      >
+        {terminal && fx === null ? endLabel(terminal, t) : '\u00a0'}
+      </p>
       {connectionError || cashOutError ? (
         <div
           className="duel-play-error stable-message-slot stable-message-slot--play-error"
