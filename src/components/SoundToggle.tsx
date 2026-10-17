@@ -15,7 +15,8 @@ export function SoundToggle({
   labelOn,
   labelOff,
 }: SoundToggleProps) {
-  const label = enabled ? labelOn : labelOff
+  // Labels describe the next action (turn on while off / turn off while on).
+  const label = enabled ? labelOff : labelOn
 
   return (
     <button

@@ -255,11 +255,15 @@ export function GroupEntryShell({
                 disabled={pending}
                 placeholder={t.groupNicknamePlaceholder}
                 aria-label={t.groupNicknameLabel}
+                aria-describedby="group-nickname-hint"
               />
+              <p id="group-nickname-hint" className="group-entry-hint">
+                {t.groupNicknameHint}
+              </p>
             </div>
             {error ? (
               <p className="duel-lock-error" role="alert">
-                {error === 'nickname' ? t.groupNicknameError : t.groupPlayError}
+                {error === 'nickname' ? t.groupNicknameError : t.groupJoinError}
               </p>
             ) : null}
           </div>

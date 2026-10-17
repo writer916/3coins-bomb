@@ -275,10 +275,9 @@ assert.doesNotMatch(
   `${screen}${detailScreen}${waiting}${entryShell}`,
   /console\.|participantId|token/,
 )
-assert.equal(ja.groupViewDetails, '詳細')
+assert.equal(ja.groupViewDetails, '詳細を見る')
 assert.equal(en.groupViewDetails, 'VIEW DETAILS')
-assert.doesNotMatch(ja.groupViewDetails, /詳細をみる/)
-assert.equal(ja.groupBackToResult, '結果に戻る')
+assert.equal(ja.groupBackToResult, '結果へ戻る')
 assert.equal(en.groupBackToResult, 'BACK TO RESULT')
 assert.equal(ja.groupRoundInterrupted, '離脱')
 console.log('verify:group-result-client OK')

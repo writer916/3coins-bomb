@@ -763,6 +763,8 @@ function App() {
             bagCount={round.hand.bagCount}
             hiddenBagIds={hiddenBagIds}
             onBagTap={canTapBags ? handleBagTap : undefined}
+            boardAriaLabel={t.bagsMeta(round.hand.bagCount)}
+            bagAriaLabel={t.bagLabel}
           >
             {revealPlan ? <RevealBoard plan={revealPlan} /> : null}
             {coinFx ? (

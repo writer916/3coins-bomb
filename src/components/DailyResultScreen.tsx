@@ -185,11 +185,15 @@ export function DailyResultView({
   t,
   onGoTop,
   onOpenSelfDetails,
+  onRetry,
+  retryBusy = false,
 }: {
   readonly phase: DailyResultScreenPhase
   readonly t: AppStrings
   readonly onGoTop: () => void
   readonly onOpenSelfDetails?: () => void
+  readonly onRetry?: () => void
+  readonly retryBusy?: boolean
 }) {
   if (phase.kind === 'loading_self') {
     return (
@@ -200,15 +204,28 @@ export function DailyResultView({
   }
 
   if (phase.kind === 'self_error') {
+    const canRetry = phase.code !== 'unauthorized' && onRetry != null
     return (
       <section className="group-result-detail-error" role="alert">
         <p className="group-result-detail-error__copy stable-message-slot stable-message-slot--detail-error">
           {t.groupResultError}
         </p>
         <div className="group-result-detail-error__actions">
+          {canRetry ? (
+            <button
+              type="button"
+              className="duel-btn"
+              disabled={retryBusy}
+              onClick={onRetry}
+              data-daily-result-retry=""
+            >
+              {t.groupResultRetry}
+            </button>
+          ) : null}
           <button
             type="button"
             className="duel-btn duel-btn--quiet-top"
+            disabled={retryBusy}
             onClick={onGoTop}
           >
             {t.duelReturnToTop}
@@ -227,6 +244,10 @@ export function DailyResultView({
         : null
   const statusPresentation = dailyResultStatusPresentation(phase)
   const resultTitle = t[statusPresentation.titleKey]
+  const showRetry =
+    model.showRankingRetry &&
+    onRetry != null &&
+    phase.kind !== 'ranking_pending'
 
   return (
     <section
@@ -257,9 +278,21 @@ export function DailyResultView({
         onOpenSelfDetails={onOpenSelfDetails}
       />
       <div className="daily-result__actions">
+        {showRetry ? (
+          <button
+            type="button"
+            className="duel-btn"
+            disabled={retryBusy}
+            onClick={onRetry}
+            data-daily-result-retry=""
+          >
+            {t.groupResultRetry}
+          </button>
+        ) : null}
         <button
           type="button"
           className="duel-btn duel-btn--quiet-top group-result__top"
+          disabled={retryBusy}
           onClick={onGoTop}
         >
           {t.duelReturnToTop}
@@ -327,11 +360,14 @@ export function DailyResultScreen({
     () => initialPhase ?? { kind: 'loading_self' },
   )
   const [showDetail, setShowDetail] = useState(false)
+  const [loadGeneration, setLoadGeneration] = useState(0)
+  const [retryBusy, setRetryBusy] = useState(false)
   const fetcher = fetchImpl ?? fetch
   const skipNetwork = initialPhase !== undefined
   const nowMsRef = useRef(nowMsProp)
   const phaseRef = useRef(phase)
   const rankingInFlightRef = useRef(false)
+  const selfRetryInFlightRef = useRef(false)
   const lastAttemptMsRef = useRef<number | null>(null)
   const appliedAsOfMsRef = useRef<number | null>(
     initialPhase?.kind === 'ready' ? rankingAsOfMs(initialPhase.ranking) : null,
@@ -421,41 +457,171 @@ export function DailyResultScreen({
     }
 
     void (async () => {
-      const token = readToken(expectedDate, storage)
-      if (!token) {
-        apply({ kind: 'self_error', code: 'unauthorized' })
-        stopAutoRef.current = true
-        return
-      }
-      // Initial phase is already loading_self — do not setState sync here.
       try {
-        const self = await fetchDailySelfResult(expectedDate, token, fetcher)
-        if (cancelled) return
-        if (self.challengeDate !== expectedDate) {
+        const token = readToken(expectedDate, storage)
+        if (!token) {
+          apply({ kind: 'self_error', code: 'unauthorized' })
+          stopAutoRef.current = true
+          return
+        }
+        // Initial phase is already loading_self — do not setState sync here.
+        try {
+          const self = await fetchDailySelfResult(expectedDate, token, fetcher)
+          if (cancelled) return
+          if (self.challengeDate !== expectedDate) {
+            apply({ kind: 'self_error', code: 'error' })
+            return
+          }
+          // Show self scores immediately; 10-min copy only after ranking 404.
+          apply({ kind: 'ranking_loading', self })
+          await loadRankingForSelf(self)
+        } catch (error: unknown) {
+          if (cancelled) return
+          if (error instanceof DailyRankingClientError) {
+            apply({
+              kind: 'self_error',
+              code: error.code === 'UNAUTHORIZED' ? 'unauthorized' : 'error',
+            })
+            if (error.code === 'UNAUTHORIZED') stopAutoRef.current = true
+            return
+          }
           apply({ kind: 'self_error', code: 'error' })
-          return
         }
-        // Show self scores immediately; 10-min copy only after ranking 404.
-        apply({ kind: 'ranking_loading', self })
-        await loadRankingForSelf(self)
-      } catch (error: unknown) {
-        if (cancelled) return
-        if (error instanceof DailyRankingClientError) {
-          apply({
-            kind: 'self_error',
-            code: error.code === 'UNAUTHORIZED' ? 'unauthorized' : 'error',
-          })
-          if (error.code === 'UNAUTHORIZED') stopAutoRef.current = true
-          return
+      } finally {
+        if (!cancelled) {
+          selfRetryInFlightRef.current = false
+          setRetryBusy(false)
         }
-        apply({ kind: 'self_error', code: 'error' })
       }
     })()
 
     return () => {
       cancelled = true
     }
-  }, [challengeDate, fetcher, readNow, skipNetwork, storage])
+  }, [challengeDate, fetcher, loadGeneration, readNow, skipNetwork, storage])
+
+  const handleRetry = useCallback(() => {
+    if (skipNetwork || selfRetryInFlightRef.current || rankingInFlightRef.current) {
+      return
+    }
+    const current = phaseRef.current
+    if (current.kind === 'self_error' && current.code !== 'unauthorized') {
+      selfRetryInFlightRef.current = true
+      setRetryBusy(true)
+      setPhase({ kind: 'loading_self' })
+      stopAutoRef.current = false
+      setLoadGeneration((value) => value + 1)
+      return
+    }
+    if (
+      current.kind === 'ranking_error' &&
+      current.code !== 'unauthorized'
+    ) {
+      const self = current.self
+      const token = readToken(challengeDate, storage)
+      if (!token) {
+        setPhase({ kind: 'ranking_error', self, code: 'unauthorized' })
+        stopAutoRef.current = true
+        return
+      }
+      rankingInFlightRef.current = true
+      setRetryBusy(true)
+      setPhase({ kind: 'ranking_loading', self })
+      void (async () => {
+        try {
+          const ranking = await fetchDailyRanking(
+            challengeDate,
+            token,
+            fetcher,
+            'immediate',
+          )
+          if (ranking.challengeDate !== challengeDate) {
+            setPhase({ kind: 'ranking_error', self, code: 'error' })
+            return
+          }
+          if (ranking.self.participantId !== self.participantId) {
+            setPhase({ kind: 'ranking_error', self, code: 'error' })
+            return
+          }
+          appliedAsOfMsRef.current = rankingAsOfMs(ranking)
+          appliedStatusRef.current = ranking.status
+          if (ranking.status === 'final') stopAutoRef.current = true
+          setPhase({ kind: 'ready', self, ranking })
+        } catch (error: unknown) {
+          if (error instanceof DailyRankingClientError) {
+            const classified = classifyDailyRankingLoadFailure(error.code)
+            if (classified === 'pending') {
+              setPhase({ kind: 'ranking_pending', self })
+              return
+            }
+            if (classified === 'unauthorized') {
+              stopAutoRef.current = true
+              setPhase({ kind: 'ranking_error', self, code: 'unauthorized' })
+              return
+            }
+          }
+          setPhase({ kind: 'ranking_error', self, code: 'error' })
+        } finally {
+          rankingInFlightRef.current = false
+          setRetryBusy(false)
+        }
+      })()
+      return
+    }
+    if (current.kind === 'ready' && current.refreshError) {
+      const self = current.self
+      const token = readToken(challengeDate, storage)
+      if (!token) {
+        setPhase({ kind: 'ranking_error', self, code: 'unauthorized' })
+        stopAutoRef.current = true
+        return
+      }
+      rankingInFlightRef.current = true
+      setRetryBusy(true)
+      void (async () => {
+        try {
+          const ranking = await fetchDailyRanking(
+            challengeDate,
+            token,
+            fetcher,
+            'immediate',
+          )
+          if (ranking.challengeDate !== challengeDate) {
+            setPhase({
+              kind: 'ready',
+              self: current.self,
+              ranking: current.ranking,
+              refreshError: true,
+            })
+            return
+          }
+          if (ranking.self.participantId !== self.participantId) {
+            setPhase({
+              kind: 'ready',
+              self: current.self,
+              ranking: current.ranking,
+              refreshError: true,
+            })
+            return
+          }
+          appliedAsOfMsRef.current = rankingAsOfMs(ranking)
+          appliedStatusRef.current = ranking.status
+          if (ranking.status === 'final') stopAutoRef.current = true
+          setPhase({ kind: 'ready', self, ranking })
+        } catch {
+          setPhase({
+            kind: 'ready',
+            self: current.self,
+            ranking: current.ranking,
+            refreshError: true,
+          })
+        } finally {
+          rankingInFlightRef.current = false
+          setRetryBusy(false)
+        }
+      })()
+    }
+  }, [challengeDate, fetcher, skipNetwork, storage])
 
   /**
    * Quiet ranking-only refresh on UTC boundaries / resume / limited stale retry.
@@ -680,6 +846,8 @@ export function DailyResultScreen({
       phase={phase}
       t={t}
       onGoTop={onGoTop}
+      onRetry={skipNetwork ? undefined : handleRetry}
+      retryBusy={retryBusy}
       onOpenSelfDetails={
         self && self.rounds.length === 20
           ? () => setShowDetail(true)

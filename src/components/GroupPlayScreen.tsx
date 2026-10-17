@@ -191,7 +191,14 @@ export function GroupPlayScreen({ initialReady, coordinator, t, onResult }: { in
   }
   return <div className="duel-play">
     <p className="duel-round-index">{t.groupRoundLabel} <span className="duel-num">{ready.currentPlacement.roundNumber}</span>{' / '}<span className="duel-num">{ready.state.totalRounds}</span></p>
-    <BagBoard bagCount={ready.currentPlacement.bagCount as BagCount} hiddenBagIds={hidden} onBagTap={tap} interactive={!requestPending && !terminal}>
+    <BagBoard
+      bagCount={ready.currentPlacement.bagCount as BagCount}
+      hiddenBagIds={hidden}
+      onBagTap={tap}
+      interactive={!requestPending && !terminal}
+      boardAriaLabel={t.bagsMeta(ready.currentPlacement.bagCount)}
+      bagAriaLabel={t.bagLabel}
+    >
       {fx?.kind === 'coins' ? <CoinOpenFx key={fx.runId} bagId={fx.bagId} bagCount={ready.currentPlacement.bagCount as BagCount} coinCount={fx.count} clearsRound={fx.clearsRound} soundEnabled={soundEnabled} presentationGen={fx.presentationGen} onSample={setCoinFxSample} onVisualComplete={fx.clearsRound ? undefined : fxComplete} onComplete={fxComplete} /> : null}
       {fx?.kind === 'empty' ? <EmptyOpenFx key={fx.runId} bagId={fx.bagId} bagCount={ready.currentPlacement.bagCount as BagCount} presentationGen={fx.presentationGen} onVisualComplete={fxComplete} onComplete={fxComplete} /> : null}
       {fx?.kind === 'bomb' ? <BombOpenFx key={fx.runId} bagId={fx.bagId} bagCount={ready.currentPlacement.bagCount as BagCount} hiddenBagIds={hidden} soundEnabled={soundEnabled} presentationGen={fx.presentationGen} onComplete={fxComplete} /> : null}
@@ -214,7 +221,7 @@ export function GroupPlayScreen({ initialReady, coordinator, t, onResult }: { in
         className="duel-play-error stable-message-slot stable-message-slot--play-error"
         role="alert"
       >
-        {error ? <p>{t.groupPlayError}</p> : null}
+        {error ? <p>{t.groupPlayActionError}</p> : null}
         {cashOutError ? <p>{t.duelCashOutRetry}</p> : null}
       </div>
     ) : null}

@@ -22,6 +22,10 @@ type BagBoardProps = {
    * placement / PLAY / SOLO tap geometry and interaction.
    */
   interactive?: boolean
+  /** Board region accessible name (localized bag count). */
+  boardAriaLabel?: string
+  /** Per-bag hit-target accessible name. */
+  bagAriaLabel?: string
   /** Overlay layer (e.g. COIN / BOMB FX) — same coordinate space as bags. */
   children?: ReactNode
 }
@@ -31,6 +35,8 @@ export function BagBoard({
   hiddenBagIds,
   onBagTap,
   interactive = true,
+  boardAriaLabel,
+  bagAriaLabel = 'Bag',
   children,
 }: BagBoardProps) {
   const slots = getFormation(bagCount)
@@ -60,7 +66,7 @@ export function BagBoard({
         imagesReady ? 'bag-board' : 'bag-board bag-board--preparing'
       }
       data-bag-count={bagCount}
-      aria-label={`${bagCount} bags`}
+      aria-label={boardAriaLabel ?? `${bagCount} bags`}
       aria-busy={imagesReady ? undefined : true}
     >
       {slots.map((slot) => {
@@ -94,7 +100,7 @@ export function BagBoard({
               <button
                 type="button"
                 className="bag-hit"
-                aria-label="Bag"
+                aria-label={bagAriaLabel}
                 onClick={() => onBagTap?.(slot.bagId)}
               />
             ) : null}

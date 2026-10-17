@@ -29,7 +29,9 @@ assert.doesNotMatch(groupCreate, /error=\{(?:caught|error|err)/)
 /* Known external failures are reduced to controlled enums/flags before render. */
 const groupEntry = await readFile('src/components/GroupEntryShell.tsx', 'utf8')
 assert.match(groupEntry, /useState<'nickname' \| 'join' \| null>/)
-assert.match(groupEntry, /error === 'nickname' \? t\.groupNicknameError : t\.groupPlayError/)
+assert.match(groupEntry, /error === 'nickname' \? t\.groupNicknameError : t\.groupJoinError/)
+const groupPlay = await readFile('src/components/GroupPlayScreen.tsx', 'utf8')
+assert.match(groupPlay, /t\.groupPlayActionError/)
 const duelInvite = await readFile('src/components/DuelInvitePanel.tsx', 'utf8')
 const groupInvite = await readFile('src/components/GroupInviteShareScreen.tsx', 'utf8')
 for (const source of [duelInvite, groupInvite]) {

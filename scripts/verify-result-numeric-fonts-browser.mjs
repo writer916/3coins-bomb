@@ -39,12 +39,12 @@ const copy = {
   },
   ja: {
     groupResultTitle: 'GROUP RESULT',
-    groupViewDetails: '詳細',
+    groupViewDetails: '詳細を見る',
     duelReturnToTop: 'TOP',
     groupParticipantDetails: 'プレイ詳細',
-    groupBackToResult: '結果に戻る',
+    groupBackToResult: '結果へ戻る',
     duelYou: 'あなた',
-    duelBackToResult: '結果に戻る',
+    duelBackToResult: '結果へ戻る',
   },
 }
 

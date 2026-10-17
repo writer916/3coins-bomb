@@ -14,6 +14,8 @@ export type DuelMatchDetailBoardProps = {
   readonly bombBagNumber: number
   readonly coinBagNumbers: readonly number[]
   readonly opens: readonly DuelMatchDetailOpenInput[]
+  readonly boardAriaLabel?: string
+  readonly bagAriaLabel?: string
 }
 
 /**
@@ -26,6 +28,8 @@ export function DuelMatchDetailBoard({
   bombBagNumber,
   coinBagNumbers,
   opens,
+  boardAriaLabel,
+  bagAriaLabel,
 }: DuelMatchDetailBoardProps) {
   const bagCount = assertDetailBagCount(bagCountValue)
   const bombBagId = bagNumberToDetailBagId(bombBagNumber)
@@ -38,7 +42,12 @@ export function DuelMatchDetailBoard({
       data-duel-match-detail-board=""
       data-bag-count={bagCount}
     >
-      <BagBoard bagCount={bagCount} interactive={false}>
+      <BagBoard
+        bagCount={bagCount}
+        interactive={false}
+        boardAriaLabel={boardAriaLabel}
+        bagAriaLabel={bagAriaLabel}
+      >
         <DuelPlacementOverlay
           bagCount={bagCount}
           bombBagId={bombBagId}

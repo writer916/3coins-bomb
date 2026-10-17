@@ -77,7 +77,7 @@ assert.equal(
 
 assert.equal(ja.duelWaitingTitle, 'プレイが完了しました')
 assert.equal(ja.duelWaitingBody, '相手のプレイを待っています')
-assert.equal(ja.duelViewResult, '結果をみる')
+assert.equal(ja.duelViewResult, '結果を見る')
 assert.equal(ja.duelReturnToTop, 'トップへ戻る')
 assert.equal(en.duelWaitingTitle, 'YOUR PLAY IS COMPLETE')
 assert.equal(en.duelWaitingBody, 'WAITING FOR OPPONENT TO FINISH')

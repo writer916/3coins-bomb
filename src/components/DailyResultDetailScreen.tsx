@@ -86,6 +86,8 @@ export function DailyResultDetailScreen({
                 openOrder: opened.order,
                 bagNumber: opened.bagNumber,
               }))}
+              boardAriaLabel={t.bagsMeta(round.bagCount)}
+              bagAriaLabel={t.bagLabel}
             />
           </li>
         ))}

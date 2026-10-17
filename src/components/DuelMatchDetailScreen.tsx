@@ -56,6 +56,8 @@ function DetailRoundBlock({
         bombBagNumber={round.bombBagNumber}
         coinBagNumbers={round.coinBagNumbers}
         opens={round.opens}
+        boardAriaLabel={t.bagsMeta(round.bagCount)}
+        bagAriaLabel={t.bagLabel}
       />
     </div>
   )

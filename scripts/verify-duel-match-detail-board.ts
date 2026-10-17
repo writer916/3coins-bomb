@@ -26,7 +26,7 @@ const resultSource = await readFile('src/components/DuelResultScreen.tsx', 'utf8
 
 /* Component wiring: BagBoard(read-only) + PlacementOverlay + open markers */
 assert.match(boardSource, /export function DuelMatchDetailBoard/)
-assert.match(boardSource, /<BagBoard bagCount=\{bagCount\} interactive=\{false\}>/)
+assert.match(boardSource, /<BagBoard[\s\S]*?bagCount=\{bagCount\}[\s\S]*?interactive=\{false\}/)
 assert.match(boardSource, /<DuelPlacementOverlay/)
 assert.match(boardSource, /bombBagId=\{bombBagId\}/)
 assert.match(boardSource, /coinCountsByBag=\{coinCountsByBag\}/)
@@ -49,7 +49,7 @@ assert.doesNotMatch(resultSource, /DuelMatchDetailBoard/)
 assert.match(resultSource, /DuelMatchDetailScreen|duelViewDetails|fetchDetail/)
 assert.match(bagBoardSource, /interactive = true/)
 assert.match(bagBoardSource, /interactive \? \(/)
-assert.match(flowSource, /<BagBoard bagCount=\{draft\.bagCount\} onBagTap=\{onBagTap\}>/)
+assert.match(flowSource, /<BagBoard[\s\S]*?bagCount=\{draft\.bagCount\}[\s\S]*?onBagTap=\{onBagTap\}/)
 assert.match(placementOverlay, /export function DuelPlacementOverlay/)
 assert.match(modelSource, /frontRowYThreshold/)
 assert.match(modelSource, /bagCount <= 4/)

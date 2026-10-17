@@ -490,7 +490,12 @@ export function DuelFlow({
 
       <div className="duel-slot duel-slot-board" data-duel-slot="board">
         {showBoard && draft.bagCount != null ? (
-          <BagBoard bagCount={draft.bagCount} onBagTap={onBagTap}>
+          <BagBoard
+            bagCount={draft.bagCount}
+            onBagTap={onBagTap}
+            boardAriaLabel={t.bagsMeta(draft.bagCount)}
+            bagAriaLabel={t.bagLabel}
+          >
             <DuelPlacementOverlay
               bagCount={draft.bagCount}
               bombBagId={draft.bombBagId}

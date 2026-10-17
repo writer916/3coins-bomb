@@ -25,11 +25,21 @@ export type AppStrings = {
   detailCapturedCoins: string
   detailOpenedBags: string
   dash: string
+  /** Single bag accessible name (BagBoard hit target). */
+  bagLabel: string
+  /**
+   * Sound toggle aria/title: action performed when pressed while sound is off.
+   */
   soundOn: string
+  /**
+   * Sound toggle aria/title: action performed when pressed while sound is on.
+   */
   soundOff: string
   /** Aria/title for language toggle control. */
   languageToggle: string
   languageToggleHint: string
+  /** Mode-select nav accessible name. */
+  modeSelectAria: string
   /** Label for cumulative settled ROUND count (solo). */
   soloRoundsLabel: string
   /** Label for cumulative captured COINS (solo). */
@@ -115,6 +125,8 @@ export type AppStrings = {
   groupNicknameLead: string
   groupNicknameLabel: string
   groupNicknamePlaceholder: string
+  /** Quiet hint under the nickname field (validation rules unchanged). */
+  groupNicknameHint: string
   groupNicknameError: string
   groupJoin: string
   groupJoining: string
@@ -123,8 +135,13 @@ export type AppStrings = {
   groupPlayPreparing: string
   groupPlayReady: string
   groupPlayStart: string
+  /** Bootstrap / prepare failure (not in-play open/NEXT). */
   groupPlayError: string
+  /** In-play open / NEXT ROUND failure. */
+  groupPlayActionError: string
   groupPlayComplete: string
+  /** Explicit CTA after GROUP result is finalized (no auto-navigate). */
+  groupViewResult: string
   groupResultReady: string
   groupReadyRoundsLabel: string
   groupReadyPlayersLabel: string

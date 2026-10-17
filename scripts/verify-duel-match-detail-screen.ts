@@ -320,7 +320,7 @@ assert.match(
 )
 
 /* i18n */
-assert.equal(ja.duelViewDetails, '詳細をみる')
+assert.equal(ja.duelViewDetails, '詳細を見る')
 assert.equal(en.duelViewDetails, 'VIEW DETAILS')
 assert.equal(ja.duelMatchDetails, '対戦詳細')
 assert.equal(en.duelMatchDetails, 'MATCH DETAILS')

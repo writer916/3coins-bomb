@@ -14,7 +14,7 @@ type ModeSelectProps = {
  */
 export function ModeSelect({ t, onSelect }: ModeSelectProps) {
   return (
-    <nav className="mode-select" aria-label="Game modes">
+    <nav className="mode-select" aria-label={t.modeSelectAria}>
       <button
         type="button"
         className="mode-card"

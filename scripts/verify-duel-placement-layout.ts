@@ -43,7 +43,7 @@ assert.doesNotMatch(appCss, /duel-flow--duel-config|width:\s*min\(100%,\s*9rem\)
 assert.equal((flowSource.match(/standard-action-stack/g) ?? []).length, 3)
 assert.equal((groupCreate.match(/standard-action-stack/g) ?? []).length, 1)
 assert.equal((groupEntry.match(/standard-action-stack/g) ?? []).length, 2)
-assert.equal((groupWaiting.match(/standard-action-stack/g) ?? []).length, 1)
+assert.equal((groupWaiting.match(/standard-action-stack/g) ?? []).length, 2)
 assert.match(playScreen, /standard-round-action-btn--next-round/)
 assert.match(groupPlay, /standard-round-action-btn--next-round/)
 assert.match(
@@ -109,7 +109,7 @@ const measuredAt092Rem = new Map<string, number>([
   ['RESET ALL', 86.078],
   ['START OVER', 99.781],
   ['CREATE GROUP', 124.219],
-  ['CREATING…', 95.922],
+  ['PREPARING…', 95.922],
   ['JOIN GROUP', 100.063],
   ['JOINING…', 82.25],
   ['TRY AGAIN', 87.453],
@@ -127,7 +127,7 @@ for (const [label, measuredWidth] of measuredAt092Rem) {
   const fittedWidth = measuredWidth * ((fitSizes.get(label) ?? 0.92) / 0.92)
   assert.ok(fittedWidth <= standardTextAreaPx, `${label} must fit the 8rem button`)
 }
-for (const unchanged of ['CONTINUE', 'RESET ALL', 'CREATING…', 'JOINING…', 'TRY AGAIN', 'もう一度試す']) {
+for (const unchanged of ['CONTINUE', 'RESET ALL', 'PREPARING…', 'JOINING…', 'TRY AGAIN', 'もう一度試す']) {
   assert.equal(fitSizes.has(unchanged), false, `${unchanged} keeps the base font size`)
 }
 assert.match(appCss, /standard-action-btn--next-round\s*\{\s*font-size:\s*0\.84rem/)

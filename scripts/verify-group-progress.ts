@@ -147,7 +147,16 @@ for (const part of [
 }
 assert.equal(waiting.includes('displayNickname'), false)
 assert.equal(waiting.includes('participantId'), false)
-assert.equal(waiting.includes('duel-btn--primary'), false)
+assert.ok(waiting.includes('groupViewResult'), 'explicit VIEW RESULT CTA')
+assert.ok(waiting.includes('duel-btn--primary'), 'VIEW RESULT uses primary CTA')
+assert.ok(
+  waiting.includes('fetchedResult'),
+  'result must be staged before navigate',
+)
+assert.ok(
+  waiting.includes('revealResult'),
+  'RESULT opens only on explicit press',
+)
 
 const waitingCss = readFileSync(resolve(root, 'src/App.css'), 'utf8')
 assert.match(waitingCss, /\.group-completion-waiting__close\s*\{/)

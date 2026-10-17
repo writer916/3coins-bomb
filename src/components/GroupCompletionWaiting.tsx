@@ -46,30 +46,37 @@ export function GroupCompletionWaiting({
 }) {
   const [progress, setProgress] = useState<GroupProgress | null>(initialProgress)
   const [error, setError] = useState(false)
-  const [resultPending, setResultPending] = useState(initialClosed)
+  const [closePending, setClosePending] = useState(false)
+  const [resultLoading, setResultLoading] = useState(initialClosed)
+  const [fetchedResult, setFetchedResult] = useState<GroupResult | null>(null)
   const mounted = useRef(false)
   const inFlight = useRef(false)
   const resultInFlight = useRef(false)
+  const revealInFlight = useRef(false)
+
+  const closed =
+    initialClosed || progress?.status === 'closed' || fetchedResult !== null
 
   const loadResult = useCallback(async () => {
-    if (resultInFlight.current) return
+    if (resultInFlight.current || fetchedResult !== null) return
     resultInFlight.current = true
+    setResultLoading(true)
     try {
       const result = await coordinator.getResult(groupId)
       if (mounted.current) {
         setError(false)
-        onResult(result)
+        setFetchedResult(result)
       }
     } catch {
       if (mounted.current) setError(true)
     } finally {
       resultInFlight.current = false
-      if (mounted.current) setResultPending(false)
+      if (mounted.current) setResultLoading(false)
     }
-  }, [coordinator, groupId, onResult])
+  }, [coordinator, fetchedResult, groupId])
 
   const refresh = useCallback(async () => {
-    if (inFlight.current || initialClosed) return
+    if (inFlight.current || closed) return
     inFlight.current = true
     try {
       const next = await coordinator.getProgress(groupId)
@@ -82,31 +89,25 @@ export function GroupCompletionWaiting({
     } finally {
       inFlight.current = false
     }
-  }, [coordinator, groupId, initialClosed])
+  }, [closed, coordinator, groupId])
 
   useEffect(() => {
     mounted.current = true
-    const timer = initialClosed
-      ? window.setTimeout(() => {
-          void loadResult()
-        }, 0)
-      : null
     return () => {
       mounted.current = false
-      if (timer !== null) window.clearTimeout(timer)
     }
-  }, [initialClosed, loadResult])
+  }, [])
 
   useEffect(() => {
-    if (progress?.status !== 'closed') return
+    if (!closed || fetchedResult !== null || error) return
     const timer = window.setTimeout(() => {
       void loadResult()
     }, 0)
     return () => window.clearTimeout(timer)
-  }, [progress?.status, loadResult])
+  }, [closed, error, fetchedResult, loadResult])
 
   useEffect(() => {
-    if (initialClosed || progress?.status === 'closed') return
+    if (closed) return
     const tick = () => {
       if (document.visibilityState === 'visible') void refresh()
     }
@@ -118,51 +119,63 @@ export function GroupCompletionWaiting({
       window.clearInterval(timer)
       document.removeEventListener('visibilitychange', tick)
     }
-  }, [refresh, progress?.status, initialClosed])
+  }, [refresh, closed])
 
   const close = useCallback(async () => {
     if (
       !progress?.hostCloseAvailable ||
       !coordinator.hasHostCapability(groupId) ||
-      resultPending
+      closePending ||
+      closed
     ) {
       return
     }
     if (!window.confirm(t.groupCloseConfirm)) return
-    setResultPending(true)
+    setClosePending(true)
     try {
-      const closed = await coordinator.closeGroup(groupId)
-      setProgress(closed)
+      const closedProgress = await coordinator.closeGroup(groupId)
+      setProgress(closedProgress)
       setError(false)
     } catch {
       setError(true)
-      setResultPending(false)
+    } finally {
+      setClosePending(false)
     }
-  }, [progress, coordinator, groupId, resultPending, t.groupCloseConfirm])
+  }, [progress, coordinator, groupId, closePending, closed, t.groupCloseConfirm])
 
   const retry = useCallback(() => {
     setError(false)
-    if (initialClosed || progress?.status === 'closed') {
-      setResultPending(true)
+    if (closed) {
       void loadResult()
     } else void refresh()
-  }, [initialClosed, progress?.status, loadResult, refresh])
+  }, [closed, loadResult, refresh])
 
-  const loading =
-    initialClosed || progress?.status === 'closed' || resultPending
-  const showOpenWaiting = progress?.status === 'open'
+  const revealResult = useCallback(() => {
+    if (!fetchedResult || revealInFlight.current) return
+    revealInFlight.current = true
+    onResult(fetchedResult)
+  }, [fetchedResult, onResult])
+
+  const loading = resultLoading || closePending
+  const showOpenWaiting = progress?.status === 'open' && !closed
   // Never paint title-only PLAY COMPLETE while progress is still unknown.
-  const showPlayCompleteTitle = showOpenWaiting || (error && !loading)
+  const showPlayCompleteTitle =
+    showOpenWaiting ||
+    (fetchedResult !== null && !loading) ||
+    (error && !loading)
   const showHostClose =
     progress?.hostCloseAvailable === true &&
-    coordinator.hasHostCapability(groupId)
-  const awaitingProgress = !loading && progress === null && !error
+    coordinator.hasHostCapability(groupId) &&
+    !closed
+  const awaitingProgress = !loading && progress === null && !error && !closed
+  const showViewResult =
+    fetchedResult !== null && !loading && !error
 
   return (
     <div
       className="duel-flow duel-flow--setup group-completion-waiting"
       aria-live="polite"
-      aria-busy={awaitingProgress ? true : undefined}
+      aria-busy={awaitingProgress || loading ? true : undefined}
     >
       <div className="duel-status-slot" aria-hidden="true" />
       <div className="duel-setup-spacer duel-setup-spacer--top" aria-hidden="true" />
@@ -174,7 +187,7 @@ export function GroupCompletionWaiting({
               ? t.groupPlayComplete
               : '\u00a0'}
         </p>
-        {progress?.status === 'open' ? (
+        {showOpenWaiting && progress ? (
           <div className="group-completion-waiting__stats">
             <span className="group-completion-waiting__label">
               {t.groupReadyPlayersLabel}
@@ -206,7 +219,7 @@ export function GroupCompletionWaiting({
           aria-hidden={error ? undefined : 'true'}
         >
           {error
-            ? initialClosed || progress?.status === 'closed'
+            ? closed
               ? t.groupResultError
               : t.groupProgressError
             : '\u00a0'}
@@ -220,7 +233,7 @@ export function GroupCompletionWaiting({
             <button
               type="button"
               className="duel-btn duel-btn--quiet-top group-completion-waiting__close"
-              disabled={resultPending}
+              disabled={closePending}
               onClick={() => {
                 void close()
               }}
@@ -236,6 +249,18 @@ export function GroupCompletionWaiting({
           <div className="duel-btn-stack standard-action-stack">
             <button type="button" className="duel-btn" onClick={retry}>
               {t.groupResultRetry}
+            </button>
+          </div>
+        </div>
+      ) : showViewResult ? (
+        <div className="duel-btn-area duel-button-field">
+          <div className="duel-btn-stack standard-action-stack">
+            <button
+              type="button"
+              className="duel-btn duel-btn--primary"
+              onClick={revealResult}
+            >
+              {t.groupViewResult}
             </button>
           </div>
         </div>

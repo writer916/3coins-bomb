@@ -1213,6 +1213,8 @@ export function DailyPlayScreen({
           interactive={
             active !== null && !requestPending && !terminal && remaining > 0
           }
+          boardAriaLabel={t.bagsMeta(bagCount)}
+          bagAriaLabel={t.bagLabel}
         >
           {fx?.kind === 'coins' ? (
             <CoinOpenFx

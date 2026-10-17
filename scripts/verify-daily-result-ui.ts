@@ -484,7 +484,9 @@ assert.doesNotMatch(resultScreen, /challengeDateRef\.current\s*=/)
 assert.match(resultScreen, /msUntilNextDailyRankingRefresh/)
 assert.match(resultScreen, /visibilitychange/)
 assert.doesNotMatch(resultScreen, /setInterval\(\s*[^,]+,\s*600_?000/)
-assert.doesNotMatch(resultScreen, /groupResultRetry/)
+assert.match(resultScreen, /groupResultRetry/)
+assert.match(resultScreen, /data-daily-result-retry/)
+assert.match(resultScreen, /handleRetry/)
 assert.doesNotMatch(resultScreen, /data-daily-ranking-retry/)
 
 const detailScreen = readFileSync(

@@ -78,7 +78,7 @@ assert.equal(ja.duelResetRound, 'RESET')
 assert.equal(ja.duelNextRound, 'OK')
 assert.equal(ja.duelComplete, 'OK')
 assert.equal(ja.duelLock, 'OK')
-assert.equal(ja.duelLocking, 'LOCKING...')
+assert.equal(ja.duelLocking, '準備中…')
 assert.equal(ja.duelStartOver, 'RESET ALL')
 assert.equal(
   ja.duelStartOverConfirm,

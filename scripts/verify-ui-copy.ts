@@ -35,14 +35,14 @@ assert.deepEqual(
     nextRound: 'OK',
     complete: 'OK',
     lock: 'OK',
-    locking: 'LOCKING...',
+    locking: '準備中…',
     roundsReady: 'すべてよろしいですか？',
     inviteNext: 'OK',
     cashOut: 'ここで利確',
     cashOutRetry: '利確できませんでした。もう一度「ここで利確」をタップしてください。',
     waitingTitle: 'プレイが完了しました',
     waitingBody: '相手のプレイを待っています',
-    viewResult: '結果をみる',
+    viewResult: '結果を見る',
   },
 )
 
@@ -69,7 +69,7 @@ assert.equal(en.duelSet, 'CONTINUE')
 assert.equal(en.duelNextRound, 'NEXT ROUND')
 assert.equal(en.duelComplete, 'CONTINUE')
 assert.equal(en.duelLock, 'LOCK')
-assert.equal(en.duelLocking, 'LOCKING…')
+assert.equal(en.duelLocking, 'PREPARING…')
 assert.equal(en.duelJoining, 'JOINING THE MATCH…')
 assert.equal(en.duelWaitingForOpponentPlacement, 'WAITING FOR OPPONENT')
 assert.equal(en.duelInviteUrlLabel, 'INVITE LINK')

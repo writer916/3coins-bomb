@@ -552,12 +552,14 @@
 }
 
 .group-entry-hint {
-  margin: 0;
-  max-width: min(20rem, calc(100% - 1rem));
+  margin: 0.4rem 0 0;
+  max-width: min(22rem, calc(100% - 1rem));
+  padding-inline: 0.35rem;
   color: #c4b49a;
   font-size: 0.86rem;
   line-height: 1.45;
   text-align: center;
+  overflow-wrap: anywhere;
 }
 
 .group-completion-waiting__stats {

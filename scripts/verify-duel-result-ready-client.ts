@@ -159,7 +159,7 @@ assert.equal(
 )
 
 assert.match(types, /duelViewResult/)
-assert.match(ja, /duelViewResult: '結果をみる'/)
+assert.match(ja, /duelViewResult: '結果を見る'/)
 assert.match(en, /duelViewResult: 'VIEW RESULT'/)
 assert.match(ja, /duelWaitingTitle: 'プレイが完了しました'/)
 assert.match(en, /duelWaitingTitle: 'YOUR PLAY IS COMPLETE'/)

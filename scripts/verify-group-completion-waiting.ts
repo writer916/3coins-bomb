@@ -62,9 +62,14 @@ assert.match(waiting, /groupParticipantsProgress/)
 assert.match(waiting, /groupCompletedProgress/)
 assert.match(waiting, /font-variant-numeric|duel-num/)
 /* Title-only path must not paint PLAY COMPLETE while progress is unknown. */
-assert.match(
+assert.match(waiting, /showPlayCompleteTitle/)
+assert.match(waiting, /showOpenWaiting/)
+assert.match(waiting, /fetchedResult/)
+assert.match(waiting, /groupViewResult/)
+assert.doesNotMatch(
   waiting,
-  /showPlayCompleteTitle = showOpenWaiting \|\| \(error && !loading\)/,
+  /onResult\(result\)/,
+  'must not auto-navigate when result fetch succeeds',
 )
 
 /* --- DUEL: atomic completion shell (no equivalent flash) --- */

@@ -67,7 +67,8 @@ assert.deepEqual(hostWrites, [hostUrl])
 
 assert.equal(ja.groupInvitePlayersLabel, '参加者用URL')
 assert.match(ja.groupInvitePlayersIntro, /今回のゲーム専用URLです/)
-assert.match(ja.groupInvitePlayersIntro, /URLとニックネームは重要です/)
+assert.match(ja.groupInvitePlayersIntro, /ほかの参加者全員に送ってください/)
+assert.match(ja.groupInvitePlayersIntro, /結果ランキングに表示されます/)
 assert.equal(ja.groupInviteHostLabel, 'あなた用URL')
 assert.equal(
   ja.groupInviteHostIntro,
@@ -78,10 +79,15 @@ assert.equal(
   en.groupInviteHostIntro,
   "Keep this URL until the game ends. Your nickname will appear in this game's ranking results. Do not send this URL to other participants.",
 )
-assert.equal(ja.groupNicknameLead, 'この対戦でのニックネーム')
+assert.equal(ja.groupNicknameLead, 'このゲームでのニックネーム')
+assert.equal(
+  ja.groupNicknameHint,
+  'スペース（空白）や記号など、一部使えないものがあります。',
+)
 assert.equal(ja.groupPlayReady, 'PLAY準備完了')
 assert.equal(ja.groupPlayPreparing, '準備しています…')
 assert.equal(ja.groupPlayStart, 'ゲームをはじめる')
+assert.equal(ja.groupCreating, '準備中…')
 assert.equal(ja.groupCreateError, '作成できませんでした。もう一度お試しください。')
 assert.equal(ja.groupRoundsLabel, 'ROUNDS（1-20）')
 assert.equal(ja.groupPlayersLabel, 'PLAYERS（2-20）')
@@ -90,7 +96,13 @@ assert.equal(ja.groupReadyPlayersLabel, '参加人数')
 assert.equal(ja.groupReadyNicknameLabel, 'あなたのニックネーム')
 assert.equal(en.groupInvitePlayersLabel, 'PLAYER URL')
 assert.match(en.groupInvitePlayersIntro, /This URL is for this game only/)
-assert.equal(en.groupNicknameLead, 'Nickname for this match')
+assert.match(en.groupInvitePlayersIntro, /Send it to all other participants/)
+assert.equal(en.groupNicknameLead, 'Nickname for this game')
+assert.equal(
+  en.groupNicknameHint,
+  'Some characters, including spaces and symbols, cannot be used.',
+)
+assert.equal(en.groupCreating, 'PREPARING…')
 assert.equal(en.groupCreateError, 'Could not create. Please try again.')
 assert.equal(en.groupRoundsLabel, 'ROUNDS（1-20）')
 assert.equal(en.groupPlayersLabel, 'PLAYERS（2-20）')
@@ -111,6 +123,8 @@ assert.match(entry, /GroupReadyScreen/)
 assert.match(entry, /startedPlay/)
 assert.match(entry, /setStartedPlay\(true\)/)
 assert.match(entry, /groupNicknameLead/)
+assert.match(entry, /groupNicknameHint/)
+assert.match(entry, /group-entry-hint/)
 assert.match(entry, /readyTotalRounds/)
 assert.match(entry, /readyPlayerLimit/)
 assert.match(entry, /result\.totalRounds/)
@@ -177,7 +191,7 @@ assert.match(waiting, /POLL_MS = 5000/)
 const jaSource = readFileSync(resolve(root, 'src/i18n/ja.ts'), 'utf8')
 assert.match(jaSource, /参加者用URL/)
 assert.match(jaSource, /あなた用URL/)
-assert.match(jaSource, /この対戦でのニックネーム/)
+assert.match(jaSource, /このゲームでのニックネーム/)
 assert.match(jaSource, /このURLは、ほかの参加者には送らないでください/)
 assert.match(jaSource, /ゲームをはじめる/)
 assert.doesNotMatch(jaSource, /HOST操作はこの端末にだけ残ります/)

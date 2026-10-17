@@ -660,6 +660,8 @@ export function DuelPlayScreen({ matchId, t, onGoTop }: DuelPlayScreenProps) {
           bagCount={round.bagCount as BagCount}
           hiddenBagIds={hiddenBagIds}
           onBagTap={canTap ? handleBagTap : undefined}
+          boardAriaLabel={t.bagsMeta(round.bagCount)}
+          bagAriaLabel={t.bagLabel}
         >
           {revealPlan ? <RevealBoard plan={revealPlan} /> : null}
           {fx?.kind === 'coins' ? (

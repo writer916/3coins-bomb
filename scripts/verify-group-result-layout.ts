@@ -150,9 +150,9 @@ assert.equal(String(8).length, 1)
 assert.equal(String(20 * 3).length, 2)
 assert.equal(String(20 * 8).length, 3)
 
-assert.equal(ja.groupViewDetails, '詳細')
+assert.equal(ja.groupViewDetails, '詳細を見る')
 assert.equal(en.groupViewDetails, 'VIEW DETAILS')
-assert.ok(ja.groupViewDetails.length <= 2)
+assert.ok(ja.groupViewDetails.length <= 5)
 
 /*
   Rough fit at 320px / 16px root:
