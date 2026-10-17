@@ -1548,8 +1548,14 @@
 }
 
 .duel-flow--complete .duel-complete-summary {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex: 0 0 auto;
+  min-height: calc(1.3rem * 1.35);
   margin: 0 0 clamp(1.35rem, 4.2vh, 2.1rem);
+  line-height: 1.35;
 }
 
 .duel-lock-error {

@@ -162,4 +162,60 @@ const summary = measurements.map(({ width, height, variant, byLocale }) => ({
   horizontalOverflow: Math.max(byLocale.en.horizontalOverflow, byLocale.ja.horizontalOverflow),
 }))
 console.log(JSON.stringify(summary, null, 2))
+
+const lockReport = []
+for (const [width, height] of viewportList) {
+  await send('Emulation.setDeviceMetricsOverride', {
+    width,
+    height,
+    deviceScaleFactor: 1,
+    mobile: width < 768,
+  })
+  const byLocale = {}
+  for (const locale of ['en', 'ja']) {
+    byLocale[locale] = await evaluate(`(async () => {
+      const strings = (await import('/src/i18n/${locale}.ts')).${locale}
+      document.documentElement.lang = '${locale}'
+      document.body.innerHTML = \`
+        <main style="height:calc(100vh - 2rem);display:flex">
+          <div class="duel-flow duel-flow--complete">
+            <div class="duel-complete-spacer duel-complete-spacer--top" aria-hidden="true"></div>
+            <p id="lock-summary" class="duel-complete-summary">\${strings.duelRoundsReady}</p>
+            <div class="duel-field duel-field--actions duel-field--stack-actions">
+              <div class="duel-btn-stack standard-action-stack">
+                <button id="lock-primary" type="button" class="duel-btn duel-btn--primary">\${strings.duelLock}</button>
+                <button id="lock-secondary" type="button" class="duel-btn\${strings.duelStartOver === 'START OVER' ? ' standard-action-btn--start-over' : ''}">\${strings.duelStartOver}</button>
+              </div>
+            </div>
+            <div class="duel-complete-spacer duel-complete-spacer--bottom" aria-hidden="true"></div>
+          </div>
+        </main>
+      \`
+      const rect = (id) => {
+        const value = document.getElementById(id).getBoundingClientRect()
+        return { top: value.top, bottom: value.bottom, height: value.height, width: value.width, center: value.top + value.height / 2 }
+      }
+      return {
+        summary: rect('lock-summary'),
+        primary: rect('lock-primary'),
+        secondary: rect('lock-secondary'),
+        horizontalOverflow: document.documentElement.scrollWidth - innerWidth,
+        verticalOverflow: document.documentElement.scrollHeight - innerHeight,
+      }
+    })()`)
+  }
+  for (const id of ['summary', 'primary', 'secondary']) {
+    const metrics = id === 'summary'
+      ? ['top', 'bottom', 'height', 'center']
+      : ['top', 'bottom', 'height', 'width', 'center']
+    for (const metric of metrics) {
+      const delta = Math.abs(byLocale.en[id][metric] - byLocale.ja[id][metric])
+      assert.ok(delta < 0.01, `${width}x${height} LOCK ${id}.${metric}: ${delta}px`)
+    }
+  }
+  assert.ok(byLocale.en.horizontalOverflow <= 0 && byLocale.ja.horizontalOverflow <= 0)
+  assert.ok(byLocale.en.verticalOverflow <= 0 && byLocale.ja.verticalOverflow <= 0)
+  lockReport.push({ viewport: `${width}x${height}`, byLocale })
+}
+console.log(JSON.stringify({ lockReport }, null, 2))
 socket.close()
