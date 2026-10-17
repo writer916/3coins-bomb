@@ -97,12 +97,14 @@ const back = placeButtons.indexOf('onClick={onBackFromPlace}')
 assert.ok(placeStart >= 0 && advance >= 0 && reset >= 0 && back >= 0)
 assert.ok(advance < reset && reset < back)
 
-// Invite layout stays SHARE / QR(or TOP) above the final OK/NEXT control.
+// Invite layout stays SHARE / QR(or confirmed TOP) above the final OK/NEXT control.
 const share = invite.indexOf('t.duelInviteShare')
 const qr = invite.indexOf('t.duelInviteQr')
 const top = invite.indexOf('t.duelReturnToTop', share)
 const inviteNext = invite.indexOf('t.duelInviteNext')
 assert.ok(share >= 0 && qr > share && top > share && inviteNext > qr && inviteNext > top)
+assert.match(invite, /InviteExitConfirmDialog/)
+assert.match(invite, /setExitConfirmOpen\(true\)/)
 
 // RESULT numeric span must escape the Georgia label selector.
 assert.match(appCss, /\.duel-final-stat\s*>\s*span\s*{/)

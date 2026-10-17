@@ -14,6 +14,7 @@ import { isDuelPlayReady } from '../duel/duelPlayCoordinator'
 import { DuelPlacementWait } from './DuelPlacementWait'
 import { DuelPlayScreen } from './DuelPlayScreen'
 import { DuelStartConfirm } from './DuelStartConfirm'
+import { InviteExitConfirmDialog } from './InviteExitConfirmDialog'
 
 type DuelInvitePanelProps = {
   readonly matchId: string
@@ -97,6 +98,7 @@ export function DuelInvitePanel({
   const [feedback, setFeedback] = useState<Feedback>('idle')
   const [qrOpen, setQrOpen] = useState(false)
   const [qrSvg, setQrSvg] = useState<string | null>(null)
+  const [exitConfirmOpen, setExitConfirmOpen] = useState(false)
   /* Joined is polled for bookkeeping; wait UI no longer branches on it. */
   const [, setJoined] = useState(false)
   const [playReady, setPlayReady] = useState(false)
@@ -344,7 +346,11 @@ export function DuelInvitePanel({
               {t.duelInviteQr}
             </button>
           ) : onGoTop ? (
-            <button type="button" className="duel-btn" onClick={onGoTop}>
+            <button
+              type="button"
+              className="duel-btn"
+              onClick={() => setExitConfirmOpen(true)}
+            >
               {t.duelReturnToTop}
             </button>
           ) : (
@@ -384,6 +390,16 @@ export function DuelInvitePanel({
             </button>
           </div>
         </div>
+      ) : null}
+      {exitConfirmOpen && page === 'self' && onGoTop ? (
+        <InviteExitConfirmDialog
+          t={t}
+          onCancel={() => setExitConfirmOpen(false)}
+          onConfirm={() => {
+            setExitConfirmOpen(false)
+            onGoTop()
+          }}
+        />
       ) : null}
     </div>
   )

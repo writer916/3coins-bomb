@@ -101,6 +101,13 @@ assert.equal(ja.duelInviteUrlLabel, '相手用URL')
 assert.equal(ja.duelSelfUrlLabel, 'あなた用URL')
 assert.equal(ja.duelInviteNext, 'OK')
 assert.equal(ja.duelReturnToTop, 'トップへ戻る')
+assert.equal(ja.inviteExitConfirmTitle, 'このゲームを中止しますか？')
+assert.equal(
+  ja.inviteExitConfirmDescription,
+  'ゲームの準備を中止して、トップ画面に戻ります。',
+)
+assert.equal(ja.inviteExitConfirmCancel, 'キャンセル')
+assert.equal(ja.inviteExitConfirmAction, 'ゲームを中止')
 assert(ja.duelSelfUrlIntro.includes('保管'))
 assert.equal(en.duelInviteUrlLabel, 'INVITE LINK')
 assert.equal(
@@ -126,6 +133,9 @@ assert(panelSource.includes('t.duelSelfUrlLabel'))
 assert(panelSource.includes('duel-invite-url-bar'))
 assert(panelSource.includes('t.duelInviteCopyAria'))
 assert(panelSource.includes('onGoTop'))
+assert(panelSource.includes('InviteExitConfirmDialog'))
+assert(panelSource.includes('setExitConfirmOpen(true)'))
+assert(panelSource.includes('setExitConfirmOpen(false)'))
 /* Self page reuses the same URL-bar + secondary-actions language; no new URLs. */
 assert(panelSource.includes("page === 'opponent' ? inviteUrl : selfUrl"))
 assert(panelSource.includes('DUEL_READY_POLL_INTERVAL_MS = 5_000'))
@@ -187,5 +197,14 @@ assert(bootstrapSource.includes("kind === 'start-confirm'"))
 assert(!appSource.includes('removeItem(participantStorageKey'))
 assert(!panelSource.includes('removeItem('))
 assert(!panelSource.includes('localStorage.clear'))
+
+const exitDialogSource = await readFile(
+  'src/components/InviteExitConfirmDialog.tsx',
+  'utf8',
+)
+assert(exitDialogSource.includes('confirmStartedRef'))
+assert(exitDialogSource.includes('aria-modal="true"'))
+assert(exitDialogSource.includes('t.inviteExitConfirmCancel'))
+assert(exitDialogSource.includes('t.inviteExitConfirmAction'))
 
 console.log('verify-duel-invite-self-url-client: all checks passed')

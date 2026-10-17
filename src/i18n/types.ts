@@ -111,7 +111,6 @@ export type AppStrings = {
   groupInvitePlayersIntro: string
   groupInviteHostLabel: string
   groupInviteHostIntro: string
-  groupInviteHostKeepPrivate: string
   groupInviteEnterNickname: string
   groupNicknameLead: string
   groupNicknameLabel: string
@@ -194,6 +193,10 @@ export type AppStrings = {
   duelSelfUrlLabel: string
   duelSelfUrlIntro: string
   duelReturnToTop: string
+  inviteExitConfirmTitle: string
+  inviteExitConfirmDescription: string
+  inviteExitConfirmCancel: string
+  inviteExitConfirmAction: string
   /** Final RESULT: promote adding 3CB itself to the home screen (not a match URL). */
   duelAddToHomeScreen: string
   duelAddToHomeGuideIos: string

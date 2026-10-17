@@ -102,8 +102,7 @@ export const ja: AppStrings = {
     '今回のゲーム専用URLです。参加される全員に送ってください。保管して個々にニックネームを決めてもらいましょう。URLとニックネームは重要です。',
   groupInviteHostLabel: 'あなた用URL',
   groupInviteHostIntro:
-    '勝負が終わるまでこのURLを保管してください。ニックネームとURLがあれば、別の端末からでもこの対戦に戻れます。',
-  groupInviteHostKeepPrivate: 'このURLは参加者には送らないでください。',
+    'ゲームが終わるまでこのURLを保管してください。ニックネームは、このゲームのランキング結果に表示されます。このURLは、ほかの参加者には送らないでください。',
   groupInviteEnterNickname: 'ニックネームを入力',
   groupNicknameLead: 'この対戦でのニックネーム',
   groupNicknameLabel: 'ニックネーム',
@@ -183,6 +182,10 @@ export const ja: AppStrings = {
   duelSelfUrlIntro:
     '相手が配置を完了すると、このURLで対戦を始められます。勝負が終わるまで保管してください。',
   duelReturnToTop: 'トップへ戻る',
+  inviteExitConfirmTitle: 'このゲームを中止しますか？',
+  inviteExitConfirmDescription: 'ゲームの準備を中止して、トップ画面に戻ります。',
+  inviteExitConfirmCancel: 'キャンセル',
+  inviteExitConfirmAction: 'ゲームを中止',
   duelAddToHomeScreen: 'ホーム画面に追加',
   duelAddToHomeGuideIos:
     'Safariブラウザの「…」メニューから「共有」を開き、\n「ホーム画面に追加」を選んでください。',

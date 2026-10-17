@@ -674,11 +674,7 @@
   max-width: min(12rem, 55%);
 }
 
-/*
-  Invite copy: one reading block; keep-private stays close, not a second hero.
-  Reserve host-page height (intro wrap + gap + keep-private) on both pages so
-  the URL bar Y matches without moving GROUP / heading / description.
-*/
+/* Reserve the longest host copy so JA/EN wrapping does not move later controls. */
 .group-invite-share .group-invite-copy-block {
   box-sizing: border-box;
   display: flex;
@@ -688,18 +684,11 @@
   gap: 0.45rem;
   width: 100%;
   min-width: 0;
-  min-height: calc((0.86rem * 1.55 * 4) + 0.45rem + (0.86rem * 1.55));
+  min-height: calc(0.86rem * 1.55 * 6);
 }
 
 .group-invite-share .duel-invite-page .duel-invite-note {
   min-height: 0;
-}
-
-.group-invite-share .group-invite-host-private {
-  margin: 0;
-  min-height: 0;
-  color: #d8cbb4;
-  font-weight: 600;
 }
 
 /*
@@ -2952,7 +2941,8 @@
 }
 
 .duel-invite-qr-overlay,
-.duel-home-install-overlay {
+.duel-home-install-overlay,
+.invite-exit-confirm-overlay {
   position: fixed;
   inset: 0;
   z-index: 40;
@@ -2963,7 +2953,8 @@
 }
 
 .duel-invite-qr-panel,
-.duel-home-install-panel {
+.duel-home-install-panel,
+.invite-exit-confirm-panel {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -2973,6 +2964,53 @@
   border: 1px solid rgba(242, 230, 208, 0.35);
   border-radius: 0.45rem;
   background: #1a1510;
+}
+
+.invite-exit-confirm-panel {
+  box-sizing: border-box;
+  width: min(100%, 22rem);
+  padding: 1.15rem;
+}
+
+.invite-exit-confirm-title,
+.invite-exit-confirm-description {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  margin: 0;
+  color: #f2e6d0;
+  text-align: center;
+}
+
+.invite-exit-confirm-title {
+  min-height: 2.7em;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(1.05rem, 4.6vw, 1.35rem);
+  line-height: 1.35;
+  letter-spacing: 0.04em;
+}
+
+.invite-exit-confirm-description {
+  min-height: 3em;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(0.82rem, 3.4vw, 0.95rem);
+  line-height: 1.5;
+  color: #c4b49a;
+}
+
+.invite-exit-confirm-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+  width: 100%;
+}
+
+.invite-exit-confirm-actions .duel-btn {
+  width: 100%;
+  min-width: 0;
+  white-space: normal;
 }
 
 .duel-home-install-overlay {

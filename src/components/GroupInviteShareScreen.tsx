@@ -4,10 +4,10 @@ import {
   copyGroupInviteUrl,
   formatGroupShareUrlForDisplay,
   GroupInviteActionError,
-  renderGroupHostQrSvg,
   renderGroupInviteQrSvg,
   shareGroupInviteUrl,
 } from '../group/groupInviteActions'
+import { InviteExitConfirmDialog } from './InviteExitConfirmDialog'
 
 type Feedback = 'idle' | 'copied' | 'copy-failed' | 'share-failed'
 type SharePage = 'players' | 'host'
@@ -42,16 +42,19 @@ export function GroupInviteShareScreen({
   hostUrl,
   t,
   onEnterNickname,
+  onGoTop,
 }: {
   readonly invitationUrl: string
   readonly hostUrl: string
   readonly t: AppStrings
   readonly onEnterNickname: () => void
+  readonly onGoTop: () => void
 }) {
   const [page, setPage] = useState<SharePage>('players')
   const [feedback, setFeedback] = useState<Feedback>('idle')
   const [qrOpen, setQrOpen] = useState(false)
   const [qrSvg, setQrSvg] = useState<string | null>(null)
+  const [exitConfirmOpen, setExitConfirmOpen] = useState(false)
   const activeUrl = page === 'players' ? invitationUrl : hostUrl
   const displayUrl = formatGroupShareUrlForDisplay(activeUrl)
 
@@ -77,11 +80,7 @@ export function GroupInviteShareScreen({
 
   const onOpenQr = useCallback(() => {
     try {
-      setQrSvg(
-        page === 'players'
-          ? renderGroupInviteQrSvg(invitationUrl)
-          : renderGroupHostQrSvg(hostUrl),
-      )
+      setQrSvg(renderGroupInviteQrSvg(invitationUrl))
       setQrOpen(true)
       setFeedback('idle')
     } catch (error: unknown) {
@@ -90,7 +89,7 @@ export function GroupInviteShareScreen({
       }
       setFeedback('copy-failed')
     }
-  }, [hostUrl, invitationUrl, page])
+  }, [invitationUrl])
 
   const feedbackText =
     feedback === 'copied'
@@ -112,11 +111,6 @@ export function GroupInviteShareScreen({
           <p className="duel-invite-note">
             {page === 'players' ? t.groupInvitePlayersIntro : t.groupInviteHostIntro}
           </p>
-          {page === 'host' ? (
-            <p className="duel-invite-note group-invite-host-private">
-              {t.groupInviteHostKeepPrivate}
-            </p>
-          ) : null}
         </div>
         <div className="duel-invite-url-bar">
           <p className="duel-invite-url-text" title={activeUrl}>
@@ -148,9 +142,19 @@ export function GroupInviteShareScreen({
           >
             {t.duelInviteShare}
           </button>
-          <button type="button" className="duel-btn" onClick={onOpenQr}>
-            {t.duelInviteQr}
-          </button>
+          {page === 'players' ? (
+            <button type="button" className="duel-btn" onClick={onOpenQr}>
+              {t.duelInviteQr}
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="duel-btn"
+              onClick={() => setExitConfirmOpen(true)}
+            >
+              {t.duelReturnToTop}
+            </button>
+          )}
         </div>
         <p
           className="duel-invite-feedback stable-message-slot stable-message-slot--feedback"
@@ -182,7 +186,7 @@ export function GroupInviteShareScreen({
           {page === 'players' ? t.duelInviteNext : t.groupInviteEnterNickname}
         </button>
       </div>
-      {qrOpen && qrSvg ? (
+      {qrOpen && qrSvg && page === 'players' ? (
         <div className="duel-invite-qr-overlay" role="dialog" aria-modal="true">
           <div className="duel-invite-qr-panel">
             <div
@@ -201,6 +205,16 @@ export function GroupInviteShareScreen({
             </button>
           </div>
         </div>
+      ) : null}
+      {exitConfirmOpen && page === 'host' ? (
+        <InviteExitConfirmDialog
+          t={t}
+          onCancel={() => setExitConfirmOpen(false)}
+          onConfirm={() => {
+            setExitConfirmOpen(false)
+            onGoTop()
+          }}
+        />
       ) : null}
     </div>
   )

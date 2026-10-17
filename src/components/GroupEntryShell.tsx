@@ -232,6 +232,7 @@ export function GroupEntryShell({
           hostUrl={shareUrls.hostUrl}
           t={t}
           onEnterNickname={() => setShareDismissed(true)}
+          onGoTop={onGoTop}
         />
       ) : (
         <form

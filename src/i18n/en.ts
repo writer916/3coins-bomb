@@ -106,8 +106,7 @@ export const en: AppStrings = {
     'This URL is for this game only. Send it to everyone joining. Ask each player to keep it and choose a nickname. The URL and nickname matter.',
   groupInviteHostLabel: 'YOUR URL',
   groupInviteHostIntro:
-    'Keep this URL until the match ends. With your nickname and this URL, you can return to this match from another device.',
-  groupInviteHostKeepPrivate: 'Do not send this URL to other players.',
+    "Keep this URL until the game ends. Your nickname will appear in this game's ranking results. Do not send this URL to other participants.",
   groupInviteEnterNickname: 'ENTER NICKNAME',
   groupNicknameLead: 'Nickname for this match',
   groupNicknameLabel: 'NICKNAME',
@@ -187,6 +186,11 @@ export const en: AppStrings = {
   duelSelfUrlIntro:
     'Once your opponent finishes placing their coins and bomb, you can start the match from this URL. Keep it until the match ends.',
   duelReturnToTop: 'BACK TO TOP',
+  inviteExitConfirmTitle: 'STOP THIS GAME?',
+  inviteExitConfirmDescription:
+    'Stop setting up the game and return to the top screen.',
+  inviteExitConfirmCancel: 'CANCEL',
+  inviteExitConfirmAction: 'STOP GAME',
   duelAddToHomeScreen: 'ADD TO HOME',
   duelAddToHomeGuideIos:
     'In the Safari browser, open “Share” from the “…” menu,\nthen choose “Add to Home Screen”.',
