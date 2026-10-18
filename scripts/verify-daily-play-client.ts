@@ -667,6 +667,32 @@ assert.match(playScreen, /fxRef/)
 assert.match(playScreen, /connection_error_end/)
 assert.match(playScreen, /dailyConnectionError/)
 assert.match(playScreen, /dailyChallengeEndedLabel/)
+// In-play provisional stats match SOLO labels/stack; ROUNDS stay in the top index only.
+assert.match(playScreen, /soloCoinsLabel/)
+assert.match(playScreen, /daily-play__mid-actions/)
+assert.match(playScreen, /daily-play__session/)
+assert.match(playScreen, /score-stack/)
+assert.match(playScreen, /withDuelNums\('3COINS COMPLETE'\)/)
+{
+  const playReturn = playScreen.lastIndexOf('return (')
+  const playBlock = playScreen.slice(playReturn)
+  assert.match(playBlock, /soloCoinsLabel/)
+  assert.doesNotMatch(playBlock, /duelTotalCoins/)
+  assert.doesNotMatch(playBlock, /soloRoundsLabel|dailyRoundsLabel/)
+  const timerAt = playBlock.indexOf('daily-play__timer')
+  const boardAt = playBlock.indexOf('daily-play__board')
+  const midAt = playBlock.indexOf('daily-play__mid-actions')
+  const sessionAt = playBlock.indexOf('daily-play__session')
+  assert.ok(
+    timerAt >= 0 &&
+      boardAt > timerAt &&
+      midAt > boardAt &&
+      sessionAt > midAt,
+    'DAILY play order: timer → board → mid-actions → session scores',
+  )
+}
+assert.match(read('src/App.css'), /\.daily-play__mid-actions/)
+assert.match(read('src/App.css'), /\.daily-play__session/)
 assert.match(read('src/daily/dailyPlayClient.ts'), /getPlacements/)
 assert.match(read('src/daily/dailyPlayClient.ts'), /getLocalOpenResult/)
 assert.match(read('src/daily/dailyPlayClient.ts'), /clearPendingOpen/)

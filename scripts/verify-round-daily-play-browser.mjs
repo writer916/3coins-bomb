@@ -14,6 +14,7 @@ const viewports = [
   [320, 568],
   [375, 667],
   [390, 844],
+  [1280, 800],
 ]
 
 const target = await fetch(
@@ -286,13 +287,13 @@ for (const [width, height] of viewports) {
         await new Promise((r) => setTimeout(r, 120))
         const title = document.querySelector('.brand-title')
         const round = document.querySelector('.duel-round-index')
-        const board = document.querySelector('.daily-play__board')
         const timer = document.querySelector('.daily-play__timer')
-        const scores = document.querySelector('.daily-play__scores')
-        const actions = document.querySelector('.field-action')
+        const board = document.querySelector('.daily-play__board')
+        const actions = document.querySelector('.daily-play__mid-actions .field-action')
+        const scores = document.querySelector('.daily-play__session')
         const endSlot = document.querySelector('.daily-play__end-slot')
         const endText = document.querySelector('.daily-play__end')
-        const order = [round, board, timer, scores, actions]
+        const order = [round, timer, board, actions, scores]
           .map((el) => el?.getBoundingClientRect().top ?? -1)
         const scoreText = scores?.innerText?.replace(/\\s+/g, ' ').trim() ?? ''
         return {
@@ -315,7 +316,8 @@ for (const [width, height] of viewports) {
       assert.ok(measured.titleRoundGap >= 6, `title/round gap too tight: ${measured.titleRoundGap}`)
       assert.equal(measured.hasEndSlot, false)
       assert.equal(measured.hasEndText, false)
-      assert.match(measured.scoreText, /TOTAL COINS/)
+      assert.match(measured.scoreText, /(?:^|\s)COINS(?:\s|$)/)
+      assert.doesNotMatch(measured.scoreText, /TOTAL COINS/)
       assert.match(measured.scoreText, /3COINS COMPLETE/)
       assert.ok(
         /(?:^|\s)3(?:\s|$)/.test(measured.scoreText),

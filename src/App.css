@@ -2083,22 +2083,7 @@
 
 .app--daily-play .daily-play > .duel-round-index {
   margin-top: clamp(0.15rem, 0.8vh, 0.4rem);
-  margin-bottom: clamp(0.1rem, 0.6vh, 0.3rem);
-}
-
-/* Shift bag field slightly upward to free space for timer + cumulative scores. */
-.app--daily-play .daily-play__board {
-  flex: 0 1 auto;
-  width: 100%;
-  display: flex;
-  justify-content: center;
-  margin-top: clamp(-0.55rem, -1.8vh, -0.15rem);
-  margin-bottom: clamp(0.05rem, 0.5vh, 0.25rem);
-}
-
-.app--daily-play .daily-play__board .bag-board {
-  /* Keep bag asset size; only cap board height a touch on short viewports. */
-  max-height: min(56vh, 32rem);
+  margin-bottom: 0;
 }
 
 .app--daily-play .daily-play__timer {
@@ -2111,6 +2096,38 @@
   text-align: center;
 }
 
+/* Shift bag field slightly upward after ROUND + timer at the top. */
+.app--daily-play .daily-play__board {
+  flex: 0 1 auto;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  margin-top: clamp(-0.35rem, -1.2vh, -0.1rem);
+  margin-bottom: clamp(0.05rem, 0.5vh, 0.25rem);
+}
+
+.app--daily-play .daily-play__board .bag-board {
+  /* Keep bag asset size; only cap board height a touch on short viewports. */
+  max-height: min(56vh, 32rem);
+}
+
+/* Place CASH OUT / NEXT ROUND between the bag field and bottom session stats. */
+.app--daily-play .daily-play__mid-actions {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  width: 100%;
+  min-height: 3.05rem;
+}
+
+.app--daily-play .daily-play__mid-actions > .field-action {
+  margin-top: 0;
+}
+
+/* Completion screen keeps the compact dual-column totals. */
 .app--daily-play .daily-play__scores {
   flex: 0 0 auto;
   display: flex;
@@ -2148,8 +2165,32 @@
   min-height: 1.1em;
 }
 
-.app--daily-play .daily-play > .field-action {
-  margin-top: clamp(0.15rem, 0.8vh, 0.4rem);
+/* Bottom-pinned provisional stats: SOLO score-stack, both rows left-aligned. */
+.app--daily-play .daily-play__session {
+  margin-top: 0;
+  padding-top: clamp(0.35rem, 1.4vh, 0.75rem);
+  padding-bottom: clamp(0.45rem, 2.8vh, 1.35rem);
+  justify-content: center;
+}
+
+.app--daily-play .daily-play__score-stack {
+  align-items: flex-start;
+}
+
+.app--daily-play .daily-play__score-row {
+  justify-content: flex-start;
+  width: max-content;
+  max-width: 100%;
+}
+
+/* Prefer SOLO pair gap / digit reservation over DUEL play overrides. */
+.app--daily-play .daily-play .score-item {
+  gap: 0.3rem;
+}
+
+.app--daily-play .daily-play .score-num {
+  min-width: 3.2ch;
+  text-align: right;
 }
 
 .daily-result__pending {

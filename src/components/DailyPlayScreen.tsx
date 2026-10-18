@@ -1300,6 +1300,9 @@ export function DailyPlayScreen({
         {' / '}
         <span className="duel-num">{DAILY_CHALLENGE_ROUNDS}</span>
       </p>
+      <p className="daily-play__timer" aria-live="polite">
+        <span className="duel-num">{displayedRemaining}</span>
+      </p>
       {displayAttempt ? (
         <div className="daily-play__board">
           <BagBoard
@@ -1352,61 +1355,66 @@ export function DailyPlayScreen({
           </BagBoard>
         </div>
       ) : null}
-      <p className="daily-play__timer" aria-live="polite">
-        <span className="duel-num">{displayedRemaining}</span>
-      </p>
-      <div className="daily-play__scores" aria-live="polite">
-        <p className="daily-play__score">
-          <span className="daily-play__score-label">{t.duelTotalCoins}</span>
-          <span className="daily-play__score-value duel-num">
-            {displayTotals ? displayTotals.totalCoins : '\u00a0'}
-          </span>
-        </p>
-        <p className="daily-play__score">
-          <span className="daily-play__score-label">
-            {withDuelNums(t.duelThreeCoinsComplete)}
-          </span>
-          <span className="daily-play__score-value duel-num">
-            {displayTotals ? displayTotals.threeCoinsComplete : '\u00a0'}
-          </span>
-        </p>
-      </div>
-      <div className="field-action" aria-live="polite">
-        {showCashOut ? (
-          <button
-            type="button"
-            className="dev-btn cash-out-btn"
-            disabled={cashOutDisabled}
-            onClick={() => {
-              void cashOut()
-            }}
-          >
-            {t.cashOut}
-          </button>
-        ) : null}
-        {canShowNextRound ? (
-          <button
-            type="button"
-            className="dev-btn end-action-btn standard-round-action-btn standard-round-action-btn--next-round"
-            onClick={() => {
-              void next()
-            }}
-          >
-            {t.nextRound}
-          </button>
-        ) : null}
-      </div>
-      {connectionError || cashOutError ? (
-        <div
-          className="duel-play-error stable-message-slot stable-message-slot--play-error"
-          role="alert"
-        >
-          {connectionError && !terminal ? (
-            <p>{t.dailyConnectionError}</p>
+      <div className="daily-play__mid-actions">
+        <div className="field-action" aria-live="polite">
+          {showCashOut ? (
+            <button
+              type="button"
+              className="dev-btn cash-out-btn"
+              disabled={cashOutDisabled}
+              onClick={() => {
+                void cashOut()
+              }}
+            >
+              {t.cashOut}
+            </button>
           ) : null}
-          {cashOutError && !terminal ? <p>{t.duelCashOutRetry}</p> : null}
+          {canShowNextRound ? (
+            <button
+              type="button"
+              className="dev-btn end-action-btn standard-round-action-btn standard-round-action-btn--next-round"
+              onClick={() => {
+                void next()
+              }}
+            >
+              {t.nextRound}
+            </button>
+          ) : null}
         </div>
-      ) : null}
+        {connectionError || cashOutError ? (
+          <div
+            className="duel-play-error stable-message-slot stable-message-slot--play-error"
+            role="alert"
+          >
+            {connectionError && !terminal ? (
+              <p>{t.dailyConnectionError}</p>
+            ) : null}
+            {cashOutError && !terminal ? <p>{t.duelCashOutRetry}</p> : null}
+          </div>
+        ) : null}
+      </div>
+      <div className="group-session daily-play__session" aria-live="polite">
+        <div className="score-stack daily-play__score-stack">
+          <div className="score-row daily-play__score-row">
+            <p className="score-item">
+              <span className="score-label">{t.soloCoinsLabel}</span>
+              <span className="score-num">
+                {displayTotals ? displayTotals.totalCoins : '\u00a0'}
+              </span>
+            </p>
+          </div>
+          <div className="score-row daily-play__score-row">
+            <p className="score-item">
+              <span className="score-label">
+                {withDuelNums('3COINS COMPLETE')}
+              </span>
+              <span className="score-num">
+                {displayTotals ? displayTotals.threeCoinsComplete : '\u00a0'}
+              </span>
+            </p>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
