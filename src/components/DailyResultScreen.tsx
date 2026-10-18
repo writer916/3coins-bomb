@@ -24,15 +24,18 @@ import {
   shouldScheduleDailyRankingAutoRefresh,
   currentDailyRankingBucketMs,
 } from '../daily/dailyRankingRefresh'
+import { formatDailyRankingFinalTime } from '../daily/dailyRankingFinalTime'
 import {
   readDailyParticipant,
   type DailyStorageAdapter,
 } from '../daily/dailyParticipantStorage'
 import { withDuelNums } from '../ui/withDuelNums'
 import { DailyResultDetailScreen } from './DailyResultDetailScreen'
+import type { LocaleId } from '../i18n'
 
 export type DailyResultScreenProps = {
   readonly challengeDate: string
+  readonly locale: LocaleId
   readonly t: AppStrings
   readonly onGoTop: () => void
   readonly storage?: DailyStorageAdapter
@@ -183,6 +186,8 @@ export function DailyResultRankingTable({
 export function DailyResultView({
   phase,
   t,
+  challengeDate,
+  locale,
   onGoTop,
   onOpenSelfDetails,
   onRetry,
@@ -190,6 +195,8 @@ export function DailyResultView({
 }: {
   readonly phase: DailyResultScreenPhase
   readonly t: AppStrings
+  readonly challengeDate: string
+  readonly locale: LocaleId
   readonly onGoTop: () => void
   readonly onOpenSelfDetails?: () => void
   readonly onRetry?: () => void
@@ -303,7 +310,11 @@ export function DailyResultView({
         </h2>
         {statusPresentation.descriptionKey ? (
           <p className="daily-result__provisional-note">
-            {withDuelNums(t[statusPresentation.descriptionKey])}
+            {withDuelNums(
+              t.dailyProvisionalResultDescription(
+                formatDailyRankingFinalTime(challengeDate, locale),
+              ),
+            )}
           </p>
         ) : null}
       </div>
@@ -385,6 +396,7 @@ function autoRefreshScheduleInput(phase: DailyResultScreenPhase) {
  */
 export function DailyResultScreen({
   challengeDate,
+  locale,
   t,
   onGoTop,
   storage,
@@ -881,6 +893,8 @@ export function DailyResultScreen({
     <DailyResultView
       phase={phase}
       t={t}
+      challengeDate={challengeDate}
+      locale={locale}
       onGoTop={onGoTop}
       onRetry={skipNetwork ? undefined : handleRetry}
       retryBusy={retryBusy}

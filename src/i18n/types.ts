@@ -105,7 +105,7 @@ export type AppStrings = {
    */
   dailyRankingUpdatesEvery10Minutes: string
   dailyProvisionalResultTitle: string
-  dailyProvisionalResultDescription: string
+  dailyProvisionalResultDescription: (localFinalTime: string) => string
   dailyFinalResultTitle: string
   groupRoundsHint: string
   groupRoundsLabel: string

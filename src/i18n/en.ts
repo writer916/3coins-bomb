@@ -90,8 +90,8 @@ export const en: AppStrings = {
   dailyChallengeComplete: '20 ROUNDS COMPLETE',
   dailyRankingUpdatesEvery10Minutes: 'RANKING UPDATES EVERY 10 MINUTES',
   dailyProvisionalResultTitle: 'PROVISIONAL RESULT',
-  dailyProvisionalResultDescription:
-    'Rankings update every 10 minutes and become final at 9:00 AM JST.',
+  dailyProvisionalResultDescription: (localFinalTime) =>
+    `Rankings update every 10 minutes and become final at ${localFinalTime} (00:00 UTC).`,
   dailyFinalResultTitle: 'FINAL RESULT',
   groupRoundsHint: 'Choose the number of rounds.',
   groupRoundsLabel: 'ROUNDS（1-20）',

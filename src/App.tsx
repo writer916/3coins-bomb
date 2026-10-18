@@ -692,6 +692,7 @@ function App() {
           <DailyResultScreen
             key={dailyPhase.challengeDate}
             t={t}
+            locale={locale}
             onGoTop={goTop}
             challengeDate={dailyPhase.challengeDate}
           />

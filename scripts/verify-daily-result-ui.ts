@@ -257,8 +257,8 @@ assert.equal(readyVm.rows.filter((r) => r.isSelf).length, 1)
 
 assert.equal(en.dailyProvisionalResultTitle, 'PROVISIONAL RESULT')
 assert.equal(
-  en.dailyProvisionalResultDescription,
-  'Rankings update every 10 minutes and become final at 9:00 AM JST.',
+  en.dailyProvisionalResultDescription('9:00 JST'),
+  'Rankings update every 10 minutes and become final at 9:00 JST (00:00 UTC).',
 )
 assert.equal(en.dailyFinalResultTitle, 'FINAL RESULT')
 
@@ -520,13 +520,13 @@ assert.match(
 assert.match(enSource, /dailyProvisionalResultTitle:\s*'PROVISIONAL RESULT'/)
 assert.match(
   enSource,
-  /dailyProvisionalResultDescription:\s*\n?\s*'Rankings update every 10 minutes and become final at 9:00 AM JST\.'/,
+  /dailyProvisionalResultDescription:\s*\(localFinalTime\)\s*=>/,
 )
 assert.match(enSource, /dailyFinalResultTitle:\s*'FINAL RESULT'/)
 assert.match(jaSource, /dailyProvisionalResultTitle:\s*'暫定結果'/)
 assert.match(
   jaSource,
-  /dailyProvisionalResultDescription:\s*\n?\s*'順位は10分ごとに更新され、日本時間9時に確定します。'/,
+  /dailyProvisionalResultDescription:\s*\(localFinalTime\)\s*=>/,
 )
 assert.match(jaSource, /dailyFinalResultTitle:\s*'最終結果'/)
 const presentation = readFileSync(
@@ -570,6 +570,6 @@ assert.match(
   appCss,
   /\.daily-result \.group-result__nickname[\s\S]*?padding-inline-start:\s*0\.5ch/,
 )
-assert.match(resultScreen, /withDuelNums\(t\[statusPresentation\.descriptionKey\]\)/)
+assert.match(resultScreen, /formatDailyRankingFinalTime\(challengeDate, locale\)/)
 
 console.log('verify:daily-result-ui OK')

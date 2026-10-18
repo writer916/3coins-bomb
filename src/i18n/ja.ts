@@ -86,8 +86,8 @@ export const ja: AppStrings = {
   dailyChallengeComplete: '20 ROUNDS COMPLETE',
   dailyRankingUpdatesEvery10Minutes: 'RANKING UPDATES EVERY 10 MINUTES',
   dailyProvisionalResultTitle: '暫定結果',
-  dailyProvisionalResultDescription:
-    '順位は10分ごとに更新され、日本時間9時に確定します。',
+  dailyProvisionalResultDescription: (localFinalTime) =>
+    `順位は10分ごとに更新され、${localFinalTime}（UTC 0:00）に確定します。`,
   dailyFinalResultTitle: '最終結果',
   groupRoundsHint: 'ROUND数を決めてください',
   groupRoundsLabel: 'ROUNDS（1-20）',
