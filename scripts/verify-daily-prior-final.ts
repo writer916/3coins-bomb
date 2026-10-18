@@ -29,6 +29,7 @@ import type {
   DailySelfResultView,
 } from '../src/daily/dailyRankingClient.ts'
 import { en } from '../src/i18n/en.ts'
+import { ja } from '../src/i18n/ja.ts'
 
 const root = resolve(import.meta.dirname, '..')
 
@@ -315,7 +316,9 @@ assert.notEqual(
   dailyParticipantStorageKey(prior),
 )
 
-// Existing CONTINUE copy — no new English key required
+// The successful ack action is explicit; bypass/error CONTINUE copy stays shared.
+assert.equal(ja.dailyPriorFinalContinue, '今日のDAILYへ')
+assert.equal(en.dailyPriorFinalContinue, "TODAY'S DAILY")
 assert.equal(en.groupContinue, 'CONTINUE')
 assert.equal(en.duelReturnToTop, 'BACK TO TOP')
 assert.equal(en.groupResultRetry, 'TRY AGAIN')
@@ -336,6 +339,8 @@ assert.match(priorUi, /DailyResultDetailScreen/)
 assert.match(priorUi, /DailyResultRankingTable/)
 assert.match(priorUi, /saveDailyPriorFinalAck/)
 assert.match(priorUi, /groupContinue/)
+assert.match(priorUi, /dailyPriorFinalContinue/)
+assert.match(priorUi, /daily-prior-final__continue/)
 assert.match(priorUi, /data-daily-prior-final-continue/)
 assert.match(priorUi, /data-daily-prior-final-bypass/)
 assert.match(priorUi, /fetchGenerationRef/)

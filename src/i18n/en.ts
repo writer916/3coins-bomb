@@ -93,6 +93,7 @@ export const en: AppStrings = {
   dailyProvisionalResultDescription: (localFinalTime) =>
     `Rankings update every 10 minutes and become final at ${localFinalTime} (00:00 UTC).`,
   dailyFinalResultTitle: 'FINAL RESULT',
+  dailyPriorFinalContinue: "TODAY'S DAILY",
   groupRoundsHint: 'Choose the number of rounds.',
   groupRoundsLabel: 'ROUNDS（1-20）',
   groupPlayersHint: 'Choose the number of players.',

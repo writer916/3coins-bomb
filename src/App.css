@@ -2040,6 +2040,13 @@
   width: 100%;
 }
 
+/* Prior FINAL's primary action follows its label width instead of the action rail. */
+.daily-prior-final__continue {
+  align-self: center;
+  width: auto;
+  max-width: 100%;
+}
+
 .daily-play__complete-actions {
   flex-direction: column;
   gap: 0.55rem;

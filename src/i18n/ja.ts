@@ -89,6 +89,7 @@ export const ja: AppStrings = {
   dailyProvisionalResultDescription: (localFinalTime) =>
     `順位は10分ごとに更新され、${localFinalTime}（UTC 0:00）に確定します。`,
   dailyFinalResultTitle: '最終結果',
+  dailyPriorFinalContinue: '今日のDAILYへ',
   groupRoundsHint: 'ROUND数を決めてください',
   groupRoundsLabel: 'ROUNDS（1-20）',
   groupPlayersHint: '参加人数を決めてください',

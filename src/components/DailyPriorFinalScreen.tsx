@@ -421,11 +421,11 @@ export function DailyPriorFinalScreen({
         ) : (
           <button
             type="button"
-            className="duel-btn"
+            className="duel-btn duel-btn--primary daily-prior-final__continue"
             onClick={confirmContinue}
             data-daily-prior-final-continue=""
           >
-            {t.groupContinue}
+            {t.dailyPriorFinalContinue}
           </button>
         )}
         <button

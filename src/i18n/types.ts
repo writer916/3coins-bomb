@@ -107,6 +107,7 @@ export type AppStrings = {
   dailyProvisionalResultTitle: string
   dailyProvisionalResultDescription: (localFinalTime: string) => string
   dailyFinalResultTitle: string
+  dailyPriorFinalContinue: string
   groupRoundsHint: string
   groupRoundsLabel: string
   groupPlayersHint: string
