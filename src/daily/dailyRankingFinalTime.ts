@@ -1,4 +1,5 @@
 import { validateDailyChallengeDate } from './dailyChallengeDate'
+import { dailyChallengePeriod } from './dailyTime'
 
 export type DailyRankingFinalTimeLocale = 'ja' | 'en'
 
@@ -7,6 +8,12 @@ export type DailyRankingFinalTimeOptions = {
   readonly timeZone?: string | null
   /** Minutes east of UTC, used only when the IANA zone/name is unavailable. */
   readonly fallbackOffsetMinutes?: number
+}
+
+export type DailyChallengePeriodDisplay = {
+  readonly timeZoneName: string
+  readonly startsAt: string
+  readonly endsAt: string
 }
 
 const MS_PER_DAY = 86_400_000
@@ -66,6 +73,134 @@ function fallbackLabel(
     : `${time} ${offsetLabel(safeOffset)}`
 }
 
+type LocalInstantParts = {
+  readonly year: number
+  readonly month: number
+  readonly day: number
+  readonly hour: number
+  readonly minute: number
+  readonly timeZoneName: string
+}
+
+function fallbackParts(
+  instant: Date,
+  offsetMinutesValue: number,
+): LocalInstantParts {
+  const offsetMinutes = Number.isFinite(offsetMinutesValue)
+    ? Math.trunc(offsetMinutesValue)
+    : 0
+  const local = new Date(instant.getTime() + offsetMinutes * 60_000)
+  return {
+    year: local.getUTCFullYear(),
+    month: local.getUTCMonth() + 1,
+    day: local.getUTCDate(),
+    hour: local.getUTCHours(),
+    minute: local.getUTCMinutes(),
+    timeZoneName: offsetLabel(offsetMinutes),
+  }
+}
+
+function localInstantParts(
+  instant: Date,
+  locale: DailyRankingFinalTimeLocale,
+  timeZone: string,
+): LocalInstantParts {
+  const short = partsRecord(locale, instant, timeZone, 'short')
+  const long = partsRecord(locale, instant, timeZone, 'long')
+  const year = Number(long.year)
+  const month = Number(long.month)
+  const day = Number(long.day)
+  const hour = Number(long.hour)
+  const minute = Number(long.minute)
+  const localAsUtc = Date.UTC(year, month - 1, day, hour, minute)
+  const offsetMinutes = Math.round((localAsUtc - instant.getTime()) / 60_000)
+
+  if (timeZone === 'Asia/Tokyo') {
+    return {
+      year,
+      month,
+      day,
+      hour,
+      minute,
+      timeZoneName: locale === 'ja' ? '日本時間' : 'JST',
+    }
+  }
+
+  const shortName = short.timeZoneName ?? ''
+  const longName = long.timeZoneName ?? ''
+  const namedShort = shortName && !/^(?:GMT|UTC)(?:[+-]|$)/i.test(shortName)
+  const candidate = locale === 'en' && namedShort ? shortName : longName
+  return {
+    year,
+    month,
+    day,
+    hour,
+    minute,
+    timeZoneName:
+      candidate && !/^(?:GMT|UTC)(?:[+-]|$)/i.test(candidate)
+        ? candidate
+        : offsetLabel(offsetMinutes),
+  }
+}
+
+function formatPeriodEndpoint(
+  value: LocalInstantParts,
+  locale: DailyRankingFinalTimeLocale,
+  includeYear: boolean,
+): string {
+  const time = `${value.hour}:${String(value.minute).padStart(2, '0')}`
+  if (locale === 'ja') {
+    const date = `${value.month}月${value.day}日`
+    return `${includeYear ? `${value.year}年` : ''}${date} ${time}`
+  }
+  const months = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ]
+  const date = `${months[value.month - 1] ?? ''} ${value.day}`
+  return `${date}${includeYear ? `, ${value.year}` : ''} ${time}`
+}
+
+/** Formats the exact UTC challenge interval for the user's local time zone. */
+export function formatDailyChallengePeriodDisplay(
+  challengeDate: unknown,
+  locale: DailyRankingFinalTimeLocale,
+  options: DailyRankingFinalTimeOptions = {},
+): DailyChallengePeriodDisplay {
+  const period = dailyChallengePeriod(challengeDate)
+  const start = new Date(period.startsAtMs)
+  const end = new Date(period.endsAtMs)
+  const timeZone =
+    options.timeZone === undefined ? browserTimeZone() : options.timeZone
+  const fallbackOffset = options.fallbackOffsetMinutes ?? -start.getTimezoneOffset()
+
+  let startParts: LocalInstantParts
+  let endParts: LocalInstantParts
+  if (timeZone) {
+    try {
+      startParts = localInstantParts(start, locale, timeZone)
+      endParts = localInstantParts(end, locale, timeZone)
+    } catch {
+      startParts = fallbackParts(start, fallbackOffset)
+      endParts = fallbackParts(end, fallbackOffset)
+    }
+  } else {
+    startParts = fallbackParts(start, fallbackOffset)
+    endParts = fallbackParts(end, fallbackOffset)
+  }
+
+  const includeYear = startParts.year !== endParts.year
+  const timeZoneName =
+    startParts.timeZoneName === endParts.timeZoneName
+      ? startParts.timeZoneName
+      : `${startParts.timeZoneName}/${endParts.timeZoneName}`
+  return {
+    timeZoneName,
+    startsAt: formatPeriodEndpoint(startParts, locale, includeYear),
+    endsAt: formatPeriodEndpoint(endParts, locale, includeYear),
+  }
+}
+
 /** Formats the UTC close of a DAILY challenge for the user's local time zone. */
 export function formatDailyRankingFinalTime(
   challengeDate: unknown,
@@ -81,31 +216,12 @@ export function formatDailyRankingFinalTime(
   if (!timeZone) return fallbackLabel(instant, locale, fallbackOffset)
 
   try {
-    const short = partsRecord(locale, instant, timeZone, 'short')
-    const long = partsRecord(locale, instant, timeZone, 'long')
-    const year = Number(long.year)
-    const month = Number(long.month)
-    const day = Number(long.day)
-    const hour = Number(long.hour)
-    const minute = Number(long.minute)
-    const localAsUtc = Date.UTC(year, month - 1, day, hour, minute)
-    const offsetMinutes = Math.round((localAsUtc - instant.getTime()) / 60_000)
-    let zoneName: string
-    if (timeZone === 'Asia/Tokyo') {
-      zoneName = locale === 'ja' ? '日本時間' : 'JST'
-    } else {
-      const shortName = short.timeZoneName ?? ''
-      const longName = long.timeZoneName ?? ''
-      const namedShort = shortName && !/^(?:GMT|UTC)(?:[+-]|$)/i.test(shortName)
-      const candidate = locale === 'en' && namedShort ? shortName : longName
-      if (!candidate || /^(?:GMT|UTC)(?:[+-]|$)/i.test(candidate)) {
-        return fallbackLabel(instant, locale, offsetMinutes)
-      }
-      zoneName = candidate
-    }
-
-    const time = `${hour}:${String(minute).padStart(2, '0')}`
-    const localLabel = locale === 'ja' ? `${zoneName}${time}` : `${time} ${zoneName}`
+    const parts = localInstantParts(instant, locale, timeZone)
+    const time = `${parts.hour}:${String(parts.minute).padStart(2, '0')}`
+    const localLabel =
+      locale === 'ja'
+        ? `${parts.timeZoneName}${time}`
+        : `${time} ${parts.timeZoneName}`
     return localLabel
   } catch {
     return fallbackLabel(instant, locale, fallbackOffset)

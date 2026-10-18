@@ -79,8 +79,8 @@ export type AppStrings = {
    */
   dailyServerArrivalRule: string
   dailySameBrowserRule: string
-  dailyPeriodLabel: string
-  dailyPeriodRange: (startsAt: string, endsAt: string) => string
+  dailyPeriodLabel: (timeZoneName: string) => string
+  dailyPeriodRange: (startsAt: string, endsAt: string, timeZoneName: string) => string
   dailyNicknameLead: string
   dailyNicknameLabel: string
   dailyNicknamePlaceholder: string

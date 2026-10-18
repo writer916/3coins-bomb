@@ -16,7 +16,7 @@ import {
   type DailyPlayCoordinator,
   type DailyPlayState,
 } from '../daily/dailyPlayClient'
-import { formatDailyChallengePeriod } from '../daily/dailyTime'
+import { formatDailyChallengePeriodDisplay } from '../daily/dailyRankingFinalTime'
 import type { AppStrings } from '../i18n'
 import type { LocaleId } from '../i18n/types'
 import { withDuelNums } from '../ui/withDuelNums'
@@ -111,8 +111,8 @@ export function DailyPreStartScreen({
   )
 
   const period = useMemo(() => {
-    return formatDailyChallengePeriod(challengeDate, 'Asia/Tokyo')
-  }, [challengeDate])
+    return formatDailyChallengePeriodDisplay(challengeDate, locale)
+  }, [challengeDate, locale])
 
   const initialJoined = useMemo(
     () => readJoinedSnapshot(challengeDate, storage),
@@ -329,9 +329,17 @@ export function DailyPreStartScreen({
           </p>
         </div>
         <p className="daily-prestart__period">
-          <span className="daily-prestart__period-label">{t.dailyPeriodLabel}</span>
+          <span className="daily-prestart__period-label">
+            {t.dailyPeriodLabel(period.timeZoneName)}
+          </span>
           <span className="daily-prestart__period-value">
-            {withDuelNums(t.dailyPeriodRange(period.startsAt, period.endsAt))}
+            {withDuelNums(
+              t.dailyPeriodRange(
+                period.startsAt,
+                period.endsAt,
+                period.timeZoneName,
+              ),
+            )}
           </span>
         </p>
         {entryState === 'checking' ? (

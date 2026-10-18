@@ -7,6 +7,7 @@ import {
   DAILY_ROUND_LIMIT_SECONDS,
   formatDailyChallengePeriod,
 } from '../src/daily/dailyTime.ts'
+import { formatDailyChallengePeriodDisplay } from '../src/daily/dailyRankingFinalTime.ts'
 import { en } from '../src/i18n/en.ts'
 import { ja } from '../src/i18n/ja.ts'
 import { dailyEntryStateFromParticipant } from '../src/daily/dailyPreStartState.ts'
@@ -88,8 +89,8 @@ for (const paragraph of [
 ]) assert.doesNotMatch(paragraph, /\n/)
 assert.doesNotMatch(ja.dailyRankingRule, /\n/)
 assert.doesNotMatch(ja.dailySameBrowserRule, /\n/)
-assert.equal(ja.dailyPeriodLabel, '本日の開催時間')
-assert.equal(en.dailyPeriodLabel, 'TODAY (JST)')
+assert.equal(ja.dailyPeriodLabel('日本時間'), '本日の開催時間')
+assert.equal(en.dailyPeriodLabel('JST'), 'TODAY (JST)')
 
 const tokyo = formatDailyChallengePeriod('2026-10-14', 'Asia/Tokyo')
 const denver = formatDailyChallengePeriod('2026-10-14', 'America/Denver')
@@ -99,12 +100,12 @@ assert.notEqual(tokyo.startsAt, denver.startsAt)
 assert.equal(tokyo.startsAt, '2026-10-14 09:00')
 assert.equal(tokyo.endsAt, '2026-10-15 09:00')
 assert.equal(
-  ja.dailyPeriodRange(tokyo.startsAt, tokyo.endsAt),
-  '10月14日 9:00 ～ 翌日 9:00',
+  ja.dailyPeriodRange('10月14日 9:00', '10月15日 9:00', '日本時間'),
+  '10月14日 9:00 ～ 10月15日 9:00（日本時間）',
 )
 assert.equal(
-  en.dailyPeriodRange(tokyo.startsAt, tokyo.endsAt),
-  'Oct 14 09:00 – Oct 15 09:00',
+  en.dailyPeriodRange('Oct 14 9:00', 'Oct 15 9:00', 'JST'),
+  'Oct 14 9:00 – Oct 15 9:00',
 )
 assert.equal(denver.startsAt, '2026-10-13 18:00')
 assert.equal(denver.endsAt, '2026-10-14 18:00')
@@ -115,6 +116,15 @@ assert.equal(beforeDst.startsAt, '2026-03-06 19:00')
 assert.equal(beforeDst.endsAt, '2026-03-07 19:00')
 assert.equal(afterDst.startsAt, '2026-03-07 19:00')
 assert.equal(afterDst.endsAt, '2026-03-08 20:00')
+
+const tokyoDisplay = formatDailyChallengePeriodDisplay(
+  '2026-10-18',
+  'ja',
+  { timeZone: 'Asia/Tokyo' },
+)
+assert.equal(tokyoDisplay.timeZoneName, '日本時間')
+assert.equal(tokyoDisplay.startsAt, '10月18日 9:00')
+assert.equal(tokyoDisplay.endsAt, '10月19日 9:00')
 
 const modeSelect = read('src/components/ModeSelect.tsx')
 assert.match(modeSelect, /PlayMode = 'solo' \| 'duel' \| 'group' \| 'daily'/)
@@ -135,7 +145,7 @@ assert.match(app, /mode === 'daily'/)
 assert.match(app, /dailyPhase/)
 
 const prestart = read('src/components/DailyPreStartScreen.tsx')
-assert.match(prestart, /formatDailyChallengePeriod/)
+assert.match(prestart, /formatDailyChallengePeriodDisplay/)
 assert.match(prestart, /readDailyParticipant/)
 assert.match(prestart, /createDailyParticipantCoordinator/)
 assert.match(prestart, /const startInFlightRef = useRef\(false\)/)
@@ -169,7 +179,7 @@ assert.match(prestart, /dailyIntroRule/)
 assert.match(prestart, /dailyServerArrivalRule/)
 assert.match(prestart, /dailySameBrowserRule/)
 assert.match(prestart, /dailyServerArrivalRule \?/)
-assert.match(prestart, /'Asia\/Tokyo'/)
+assert.doesNotMatch(prestart, /'Asia\/Tokyo'/)
 assert.doesNotMatch(prestart, /<br\s*\/?\s*>/i)
 assert.doesNotMatch(prestart, /dailyRoundsLabel|dailyTimeLimitLabel|dailyTimeoutLabel/)
 assert.doesNotMatch(prestart, /GroupReadyScreen/)

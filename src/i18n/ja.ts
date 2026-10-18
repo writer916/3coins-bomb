@@ -59,13 +59,9 @@ export const ja: AppStrings = {
   dailyServerArrivalRule: '',
   dailySameBrowserRule:
     '参加される場合は、同じ端末の同じブラウザで最後までプレイしてください。',
-  dailyPeriodLabel: '本日の開催時間',
-  dailyPeriodRange: (startsAt, endsAt) => {
-    const [date = '', startTime = ''] = startsAt.split(' ')
-    const [, month = '', day = ''] = date.split('-')
-    const endTime = endsAt.split(' ')[1] ?? ''
-    return `${Number(month)}月${Number(day)}日 ${startTime.replace(/^0/, '')} ～ 翌日 ${endTime.replace(/^0/, '')}`
-  },
+  dailyPeriodLabel: () => '本日の開催時間',
+  dailyPeriodRange: (startsAt, endsAt, timeZoneName) =>
+    `${startsAt} ～ ${endsAt}（${timeZoneName}）`,
   dailyNicknameLead: '本日のニックネーム',
   dailyNicknameLabel: 'ニックネーム',
   dailyNicknamePlaceholder: '1-20文字',

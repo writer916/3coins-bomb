@@ -57,19 +57,8 @@ export const en: AppStrings = {
     'To appear in the ranking, you must finish 20 ROUNDS during the challenge period, and your final action must reach the server before the period ends.',
   dailyServerArrivalRule: '',
   dailySameBrowserRule: 'Play all the way through on the same device and browser.',
-  dailyPeriodLabel: 'TODAY (JST)',
-  dailyPeriodRange: (startsAt, endsAt) => {
-    const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-    ]
-    const format = (value: string): string => {
-      const [date = '', time = ''] = value.split(' ')
-      const [, month = '', day = ''] = date.split('-')
-      return `${months[Number(month) - 1] ?? ''} ${Number(day)} ${time}`
-    }
-    return `${format(startsAt)} – ${format(endsAt)}`
-  },
+  dailyPeriodLabel: (timeZoneName) => `TODAY (${timeZoneName})`,
+  dailyPeriodRange: (startsAt, endsAt) => `${startsAt} – ${endsAt}`,
   dailyNicknameLead: "Nickname for today's challenge",
   dailyNicknameLabel: 'NICKNAME',
   dailyNicknamePlaceholder: '1-20 characters',
