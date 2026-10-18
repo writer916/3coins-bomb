@@ -357,7 +357,7 @@ function App() {
 
       // Unlock + async warm (coin + bag preload). Do NOT sync-load bag here —
       // load() immediately before playBagOpen races and stalls currentTime.
-      unlockCoinAudio()
+      if (soundOnRef.current) unlockCoinAudio()
 
       const prev = roundRef.current
       if (!isRoundActive(prev)) return
@@ -443,13 +443,14 @@ function App() {
   }, [])
 
   const handleSoundToggle = useCallback(() => {
-    unlockCoinAudio()
-    warmBagOpenAudio()
-    setSoundOn((prev) => {
-      const next = !prev
-      writeSoundEnabled(next)
-      return next
-    })
+    const next = !soundOnRef.current
+    soundOnRef.current = next
+    if (next) {
+      unlockCoinAudio({ retry: true })
+      warmBagOpenAudio()
+    }
+    writeSoundEnabled(next)
+    setSoundOn(next)
   }, [])
 
   const handleLanguageToggle = useCallback(() => {

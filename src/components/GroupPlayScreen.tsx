@@ -103,7 +103,8 @@ export function GroupPlayScreen({ initialReady, coordinator, t, onResult }: { in
     if (pending && (pending.groupId !== ready.state.groupId || pending.bagNumber !== bagNumber)) { setError(true); return }
     if (coordinator.getPendingCashOut()) { setCashOutError(true); return }
     const local = coordinator.getLocalOpenResult(ready.state.groupId, ready.currentPlacement.roundNumber, ready.currentPlacement.bagCount, bagNumber)
-    unlockCoinAudio(); warmBagOpenAudio(); lockRef.current = true; setRequestPending(true); setError(false); setCashOutError(false)
+    if (readSoundEnabled()) { unlockCoinAudio(); warmBagOpenAudio() }
+    lockRef.current = true; setRequestPending(true); setError(false); setCashOutError(false)
     const gate = createOptimisticOpenGate(); gateRef.current = gate
     if (retryBag === bagId) markOptimisticFxDone(gate)
     else startFx(local, bagId, provisionalCoins)

@@ -332,8 +332,10 @@ export function DuelPlayScreen({ matchId, t, onGoTop }: DuelPlayScreenProps) {
       return
     }
 
-    unlockCoinAudio()
-    warmBagOpenAudio()
+    if (readSoundEnabled()) {
+      unlockCoinAudio()
+      warmBagOpenAudio()
+    }
     interactionLockedRef.current = true
     setRequestPending(true)
 

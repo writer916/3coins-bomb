@@ -1023,8 +1023,10 @@ export function DailyPlayScreen({
 
       // Freeze R at tap — FX and OPEN share this claim (server remains authoritative).
       const remainingSecondsAtTap = remaining
-      unlockCoinAudio()
-      warmBagOpenAudio()
+      if (readSoundEnabled()) {
+        unlockCoinAudio()
+        warmBagOpenAudio()
+      }
       lockRef.current = true
       setRequestPending(true)
       setConnectionError(false)
