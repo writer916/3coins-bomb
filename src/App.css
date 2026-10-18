@@ -57,6 +57,11 @@
   z-index: 1;
 }
 
+/* Lower the SOLO bag field onto the vault floor (layout only; no bag transforms). */
+.app--solo .field-bag {
+  margin-top: 40px;
+}
+
 /* ——— GROUP A: BRAND (title + SOUND; SOUND stays top-right) ——— */
 .field-header {
   flex-shrink: 0;

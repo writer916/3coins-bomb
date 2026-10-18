@@ -44,6 +44,17 @@ assert.doesNotMatch(css, /\.app--duel::before[\s\S]{0,200}solo-vault/)
 assert.doesNotMatch(css, /\.app--daily[\s\S]{0,80}::before[\s\S]{0,200}solo-vault/)
 assert.doesNotMatch(css, /\.app--top::before[\s\S]{0,200}solo-vault/)
 
+assert.match(
+  css,
+  /\.app--solo \.field-bag\s*\{[^}]*margin-top:\s*40px/s,
+)
+assert.doesNotMatch(css, /\.app--solo \.field-bag\s*\{[^}]*transform:/s)
+assert.doesNotMatch(css, /\.app--duel \.field-bag\s*\{[^}]*margin-top:\s*40px/s)
+assert.doesNotMatch(
+  css,
+  /\.app--daily-play[\s\S]{0,80}\.field-bag\s*\{[^}]*margin-top:\s*40px/s,
+)
+
 // No React <img> remount surface for the vault (CSS ::before only).
 assert.doesNotMatch(appTsx, /3cb-solo-vault-background/)
 
