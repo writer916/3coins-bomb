@@ -661,7 +661,7 @@ function App() {
       <main
         className={
           dailyPhase.kind === 'play'
-            ? 'app app--duel app--daily-play'
+            ? 'app app--duel app--daily-play app--vault'
             : dailyPhase.kind === 'result' || dailyPhase.kind === 'prior_final'
               ? 'app app--duel app--daily-result'
               : 'app app--duel app--daily-prestart'
@@ -756,7 +756,7 @@ function App() {
   }
 
   return (
-    <main className="app app--solo">
+    <main className="app app--solo app--vault">
       {/* GROUP A: BRAND — title (→ TOP) + LANGUAGE + SOUND */}
       <div className="field-header">
         {topControls}

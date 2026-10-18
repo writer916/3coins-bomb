@@ -21,17 +21,32 @@
 }
 
 /*
-  SOLO play only: static vault backdrop behind bags/UI.
-  CSS background (not an <img>) so ROUND/OPEN state updates never remount art.
-  Other modes keep the plain .app fill and must not use app--solo.
+  Shared vault backdrop for bag-field screens only:
+  SOLO play, DUEL place/play, GROUP play, DAILY play.
+  CSS background (not an <img>) so ROUND/OPEN updates never remount art.
+  TOP / RESULT / setup shells must not match these selectors.
 */
-.app--solo {
+:is(
+  .app--vault,
+  .app--solo,
+  .app--daily-play,
+  .app--duel:has(.duel-flow--place),
+  .app--duel:has(.duel-play),
+  .app--group-entry:has(.duel-play)
+) {
   position: relative;
   isolation: isolate;
   overflow-x: hidden;
 }
 
-.app--solo::before {
+:is(
+  .app--vault,
+  .app--solo,
+  .app--daily-play,
+  .app--duel:has(.duel-flow--place),
+  .app--duel:has(.duel-play),
+  .app--group-entry:has(.duel-play)
+)::before {
   content: '';
   position: absolute;
   inset: 0;
@@ -52,14 +67,87 @@
   background-repeat: no-repeat;
 }
 
-.app--solo > * {
+:is(
+  .app--vault,
+  .app--solo,
+  .app--daily-play,
+  .app--duel:has(.duel-flow--place),
+  .app--duel:has(.duel-play),
+  .app--group-entry:has(.duel-play)
+) > * {
   position: relative;
   z-index: 1;
 }
 
-/* Lower the SOLO bag field onto the vault floor (layout only; no bag transforms). */
-.app--solo .field-bag {
+/* Lower bag fields onto the vault floor (layout only; never touch bag transforms). */
+:is(
+  .app--vault,
+  .app--solo,
+  .app--daily-play,
+  .app--duel:has(.duel-flow--place),
+  .app--duel:has(.duel-play),
+  .app--group-entry:has(.duel-play)
+) :is(.field-bag, .duel-slot-board, .duel-play-board, .daily-play__board),
+:is(
+  .app--vault,
+  .app--solo,
+  .app--daily-play,
+  .app--duel:has(.duel-flow--place),
+  .app--duel:has(.duel-play),
+  .app--group-entry:has(.duel-play)
+) .duel-play > .bag-board {
   margin-top: 40px;
+}
+
+/* Shared title band + ROUND rhythm on vault/play shells. */
+:is(
+  .app--vault,
+  .app--solo,
+  .app--daily-play,
+  .app--duel:has(.duel-flow--place),
+  .app--duel:has(.duel-play),
+  .app--group-entry:has(.duel-play)
+) .field-header {
+  margin-bottom: 0.35rem;
+}
+
+:is(
+  .app--vault,
+  .app--solo,
+  .app--daily-play,
+  .app--duel:has(.duel-flow--place),
+  .app--duel:has(.duel-play),
+  .app--group-entry:has(.duel-play)
+) .duel-setup-heading {
+  white-space: nowrap;
+}
+
+:is(
+  .app--vault,
+  .app--solo,
+  .app--daily-play,
+  .app--duel:has(.duel-flow--place),
+  .app--duel:has(.duel-play),
+  .app--group-entry:has(.duel-play)
+) .duel-round-index {
+  min-width: 12.5rem;
+  font-size: clamp(1.15rem, 4.4vw, 1.38rem);
+  letter-spacing: 0.07em;
+  color: #f2e6d0;
+}
+
+:is(
+  .app--vault,
+  .app--solo,
+  .app--daily-play,
+  .app--duel:has(.duel-flow--place),
+  .app--duel:has(.duel-play),
+  .app--group-entry:has(.duel-play)
+) .duel-round-index .duel-num {
+  font-size: inherit;
+  font-weight: 700;
+  color: #f5ebd8;
+  letter-spacing: 0.02em;
 }
 
 /* ——— GROUP A: BRAND (title + SOUND; SOUND stays top-right) ——— */
@@ -1234,10 +1322,7 @@
   --duel-slot-instruction-h: 2.9rem; /* JA 2-line room; slot height does not move buttons */
 }
 
-/* Restore BagBoard top ≈108.26 after matching setup padding-top (was +0.406rem place-only). */
-.duel-flow--place .duel-slot-board {
-  margin-top: 0.406rem;
-}
+/* BagBoard top offset comes from shared vault 40px rule (place/play). */
 
 /*
   Quiet mode chip — same on setup and place so SET transition does not jump.
@@ -2112,11 +2197,6 @@
   scrollbar-gutter: stable;
 }
 
-/* Title ↔ ROUND breathing room (DAILY play only). */
-.app--daily-play .field-header {
-  margin-bottom: clamp(0.35rem, 1.4vh, 0.7rem);
-}
-
 .app--daily-play .daily-play {
   justify-content: flex-start;
   gap: clamp(0.4rem, 1.35vh, 0.75rem);
@@ -2124,7 +2204,7 @@
 }
 
 .app--daily-play .daily-play > .duel-round-index {
-  margin-top: clamp(0.15rem, 0.8vh, 0.4rem);
+  margin-top: 0;
   margin-bottom: 0;
 }
 
@@ -2138,13 +2218,12 @@
   text-align: center;
 }
 
-/* Shift bag field slightly upward after ROUND + timer at the top. */
+/* Board top offset comes from shared vault 40px rule. */
 .app--daily-play .daily-play__board {
   flex: 0 1 auto;
   width: 100%;
   display: flex;
   justify-content: center;
-  margin-top: clamp(-0.35rem, -1.2vh, -0.1rem);
   margin-bottom: clamp(0.05rem, 0.5vh, 0.25rem);
 }
 
@@ -3442,12 +3521,19 @@
     padding-top: 0.25rem;
   }
 
-  .duel-flow--place .duel-slot-board {
-    margin-top: 0.406rem;
-  }
-
   .duel-flow--place .duel-slot-instruction {
     margin-top: 0.25rem;
+  }
+
+  :is(
+    .app--vault,
+    .app--solo,
+    .app--daily-play,
+    .app--duel:has(.duel-flow--place),
+    .app--duel:has(.duel-play),
+    .app--group-entry:has(.duel-play)
+  ) .duel-round-index {
+    font-size: clamp(1.05rem, 4vw, 1.22rem);
   }
 
   .duel-field--stepper {
