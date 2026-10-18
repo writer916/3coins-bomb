@@ -9,6 +9,7 @@ import { en } from '../src/i18n/en.ts'
 import { ja } from '../src/i18n/ja.ts'
 import {
   LANGUAGE_STORAGE_KEY,
+  localeFromBrowserLanguages,
   nextLocale,
   parseLocaleStored,
   readLocale,
@@ -47,19 +48,48 @@ assert.equal(parseLocaleStored('JA'), 'ja')
 assert.equal(parseLocaleStored('fr'), 'en')
 assert.equal(parseLocaleStored('nope'), 'en')
 
+assert.equal(localeFromBrowserLanguages({ languages: ['ja-JP'], language: 'en-US' }), 'ja')
+assert.equal(localeFromBrowserLanguages({ languages: ['JA'], language: 'en-US' }), 'ja')
+assert.equal(localeFromBrowserLanguages({ languages: ['en-US'], language: 'ja-JP' }), 'en')
+assert.equal(localeFromBrowserLanguages({ languages: ['zh-CN'], language: 'ja-JP' }), 'en')
+assert.equal(localeFromBrowserLanguages({ languages: ['ko-KR'] }), 'en')
+assert.equal(localeFromBrowserLanguages({ languages: ['fr-FR'] }), 'en')
+assert.equal(localeFromBrowserLanguages({ languages: [], language: 'ja-JP' }), 'ja')
+assert.equal(localeFromBrowserLanguages({ languages: [''], language: 'ja' }), 'ja')
+assert.equal(localeFromBrowserLanguages({ languages: ['japanese'], language: 'ja' }), 'en')
+assert.equal(localeFromBrowserLanguages(null), 'en')
+
 assert.equal(nextLocale('en'), 'ja')
 assert.equal(nextLocale('ja'), 'en')
 
 const store = memoryStorage()
-assert.equal(readLocale(store), 'en')
+assert.equal(readLocale(store, { languages: ['ja-JP'] }), 'ja')
 writeLocale('ja', store)
 assert.equal(store.getItem(LANGUAGE_STORAGE_KEY), 'ja')
-assert.equal(readLocale(store), 'ja')
+assert.equal(readLocale(store, { languages: ['en-US'] }), 'ja')
 writeLocale('en', store)
-assert.equal(readLocale(store), 'en')
+assert.equal(readLocale(store, { languages: ['ja-JP'] }), 'en')
 
-assert.equal(readLocale(null), 'en')
+assert.equal(readLocale(null, { languages: ['ja'] }), 'ja')
+assert.equal(readLocale(null, null), 'en')
 writeLocale('ja', null) // no throw
+
+const inaccessibleStorage = {
+  getItem(): string | null {
+    throw new Error('blocked')
+  },
+}
+assert.equal(readLocale(inaccessibleStorage, { language: 'ja-JP' }), 'ja')
+
+let autoWrites = 0
+const autoOnlyStore = {
+  getItem: () => null,
+  setItem: () => {
+    autoWrites += 1
+  },
+}
+assert.equal(readLocale(autoOnlyStore, { languages: ['ja-JP'] }), 'ja')
+assert.equal(autoWrites, 0, 'automatic browser choice must not be persisted')
 
 // --- JA copy (mode names / commands) ---
 assert.equal(ja.modeSoloName, 'SOLO')

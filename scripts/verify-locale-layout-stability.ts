@@ -23,10 +23,10 @@ const [
   readFile('src/components/GroupResultScreen.tsx', 'utf8'),
 ])
 
-/* The browser language follows the persisted app locale on first render and toggle. */
+/* The document language follows app locale before paint on first render and toggle. */
 assert.match(
   app,
-  /useEffect\(\(\) => \{\s*document\.documentElement\.lang = locale\s*\}, \[locale\]\)/s,
+  /useLayoutEffect\(\(\) => \{\s*document\.documentElement\.lang = locale\s*\}, \[locale\]\)/s,
 )
 
 /* Shipped JA/EN copy gets equal minimums; unexpected copy may grow naturally. */

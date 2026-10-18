@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { BagBoard } from './components/BagBoard'
 import { BombOpenFx } from './components/BombOpenFx'
 import { CoinOpenFx } from './components/CoinOpenFx'
@@ -203,7 +203,7 @@ function App() {
   const fxRunIdRef = useRef(0)
   const soundOnRef = useRef(soundOn)
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     document.documentElement.lang = locale
   }, [locale])
 
