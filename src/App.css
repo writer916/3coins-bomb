@@ -20,6 +20,43 @@
   color: #e8dcc8;
 }
 
+/*
+  SOLO play only: static vault backdrop behind bags/UI.
+  CSS background (not an <img>) so ROUND/OPEN state updates never remount art.
+  Other modes keep the plain .app fill and must not use app--solo.
+*/
+.app--solo {
+  position: relative;
+  isolation: isolate;
+  overflow-x: hidden;
+}
+
+.app--solo::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  user-select: none;
+  background-color: #1a1510;
+  background-image:
+    linear-gradient(
+      180deg,
+      rgb(14 10 6 / 0.3) 0%,
+      rgb(14 10 6 / 0.22) 42%,
+      rgb(14 10 6 / 0.4) 100%
+    ),
+    url('/solo/3cb-solo-vault-background.webp');
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
+}
+
+.app--solo > * {
+  position: relative;
+  z-index: 1;
+}
+
 /* ——— GROUP A: BRAND (title + SOUND; SOUND stays top-right) ——— */
 .field-header {
   flex-shrink: 0;

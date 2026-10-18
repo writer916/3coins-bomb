@@ -756,7 +756,7 @@ function App() {
   }
 
   return (
-    <main className="app">
+    <main className="app app--solo">
       {/* GROUP A: BRAND — title (→ TOP) + LANGUAGE + SOUND */}
       <div className="field-header">
         {topControls}
