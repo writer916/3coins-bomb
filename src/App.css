@@ -21,32 +21,42 @@
 }
 
 /*
-  DUEL corridor backdrop for bagless setup / confirmation / invitation / wait
-  screens only. The explicit mode class prevents similarly named GROUP/DAILY
-  flows from matching; placement, play, RESULT and REVEAL states are excluded.
+  Stone-wall backdrop for bagless setup shells only:
+  DUEL setup/invite/wait/confirm, GROUP create/entry (pre-play), DAILY prestart.
+  Reuses the DUEL asset. Excludes PLAY (vault), RESULT, and GROUP completion waiting.
 */
-.app--duel-mode:has(
+:is(
+  .app--duel-mode,
+  .app--group-create,
+  .app--group-entry,
+  .app--daily-prestart
+):has(
   :is(
     .duel-flow--setup,
     .duel-flow--complete,
     .duel-flow--invite,
     .duel-flow--placement-wait,
     .duel-flow--start-confirm
-  )
+  ):not(.group-completion-waiting)
 ) {
   position: relative;
   isolation: isolate;
   overflow-x: hidden;
 }
 
-.app--duel-mode:has(
+:is(
+  .app--duel-mode,
+  .app--group-create,
+  .app--group-entry,
+  .app--daily-prestart
+):has(
   :is(
     .duel-flow--setup,
     .duel-flow--complete,
     .duel-flow--invite,
     .duel-flow--placement-wait,
     .duel-flow--start-confirm
-  )
+  ):not(.group-completion-waiting)
 )::before {
   content: '';
   position: absolute;
@@ -61,14 +71,19 @@
   background-repeat: no-repeat;
 }
 
-.app--duel-mode:has(
+:is(
+  .app--duel-mode,
+  .app--group-create,
+  .app--group-entry,
+  .app--daily-prestart
+):has(
   :is(
     .duel-flow--setup,
     .duel-flow--complete,
     .duel-flow--invite,
     .duel-flow--placement-wait,
     .duel-flow--start-confirm
-  )
+  ):not(.group-completion-waiting)
 ) > * {
   position: relative;
   z-index: 1;
@@ -249,27 +264,33 @@
   border: 1px solid #46382c;
   border-radius: 0.3rem;
   background: transparent;
-  color: #9a8468;
+  color: #fff;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  opacity: 0.55;
+  opacity: 0.92;
   -webkit-tap-highlight-color: transparent;
+}
+
+/* Sound OFF stays white but slightly softer; glyph path still differs. */
+.sound-toggle[aria-pressed='false'] {
+  opacity: 0.72;
 }
 
 .sound-toggle:focus-visible,
 .lang-toggle:focus-visible {
   outline: 2px solid #c4a574;
   outline-offset: 2px;
-  opacity: 0.9;
+  opacity: 1;
 }
 
 .sound-toggle-glyph,
 .lang-toggle-glyph {
   display: flex;
   line-height: 0;
-  opacity: 0.85;
+  opacity: 1;
+  color: #fff;
 }
 
 .app-header {

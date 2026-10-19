@@ -232,6 +232,10 @@ assert.match(
   /\.mode-card-heading--group \.mode-badge\s*\{[^}]*width:\s*max-content;[^}]*min-width:\s*max-content;[^}]*white-space:\s*nowrap;/s,
 )
 assert.match(css, /\.app--daily-prestart \.field-header\s*\{[^}]*margin-bottom:/s)
+assert.match(css, /\.app--daily-prestart/)
+assert.match(css, /url\('\/duel\/3cb-duel-stone-wall-background\.webp'\)/)
+assert.match(css, /:not\(\.group-completion-waiting\)/)
+assert.doesNotMatch(css, /\.app--daily-play[\s\S]{0,160}3cb-duel-stone-wall/)
 assert.match(prestart, /className="daily-prestart__prose"/)
 assert.match(
   css,

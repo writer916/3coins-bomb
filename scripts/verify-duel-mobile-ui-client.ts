@@ -31,6 +31,21 @@ assert.match(bootstrapSource, /DuelBootstrapShell t=\{t\} topControls=\{topContr
 assert.doesNotMatch(bootstrapSource, /LanguageToggle|SoundToggle|useState\(\(\) => readSound/)
 assert.doesNotMatch(bootstrapSource, /writeLocale|handleLanguageToggle/)
 
+/* 1b. Shared lang/sound glyphs render white across modes. */
+assert.match(
+  appCss,
+  /\.sound-toggle,\s*\.lang-toggle\s*\{[^}]*color:\s*#fff/s,
+)
+assert.match(
+  appCss,
+  /\.sound-toggle-glyph,\s*\.lang-toggle-glyph\s*\{[^}]*color:\s*#fff/s,
+)
+assert.doesNotMatch(
+  appCss,
+  /\.sound-toggle,\s*\.lang-toggle\s*\{[^}]*color:\s*#9a8468/s,
+)
+assert.match(appCss, /\.sound-toggle\[aria-pressed='false'\]\s*\{[^}]*opacity:/s)
+
 /* 2. StartConfirm digits via withDuelNums / .duel-num path. */
 assert.match(confirmSource, /withDuelNums/)
 assert.match(confirmSource, /withDuelNums\(createdLabel\)/)

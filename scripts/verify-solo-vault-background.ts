@@ -63,7 +63,40 @@ assert.doesNotMatch(appTsx, /app--group-create app--vault/)
 assert.match(groupPlay, /duel-play-board/)
 assert.doesNotMatch(appTsx, /3cb-solo-vault-background/)
 
+/* Stone-wall setup shells (DUEL + GROUP pre-play + DAILY prestart); not PLAY. */
+const stoneWallAsset = /url\('\/duel\/3cb-duel-stone-wall-background\.webp'\)/
+assert.match(css, stoneWallAsset)
+assert.equal(
+  [...css.matchAll(new RegExp(stoneWallAsset.source, 'g'))].length,
+  1,
+  'stone-wall asset referenced once',
+)
+assert.match(css, /\.app--group-create/)
+assert.match(css, /\.app--group-entry/)
+assert.match(css, /\.app--daily-prestart/)
+assert.match(css, /\.app--duel-mode/)
+assert.match(css, /:not\(\.group-completion-waiting\)/)
+assert.match(css, /\.app--group-entry:has\(\.duel-play\)/)
+assert.doesNotMatch(
+  css,
+  /\.app--group-entry:has\(\.duel-play\)[\s\S]{0,200}3cb-duel-stone-wall/,
+)
+assert.doesNotMatch(
+  css,
+  /\.app--daily-play[\s\S]{0,200}3cb-duel-stone-wall/,
+)
+
+const stonePath = resolve(root, 'public/duel/3cb-duel-stone-wall-background.webp')
+const stoneStat = statSync(stonePath)
+assert.ok(stoneStat.size > 40_000, `stone webp too small: ${stoneStat.size}`)
+const stone = readFileSync(stonePath)
+assert.equal(stone.subarray(0, 4).toString('ascii'), 'RIFF')
+assert.equal(stone.subarray(8, 12).toString('ascii'), 'WEBP')
+
 console.log('verify:solo-vault-background OK')
 console.log(
   `webp bytes=${webpStat.size} path=public/solo/3cb-solo-vault-background.webp`,
+)
+console.log(
+  `stone-wall bytes=${stoneStat.size} path=public/duel/3cb-duel-stone-wall-background.webp`,
 )
