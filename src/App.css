@@ -1883,6 +1883,38 @@
   text-align: left;
 }
 
+/* DUEL/GROUP PLAY: shared two-line settled score block. */
+.duel-play .duel-play-session-metrics {
+  margin-top: auto;
+  padding-top: clamp(0.6rem, 2vh, 1rem);
+  padding-bottom: max(
+    clamp(2rem, 7.5vh, 4rem),
+    calc(1.25rem + env(safe-area-inset-bottom, 0px))
+  );
+}
+
+.duel-play-session-metrics .score-stack {
+  align-items: flex-start;
+}
+
+.duel-play-session-metrics .score-row,
+.duel-play-session-metrics .score-row--secondary {
+  width: auto;
+  min-width: 0;
+  max-width: 100%;
+  justify-content: flex-start;
+  gap: 0;
+}
+
+.duel-play-session-metrics .score-item {
+  justify-content: flex-start;
+}
+
+.duel-play-session-metrics .score-num {
+  min-width: 0;
+  text-align: left;
+}
+
 .duel-play-board {
   width: 100%;
   min-height: 0;

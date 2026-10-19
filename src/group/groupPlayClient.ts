@@ -19,6 +19,8 @@ export interface GroupPlayState {
   readonly groupStatus: 'open' | 'closed'
   readonly participant: { readonly id: string; readonly displayNickname: string; readonly completed: boolean; readonly excluded: boolean }
   readonly completedRounds: number
+  readonly totalCapturedCoins: number
+  readonly threeCoinsComplete: number
   readonly nextRoundNumber: number | null
   readonly activeAttempt: {
     readonly roundNumber: number
@@ -118,13 +120,15 @@ function iso(value: unknown): string {
 
 export function parseGroupPlayState(value: unknown, expectedGroupId: string): GroupPlayState {
   const state = record(value)
-  exact(state, ['groupId', 'totalRounds', 'groupStatus', 'participant', 'completedRounds', 'nextRoundNumber', 'activeAttempt', 'latestTerminalAttempt'])
+  exact(state, ['groupId', 'totalRounds', 'groupStatus', 'participant', 'completedRounds', 'totalCapturedCoins', 'threeCoinsComplete', 'nextRoundNumber', 'activeAttempt', 'latestTerminalAttempt'])
   const participant = record(state.participant)
   exact(participant, ['id', 'displayNickname', 'completed', 'excluded'])
   const groupId = uuid(state.groupId)
   if (groupId !== uuid(expectedGroupId)) return fail()
   const totalRounds = integer(state.totalRounds, 1, GROUP_ROUNDS_MAX)
   const completedRounds = integer(state.completedRounds, 0, totalRounds)
+  const totalCapturedCoins = integer(state.totalCapturedCoins, 0, completedRounds * 3)
+  const threeCoinsComplete = integer(state.threeCoinsComplete, 0, completedRounds)
   if ((state.groupStatus !== 'open' && state.groupStatus !== 'closed') || typeof participant.displayNickname !== 'string' || typeof participant.completed !== 'boolean' || typeof participant.excluded !== 'boolean') return fail()
   const active = state.activeAttempt === null ? null : record(state.activeAttempt)
   if (active) exact(active, ['roundNumber', 'startedAt', 'openedBagCount', 'openedBags', 'provisionalCoins'])
@@ -165,7 +169,7 @@ export function parseGroupPlayState(value: unknown, expectedGroupId: string): Gr
   if (latestTerminalAttempt && latestTerminalAttempt.openedBagCount !== latestTerminalAttempt.openedBags.length) return fail()
   const nextRoundNumber = state.nextRoundNumber === null ? null : integer(state.nextRoundNumber, 1, totalRounds)
   if ((activeAttempt && activeAttempt.roundNumber !== completedRounds + 1) || (activeAttempt && nextRoundNumber !== activeAttempt.roundNumber) || (((!activeAttempt && participant.completed) || participant.excluded || state.groupStatus === 'closed') && nextRoundNumber !== null)) return fail()
-  return { groupId, totalRounds, groupStatus: state.groupStatus, participant: { id: uuid(participant.id), displayNickname: participant.displayNickname, completed: participant.completed, excluded: participant.excluded }, completedRounds, nextRoundNumber, activeAttempt, latestTerminalAttempt }
+  return { groupId, totalRounds, groupStatus: state.groupStatus, participant: { id: uuid(participant.id), displayNickname: participant.displayNickname, completed: participant.completed, excluded: participant.excluded }, completedRounds, totalCapturedCoins, threeCoinsComplete, nextRoundNumber, activeAttempt, latestTerminalAttempt }
 }
 
 export function parseGroupPlacementSet(value: unknown, expectedGroupId: string): GroupPlacementSet {

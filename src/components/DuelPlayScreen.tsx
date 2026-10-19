@@ -762,13 +762,9 @@ export function DuelPlayScreen({ matchId, t, onGoTop }: DuelPlayScreenProps) {
           {resultError ? <p>{t.duelResultError}</p> : null}
         </div>
       ) : null}
-      <div className="group-session" aria-live="polite">
+      <div className="group-session duel-play-session-metrics" aria-live="polite">
         <div className="score-stack">
           <div className="score-row">
-            <p className="score-item">
-              <span className="score-label">ROUNDS</span>
-              <span className="score-num">{view.selfProgress.completedRounds} / {view.totalRounds}</span>
-            </p>
             <p className="score-item">
               <span className="score-label">COINS</span>
               <span className="score-num">{view.selfProgress.totalCapturedCoins}</span>

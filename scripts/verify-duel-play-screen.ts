@@ -1021,7 +1021,7 @@ assert.doesNotMatch(
   screen,
   /handleCashOut[\s\S]*catch \{\s*interactionLockedRef\.current = false\s*setRetryBag\(null\)\s*\}/,
 )
-assert.match(screen, /view\.selfProgress\.completedRounds/)
+assert.doesNotMatch(screen, /score-label">ROUNDS/)
 assert.match(screen, /view\.selfProgress\.totalCapturedCoins/)
 assert.match(screen, /view\.selfProgress\.threeCoinsComplete/)
 assert.match(screen, /3COINS COMPLETE/)
@@ -1048,6 +1048,8 @@ assert.doesNotMatch(
   /\.duel-play \.score-row > \.score-item:first-child \.score-num\s*{[^}]*min-width:\s*7\.5ch/s,
 )
 assert.match(appCss, /\.score-label\s*{[^}]*font-family:\s*Georgia/s)
+assert.match(appCss, /\.duel-play \.duel-play-session-metrics\s*{[^}]*padding-bottom:\s*max/s)
+assert.match(appCss, /env\(safe-area-inset-bottom, 0px\)/)
 assert.match(
   screen,
   /<span className="score-label">\s*\{withDuelNums\('3COINS COMPLETE'\)\}\s*<\/span>\s*<span className="score-num">/,

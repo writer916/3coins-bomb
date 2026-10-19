@@ -52,6 +52,8 @@ const initialState = {
   groupStatus: 'open' as const,
   participant: { id: participantId, displayNickname: '桃3', completed: false, excluded: false },
   completedRounds: 0,
+  totalCapturedCoins: 0,
+  threeCoinsComplete: 0,
   nextRoundNumber: 1,
   activeAttempt: null,
   latestTerminalAttempt: null,
@@ -76,6 +78,8 @@ const restoredState = {
 const terminalState = {
   ...initialState,
   completedRounds: 1,
+  totalCapturedCoins: 1,
+  threeCoinsComplete: 0,
   nextRoundNumber: 2,
   latestTerminalAttempt: {
     roundNumber: 1,
@@ -207,6 +211,8 @@ const resumeSource = dbSource.slice(dbSource.indexOf('export async function resu
 assert.doesNotMatch(resumeSource, /status = 'interrupted'/)
 assert.doesNotMatch(resumeSource, /captured_coins = 0/)
 assert.match(dbSource, /opened_bag_count/)
+assert.match(dbSource, /as total_captured_coins/)
+assert.match(dbSource, /as three_coins_complete/)
 assert.match(dbSource, /as active_round/)
 assert.match(dbSource, /match\.status = 'open'/)
 assert.match(dbSource, /participant\.excluded_at is null/)
@@ -216,8 +222,15 @@ assert.match(resumeSource, /return getGroupPlayState/)
 const clientSource = readFileSync(resolve(root, 'src/group/groupPlayClient.ts'), 'utf8')
 for (const forbidden of ['localStorage', 'sessionStorage', 'indexedDB', 'server/db']) assert.equal(clientSource.includes(forbidden), false)
 const uiSource = readFileSync(resolve(root, 'src/components/GroupEntryShell.tsx'), 'utf8')
+const playSource = readFileSync(resolve(root, 'src/components/GroupPlayScreen.tsx'), 'utf8')
 assert.match(uiSource, /GroupPlayScreen/)
 assert.doesNotMatch(uiSource, /cashOut/)
 assert.match(uiSource, /explicitResumeRef\.current \?\?=/)
+assert.match(playSource, /ready\.state\.totalCapturedCoins/)
+assert.match(playSource, /ready\.state\.threeCoinsComplete/)
+assert.match(playSource, /duel-play-session-metrics/)
+assert.match(playSource, /withDuelNums\('3COINS COMPLETE'\)/)
+assert.doesNotMatch(playSource, /score-label">ROUNDS/)
+assert.match(playSource, /applyTerminalTotals\(result\)/)
 
 console.log('verify:group-play-bootstrap OK')

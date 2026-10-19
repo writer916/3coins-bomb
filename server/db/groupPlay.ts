@@ -37,6 +37,8 @@ export interface PersistedGroupPlayState {
     readonly excluded: boolean
   }
   readonly completedRounds: number
+  readonly totalCapturedCoins: number
+  readonly threeCoinsComplete: number
   readonly nextRoundNumber: number | null
   readonly activeAttempt: GroupActiveAttemptView | null
   readonly latestTerminalAttempt: GroupTerminalAttemptView | null
@@ -66,6 +68,8 @@ interface StateRow extends Record<string, unknown> {
   readonly completed_at: Date | string | null
   readonly excluded_at: Date | string | null
   readonly terminal_count: number
+  readonly total_captured_coins: number
+  readonly three_coins_complete: number
   readonly terminal_first: number | null
   readonly terminal_last: number | null
   readonly active_count: number
@@ -94,6 +98,10 @@ function toState(row: StateRow): PersistedGroupPlayState {
     !contiguous ||
     row.terminal_count < 0 ||
     row.terminal_count > row.total_rounds ||
+    row.total_captured_coins < 0 ||
+    row.total_captured_coins > row.terminal_count * 3 ||
+    row.three_coins_complete < 0 ||
+    row.three_coins_complete > row.terminal_count ||
     row.active_count < 0 ||
     row.active_count > 1 ||
     (row.active_count === 1 && row.active_round !== row.terminal_count + 1)
@@ -117,6 +125,8 @@ function toState(row: StateRow): PersistedGroupPlayState {
       excluded,
     },
     completedRounds: row.terminal_count,
+    totalCapturedCoins: row.total_captured_coins,
+    threeCoinsComplete: row.three_coins_complete,
     nextRoundNumber:
       completed || excluded || row.group_status === 'closed'
         ? null
@@ -203,6 +213,8 @@ const STATE_SELECT = sql`
     participant.completed_at,
     participant.excluded_at,
     count(attempt.*) filter (where attempt.status <> 'active')::integer as terminal_count,
+    coalesce(sum(attempt.captured_coins) filter (where attempt.status <> 'active'), 0)::integer as total_captured_coins,
+    count(attempt.*) filter (where attempt.status = 'cleared')::integer as three_coins_complete,
     min(attempt.round_number) filter (where attempt.status <> 'active')::integer as terminal_first,
     max(attempt.round_number) filter (where attempt.status <> 'active')::integer as terminal_last,
     count(attempt.*) filter (where attempt.status = 'active')::integer as active_count,

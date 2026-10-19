@@ -23,6 +23,7 @@ import type {
   GroupResult,
   createGroupPlayBootstrapCoordinator,
 } from '../group/groupPlayClient'
+import { withDuelNums } from '../ui/withDuelNums'
 import { BagBoard } from './BagBoard'
 import { BombOpenFx } from './BombOpenFx'
 import { CoinOpenFx } from './CoinOpenFx'
@@ -31,6 +32,7 @@ import { GroupCompletionWaiting } from './GroupCompletionWaiting'
 
 type Coordinator = ReturnType<typeof createGroupPlayBootstrapCoordinator>
 type RestoredTerminal = { readonly restored: true }
+type TerminalResult = GroupOpenResult | GroupCashOutResult
 type ActiveFx =
   | {
       kind: 'coins'
@@ -90,6 +92,19 @@ export function GroupPlayScreen({ initialReady, coordinator, t, onResult }: { in
     return visual
   }, [opened, fx, coinFxSample])
 
+  const applyTerminalTotals = useCallback((result: TerminalResult) => {
+    setReady((current) => ({
+      ...current,
+      state: {
+        ...current.state,
+        completedRounds: current.state.completedRounds + 1,
+        totalCapturedCoins: current.state.totalCapturedCoins + result.capturedCoins,
+        threeCoinsComplete:
+          current.state.threeCoinsComplete + (result.endReason === 'cleared' ? 1 : 0),
+      },
+    }))
+  }, [])
+
   const unlock = useCallback(() => {
     gateRef.current = null; lockRef.current = false; setRequestPending(false); setFx(null); setCoinFxSample(null)
   }, [])
@@ -132,13 +147,16 @@ export function GroupPlayScreen({ initialReady, coordinator, t, onResult }: { in
       const result = await coordinator.open(ready.state.groupId, bagNumber)
       if (local.outcome !== result.outcome || local.coinsFound !== result.coinsFound || result.roundNumber !== ready.currentPlacement.roundNumber || result.openOrder !== openedResults.length + 1) throw new Error('mismatch')
       setRetryBag(null); setOpenedResults((current) => [...current, result]); setProvisionalCoins(result.provisionalCoins)
-      if (result.roundEnded) setTerminal(result)
+      if (result.roundEnded) {
+        setTerminal(result)
+        applyTerminalTotals(result)
+      }
       if (markOptimisticServerDone(gate)) unlock()
     } catch {
       markOptimisticFailed(gate); setRetryBag(bagId); setError(true)
       if (gate.fxDone) unlock()
     }
-  }, [coordinator, ready, opened, openedResults.length, provisionalCoins, requestPending, retryBag, terminal, startFx, unlock])
+  }, [coordinator, ready, opened, openedResults.length, provisionalCoins, requestPending, retryBag, terminal, startFx, unlock, applyTerminalTotals])
 
   const cashOut = useCallback(async () => {
     if (lockRef.current || requestPending || fx || terminal || (provisionalCoins !== 1 && provisionalCoins !== 2)) return
@@ -148,10 +166,10 @@ export function GroupPlayScreen({ initialReady, coordinator, t, onResult }: { in
     try {
       const result = await coordinator.cashOut(ready.state.groupId)
       if (result.roundNumber !== ready.currentPlacement.roundNumber || result.capturedCoins !== provisionalCoins || result.openedBagCount !== openedResults.length) throw new Error('mismatch')
-      setTerminal(result); setRetryBag(null)
+      setTerminal(result); setRetryBag(null); applyTerminalTotals(result)
     } catch { setCashOutError(true) }
     finally { lockRef.current = false; setRequestPending(false) }
-  }, [coordinator, ready, provisionalCoins, openedResults.length, requestPending, fx, terminal])
+  }, [coordinator, ready, provisionalCoins, openedResults.length, requestPending, fx, terminal, applyTerminalTotals])
 
   const canShowNextRound =
     terminal !== null &&
@@ -248,5 +266,21 @@ export function GroupPlayScreen({ initialReady, coordinator, t, onResult }: { in
         {cashOutError ? <p>{t.duelCashOutRetry}</p> : null}
       </div>
     ) : null}
+    <div className="group-session duel-play-session-metrics" aria-live="polite">
+      <div className="score-stack">
+        <div className="score-row">
+          <p className="score-item">
+            <span className="score-label">COINS</span>
+            <span className="score-num">{ready.state.totalCapturedCoins}</span>
+          </p>
+        </div>
+        <div className="score-row score-row--secondary">
+          <p className="score-item">
+            <span className="score-label">{withDuelNums('3COINS COMPLETE')}</span>
+            <span className="score-num">{ready.state.threeCoinsComplete}</span>
+          </p>
+        </div>
+      </div>
+    </div>
   </div>
 }
