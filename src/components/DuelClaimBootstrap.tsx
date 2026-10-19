@@ -43,7 +43,7 @@ function DuelBootstrapShell({
   readonly children: ReactNode
 }) {
   return (
-    <main className="app app--duel">
+    <main className="app app--duel app--duel-mode">
       <div className="field-header">
         {topControls}
         <header className="app-header">

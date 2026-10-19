@@ -21,6 +21,60 @@
 }
 
 /*
+  DUEL corridor backdrop for bagless setup / confirmation / invitation / wait
+  screens only. The explicit mode class prevents similarly named GROUP/DAILY
+  flows from matching; placement, play, RESULT and REVEAL states are excluded.
+*/
+.app--duel-mode:has(
+  :is(
+    .duel-flow--setup,
+    .duel-flow--complete,
+    .duel-flow--invite,
+    .duel-flow--placement-wait,
+    .duel-flow--start-confirm
+  )
+) {
+  position: relative;
+  isolation: isolate;
+  overflow-x: hidden;
+}
+
+.app--duel-mode:has(
+  :is(
+    .duel-flow--setup,
+    .duel-flow--complete,
+    .duel-flow--invite,
+    .duel-flow--placement-wait,
+    .duel-flow--start-confirm
+  )
+)::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  user-select: none;
+  background-color: #1a1510;
+  background-image: url('/duel/3cb-duel-corridor-background.webp');
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
+}
+
+.app--duel-mode:has(
+  :is(
+    .duel-flow--setup,
+    .duel-flow--complete,
+    .duel-flow--invite,
+    .duel-flow--placement-wait,
+    .duel-flow--start-confirm
+  )
+) > * {
+  position: relative;
+  z-index: 1;
+}
+
+/*
   Shared vault backdrop for bag-field screens only:
   SOLO play, DUEL place/play, GROUP play, DAILY play.
   CSS background (not an <img>) so ROUND/OPEN updates never remount art.
