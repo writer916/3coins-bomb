@@ -83,8 +83,7 @@ export async function joinGroupParticipant(
         null,
         0
       from match_row
-      on conflict (group_id, nickname_key) do update
-      set nickname_key = excluded.nickname_key
+      on conflict (group_id, nickname_key) do nothing
       returning
         id,
         group_id,

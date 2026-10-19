@@ -109,6 +109,7 @@ export const en: AppStrings = {
   groupJoin: 'JOIN GROUP',
   groupJoining: 'JOINING…',
   groupJoinError: 'Could not join this GROUP. It may be full or closed. Please try again.',
+  groupRestoreError: 'Could not join this GROUP. It may be full or closed. Please try again.',
   groupParticipantReady: 'YOU HAVE JOINED THE GROUP',
   groupPlayPreparing: 'PREPARING…',
   groupPlayReady: 'READY TO PLAY',

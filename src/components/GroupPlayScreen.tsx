@@ -30,6 +30,7 @@ import { EmptyOpenFx } from './EmptyOpenFx'
 import { GroupCompletionWaiting } from './GroupCompletionWaiting'
 
 type Coordinator = ReturnType<typeof createGroupPlayBootstrapCoordinator>
+type RestoredTerminal = { readonly restored: true }
 type ActiveFx =
   | {
       kind: 'coins'
@@ -44,9 +45,28 @@ type ActiveFx =
 
 export function GroupPlayScreen({ initialReady, coordinator, t, onResult }: { initialReady: GroupPlayReady; coordinator: Coordinator; t: AppStrings; onResult:(result:GroupResult)=>void }) {
   const [ready, setReady] = useState(initialReady)
-  const [openedResults, setOpenedResults] = useState<readonly GroupOpenResult[]>([])
-  const [provisionalCoins, setProvisionalCoins] = useState<0 | 1 | 2 | 3>(0)
-  const [terminal, setTerminal] = useState<GroupOpenResult | GroupCashOutResult | null>(null)
+  const restoredAttempt = initialReady.state.activeAttempt ?? initialReady.state.latestTerminalAttempt
+  const [openedResults, setOpenedResults] = useState<readonly GroupOpenResult[]>(() =>
+    (restoredAttempt?.openedBags ?? []).map((opened) => ({
+      groupId: initialReady.state.groupId,
+      roundNumber: restoredAttempt!.roundNumber,
+      bagNumber: opened.bagNumber,
+      openOrder: opened.openOrder,
+      outcome: opened.outcome,
+      coinsFound: opened.coinsFound,
+      provisionalCoins: 0,
+      openedBagCount: opened.openOrder,
+      roundEnded: false,
+      endReason: null,
+      capturedCoins: 0,
+    })),
+  )
+  const [provisionalCoins, setProvisionalCoins] = useState<0 | 1 | 2 | 3>(
+    initialReady.state.activeAttempt?.provisionalCoins ?? 0,
+  )
+  const [terminal, setTerminal] = useState<GroupOpenResult | GroupCashOutResult | RestoredTerminal | null>(
+    initialReady.state.activeAttempt ? null : { restored: true },
+  )
   const [requestPending, setRequestPending] = useState(false)
   const [retryBag, setRetryBag] = useState<BagId | null>(null)
   const [error, setError] = useState(false)

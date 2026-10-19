@@ -113,14 +113,9 @@ for (const file of ['server/db/openGroupBag.ts', 'server/db/cashOutGroupRound.ts
 }
 
 const resume = readFileSync(resolve(root, 'server/db/groupPlay.ts'), 'utf8')
-for (const part of [
-  "status = 'interrupted'",
-  'completed_participant',
-  'auto_closed',
-  'for update of match, participant',
-]) {
-  assert.ok(resume.includes(part), part)
-}
+const resumeFunction = resume.slice(resume.indexOf('export async function resumeGroupPlay'))
+assert.match(resumeFunction, /return getGroupPlayState/)
+assert.doesNotMatch(resumeFunction, /status = 'interrupted'/)
 
 const waiting = readFileSync(resolve(root, 'src/components/GroupCompletionWaiting.tsx'), 'utf8')
 for (const part of [

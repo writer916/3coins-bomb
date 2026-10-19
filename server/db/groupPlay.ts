@@ -7,6 +7,23 @@ export interface GroupActiveAttemptView {
   readonly roundNumber: number
   readonly startedAt: string
   readonly openedBagCount: number
+  readonly openedBags: readonly GroupOpenedBagView[]
+  readonly provisionalCoins: number
+}
+
+export interface GroupOpenedBagView {
+  readonly bagNumber: number
+  readonly openOrder: number
+  readonly outcome: 'empty' | 'coins' | 'bomb'
+  readonly coinsFound: number
+}
+
+export interface GroupTerminalAttemptView {
+  readonly roundNumber: number
+  readonly endReason: 'bombed' | 'cashed_out' | 'cleared' | 'interrupted'
+  readonly capturedCoins: number
+  readonly openedBagCount: number
+  readonly openedBags: readonly GroupOpenedBagView[]
 }
 
 export interface PersistedGroupPlayState {
@@ -22,6 +39,7 @@ export interface PersistedGroupPlayState {
   readonly completedRounds: number
   readonly nextRoundNumber: number | null
   readonly activeAttempt: GroupActiveAttemptView | null
+  readonly latestTerminalAttempt: GroupTerminalAttemptView | null
 }
 
 export interface GroupPlacementView {
@@ -52,8 +70,8 @@ interface StateRow extends Record<string, unknown> {
   readonly terminal_last: number | null
   readonly active_count: number
   readonly active_round: number | null
-  readonly active_started_at: Date | string | null
-  readonly active_opened_bag_count: number | null
+  readonly active_attempt: unknown | null
+  readonly latest_terminal_attempt: unknown | null
 }
 
 interface PlacementRow extends Record<string, unknown> {
@@ -85,12 +103,9 @@ function toState(row: StateRow): PersistedGroupPlayState {
   const completed = row.completed_at !== null || row.terminal_count === row.total_rounds
   const excluded = row.excluded_at !== null
   const activeAttempt = row.active_count === 1
-    ? {
-        roundNumber: row.active_round!,
-        startedAt: new Date(row.active_started_at!).toISOString(),
-        openedBagCount: row.active_opened_bag_count!,
-      }
+    ? parseActiveAttempt(row.active_attempt)
     : null
+  const latestTerminalAttempt = parseTerminalAttempt(row.latest_terminal_attempt)
   return {
     groupId: row.group_id,
     totalRounds: row.total_rounds,
@@ -107,6 +122,74 @@ function toState(row: StateRow): PersistedGroupPlayState {
         ? null
         : activeAttempt?.roundNumber ?? row.terminal_count + 1,
     activeAttempt,
+    latestTerminalAttempt,
+  }
+}
+
+function object(value: unknown): Record<string, unknown> {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new Error('GROUP play state is inconsistent.')
+  }
+  return value as Record<string, unknown>
+}
+
+function parseOpenedBags(value: unknown): readonly GroupOpenedBagView[] {
+  if (!Array.isArray(value)) throw new Error('GROUP play state is inconsistent.')
+  return value.map((item, index) => {
+    const opened = object(item)
+    if (
+      typeof opened.bagNumber !== 'number' ||
+      typeof opened.openOrder !== 'number' ||
+      opened.openOrder !== index + 1 ||
+      (opened.outcome !== 'empty' && opened.outcome !== 'coins' && opened.outcome !== 'bomb') ||
+      typeof opened.coinsFound !== 'number'
+    ) throw new Error('GROUP play state is inconsistent.')
+    return {
+      bagNumber: opened.bagNumber,
+      openOrder: opened.openOrder,
+      outcome: opened.outcome,
+      coinsFound: opened.coinsFound,
+    }
+  })
+}
+
+function parseActiveAttempt(value: unknown): GroupActiveAttemptView {
+  const attempt = object(value)
+  const openedBags = parseOpenedBags(attempt.openedBags)
+  if (
+    typeof attempt.roundNumber !== 'number' ||
+    typeof attempt.startedAt !== 'string' ||
+    typeof attempt.openedBagCount !== 'number' ||
+    attempt.openedBagCount !== openedBags.length ||
+    typeof attempt.provisionalCoins !== 'number'
+  ) throw new Error('GROUP play state is inconsistent.')
+  return {
+    roundNumber: attempt.roundNumber,
+    startedAt: new Date(attempt.startedAt).toISOString(),
+    openedBagCount: attempt.openedBagCount,
+    openedBags,
+    provisionalCoins: attempt.provisionalCoins,
+  }
+}
+
+function parseTerminalAttempt(value: unknown | null): GroupTerminalAttemptView | null {
+  if (value === null) return null
+  const attempt = object(value)
+  const openedBags = parseOpenedBags(attempt.openedBags)
+  if (
+    typeof attempt.roundNumber !== 'number' ||
+    (attempt.endReason !== 'bombed' && attempt.endReason !== 'cashed_out' &&
+      attempt.endReason !== 'cleared' && attempt.endReason !== 'interrupted') ||
+    typeof attempt.capturedCoins !== 'number' ||
+    typeof attempt.openedBagCount !== 'number' ||
+    attempt.openedBagCount !== openedBags.length
+  ) throw new Error('GROUP play state is inconsistent.')
+  return {
+    roundNumber: attempt.roundNumber,
+    endReason: attempt.endReason,
+    capturedCoins: attempt.capturedCoins,
+    openedBagCount: attempt.openedBagCount,
+    openedBags,
   }
 }
 
@@ -124,8 +207,71 @@ const STATE_SELECT = sql`
     max(attempt.round_number) filter (where attempt.status <> 'active')::integer as terminal_last,
     count(attempt.*) filter (where attempt.status = 'active')::integer as active_count,
     min(attempt.round_number) filter (where attempt.status = 'active')::integer as active_round,
-    min(attempt.started_at) filter (where attempt.status = 'active') as active_started_at,
-    min(attempt.opened_bag_count) filter (where attempt.status = 'active')::integer as active_opened_bag_count
+    (
+      select json_build_object(
+        'roundNumber', active.round_number,
+        'startedAt', active.started_at,
+        'openedBagCount', active.opened_bag_count,
+        'provisionalCoins', coalesce((
+          select count(coin_bag)::integer
+          from group_round_opens opened
+          left join lateral unnest(placement.coin_bag_numbers) coin_bag
+            on coin_bag = opened.bag_number
+          where opened.group_id = active.group_id
+            and opened.participant_id = active.participant_id
+            and opened.round_number = active.round_number
+        ), 0),
+        'openedBags', coalesce((
+          select json_agg(json_build_object(
+            'bagNumber', opened.bag_number,
+            'openOrder', opened.open_order,
+            'outcome', case when opened.bag_number = placement.bomb_bag_number then 'bomb'
+              when (select count(*) from unnest(placement.coin_bag_numbers) coin where coin = opened.bag_number) > 0 then 'coins'
+              else 'empty' end,
+            'coinsFound', (select count(*) from unnest(placement.coin_bag_numbers) coin where coin = opened.bag_number)
+          ) order by opened.open_order)
+          from group_round_opens opened
+          where opened.group_id = active.group_id
+            and opened.participant_id = active.participant_id
+            and opened.round_number = active.round_number
+        ), '[]'::json)
+      )
+      from group_round_attempts active
+      inner join group_round_placements placement
+        on placement.group_id = active.group_id and placement.round_number = active.round_number
+      where active.group_id = participant.group_id and active.participant_id = participant.id
+        and active.status = 'active'
+      limit 1
+    ) as active_attempt,
+    (
+      select json_build_object(
+        'roundNumber', terminal.round_number,
+        'endReason', terminal.status,
+        'capturedCoins', terminal.captured_coins,
+        'openedBagCount', terminal.opened_bag_count,
+        'openedBags', coalesce((
+          select json_agg(json_build_object(
+            'bagNumber', opened.bag_number,
+            'openOrder', opened.open_order,
+            'outcome', case when opened.bag_number = placement.bomb_bag_number then 'bomb'
+              when (select count(*) from unnest(placement.coin_bag_numbers) coin where coin = opened.bag_number) > 0 then 'coins'
+              else 'empty' end,
+            'coinsFound', (select count(*) from unnest(placement.coin_bag_numbers) coin where coin = opened.bag_number)
+          ) order by opened.open_order)
+          from group_round_opens opened
+          where opened.group_id = terminal.group_id
+            and opened.participant_id = terminal.participant_id
+            and opened.round_number = terminal.round_number
+        ), '[]'::json)
+      )
+      from group_round_attempts terminal
+      inner join group_round_placements placement
+        on placement.group_id = terminal.group_id and placement.round_number = terminal.round_number
+      where terminal.group_id = participant.group_id and terminal.participant_id = participant.id
+        and terminal.status <> 'active'
+      order by terminal.round_number desc
+      limit 1
+    ) as latest_terminal_attempt
   from group_matches match
   inner join group_participants participant on participant.group_id = match.id
   left join group_round_attempts attempt
@@ -253,48 +399,6 @@ export async function resumeGroupPlay(input: {
   readonly participantTokenHash: string
   readonly requestId: string
 }): Promise<PersistedGroupPlayState | null> {
-  const result = await getDatabase().execute<MutationRow>(sql`
-    with locked_participant as materialized (
-      select participant.id, participant.group_id, participant.completed_at,
-        match.total_rounds, match.status group_status
-      from group_participants participant
-      inner join group_matches match on match.id = participant.group_id
-      where participant.group_id = ${input.groupId}::uuid
-        and participant.auth_token_hash = ${input.participantTokenHash}
-      for update of match, participant
-    ), interrupted as (
-      update group_round_attempts attempt
-      set
-        status = 'interrupted',
-        ended_at = statement_timestamp(),
-        captured_coins = 0,
-        terminal_request_id = ${input.requestId}::uuid,
-        version = attempt.version + 1
-      from locked_participant participant
-      where attempt.group_id = participant.group_id
-        and attempt.participant_id = participant.id
-        and attempt.status = 'active'
-        and participant.group_status = 'open'
-        and participant.completed_at is null
-      returning attempt.participant_id, attempt.group_id, attempt.round_number
-    ), completed_participant as (
-      update group_participants participant
-      set completed_at=statement_timestamp(),version=participant.version+1
-      from interrupted,locked_participant locked
-      where participant.id=interrupted.participant_id and participant.group_id=interrupted.group_id
-        and interrupted.round_number=locked.total_rounds and participant.completed_at is null and participant.excluded_at is null
-      returning participant.id
-    ), auto_closed as (
-      update group_matches match set status='closed',closed_at=statement_timestamp(),updated_at=statement_timestamp()
-      from interrupted
-      where match.id=interrupted.group_id and interrupted.round_number=match.total_rounds
-        and match.status='open' and match.accepted_count=match.player_limit
-        and (select count(*) from group_participants participant where participant.group_id=match.id and participant.completed_at is not null and participant.excluded_at is null)
-          +(select count(*) from completed_participant)=match.player_limit
-      returning match.id
-    )
-    select exists(select 1 from locked_participant) as accepted
-  `)
-  if (!result.rows[0]?.accepted) return null
+  void input.requestId
   return getGroupPlayState(input.groupId, input.participantTokenHash)
 }

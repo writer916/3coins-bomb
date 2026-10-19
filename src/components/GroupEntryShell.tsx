@@ -1,9 +1,10 @@
-import { useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { createGroupJoinCoordinator } from '../group/groupJoinClient'
 import {
   classifyGroupUrlFragment,
   createGroupInvitationUrl,
   hostUrlFromGroupHost,
+  parseGroupHostUrl,
   parseGroupInvitationUrl,
 } from '../group/groupInvitation'
 import {
@@ -55,6 +56,20 @@ function shouldOfferInviteShare(initialUrl: string): boolean {
   )
 }
 
+function storedParticipantForUrl(initialUrl: string) {
+  try {
+    const kind = classifyGroupUrlFragment(initialUrl)
+    const groupId = kind === 'host'
+      ? parseGroupHostUrl(initialUrl).groupId
+      : kind === 'invite'
+        ? parseGroupInvitationUrl(initialUrl).groupId
+        : null
+    return groupId === null ? null : readGroupParticipant(window.localStorage, groupId)
+  } catch {
+    return null
+  }
+}
+
 export function GroupEntryShell({
   initialUrl,
   t,
@@ -66,11 +81,17 @@ export function GroupEntryShell({
   readonly onGoTop: () => void
   readonly topControls?: ReactNode
 }) {
+  const fragmentKind = classifyGroupUrlFragment(initialUrl)
+  const validUrl = fragmentKind === 'invite' || fragmentKind === 'host'
+  const storedParticipant = useMemo(
+    () => validUrl ? storedParticipantForUrl(initialUrl) : null,
+    [initialUrl, validUrl],
+  )
   const [nickname, setNickname] = useState('')
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<'nickname' | 'join' | null>(null)
   const [shareDismissed, setShareDismissed] = useState(false)
-  const [readyVisible, setReadyVisible] = useState(false)
+  const [readyVisible, setReadyVisible] = useState(storedParticipant !== null)
   const [joinedNickname, setJoinedNickname] = useState<string | null>(null)
   const [readyTotalRounds, setReadyTotalRounds] = useState<number | null>(null)
   const [readyPlayerLimit, setReadyPlayerLimit] = useState<number | null>(null)
@@ -90,13 +111,62 @@ export function GroupEntryShell({
   const playCoordinatorRef = useRef<ReturnType<
     typeof createGroupPlayBootstrapCoordinator
   > | null>(null)
+  const restoreRef = useRef<Promise<
+    | { readonly kind: 'completion'; readonly progress: GroupProgress }
+    | { readonly kind: 'play'; readonly progress: GroupProgress; readonly ready: GroupPlayReady }
+  > | null>(null)
   const explicitResumeRef = useRef<boolean | null>(null)
 
-  const fragmentKind = classifyGroupUrlFragment(initialUrl)
-  const validUrl = fragmentKind === 'invite' || fragmentKind === 'host'
   const shareUrls = validUrl && !shareDismissed ? resolveShareUrls(initialUrl) : null
   const showShare =
-    validUrl && !shareDismissed && shouldOfferInviteShare(initialUrl) && shareUrls !== null
+    validUrl && storedParticipant === null && !shareDismissed && shouldOfferInviteShare(initialUrl) && shareUrls !== null
+
+  useEffect(() => {
+    if (!storedParticipant) return
+    let active = true
+    pendingRef.current = true
+    const coordinator = playCoordinatorRef.current ?? createGroupPlayBootstrapCoordinator(
+      createGroupPlayClient({ storage: window.localStorage, fetch: window.fetch.bind(window), crypto: window.crypto }),
+    )
+    playCoordinatorRef.current = coordinator
+    restoreRef.current ??= coordinator.getProgress(storedParticipant.groupId).then(async (progress) => {
+      if (progress.status === 'closed' || progress.selfCompleted) {
+        return { kind: 'completion' as const, progress }
+      }
+      return {
+        kind: 'play' as const,
+        progress,
+        ready: await coordinator.run(storedParticipant.groupId, true),
+      }
+    })
+    void restoreRef.current.then((restored) => {
+      if (!active) return
+      setPlayCoordinator(coordinator)
+      setReadyPlayerLimit(restored.progress.playerLimit)
+      if (restored.kind === 'completion') {
+        setReadyVisible(false)
+        setCompletionProgress(restored.progress)
+        setCompletionInitiallyClosed(restored.progress.status === 'closed')
+        setCompletionGroupId(storedParticipant.groupId)
+        return
+      }
+      setReadyTotalRounds(restored.ready.state.totalRounds)
+      setPlayReady(restored.ready)
+      setStartedPlay(true)
+    }).catch(() => {
+      if (!active) return
+      setReadyVisible(false)
+      setError('join')
+    }).finally(() => {
+      if (active) {
+        pendingRef.current = false
+        setPending(false)
+      }
+    })
+    return () => {
+      active = false
+    }
+  }, [storedParticipant])
 
   const submit = async (event: FormEvent) => {
     event.preventDefault()
@@ -226,6 +296,20 @@ export function GroupEntryShell({
           onStart={() => setStartedPlay(true)}
           onGoTop={onGoTop}
         />
+      ) : storedParticipant && error === 'join' ? (
+        <div className="duel-flow duel-flow--setup">
+          <p className="duel-instruction" role="alert">
+            {t.groupRestoreError}
+          </p>
+          <div className="duel-setup-spacer duel-setup-spacer--mid" aria-hidden="true" />
+          <div className="duel-btn-area duel-button-field">
+            <div className="duel-btn-stack standard-action-stack">
+              <button type="button" className="duel-btn" onClick={onGoTop}>
+                {t.duelTop}
+              </button>
+            </div>
+          </div>
+        </div>
       ) : showShare && shareUrls ? (
         <GroupInviteShareScreen
           invitationUrl={shareUrls.invitationUrl}

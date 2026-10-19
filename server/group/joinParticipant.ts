@@ -141,7 +141,9 @@ export async function joinGroupParticipant(
     }
     throw error
   }
-  if (!participant) throw new JoinGroupParticipantError('JOIN_UNAVAILABLE')
+  if (!participant || !participant.joined) {
+    throw new JoinGroupParticipantError('JOIN_UNAVAILABLE')
+  }
   return {
     joined: participant.joined,
     response: {

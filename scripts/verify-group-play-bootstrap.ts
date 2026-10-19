@@ -54,13 +54,37 @@ const initialState = {
   completedRounds: 0,
   nextRoundNumber: 1,
   activeAttempt: null,
+  latestTerminalAttempt: null,
 }
 const activeState = {
   ...initialState,
   nextRoundNumber: 1,
-  activeAttempt: { roundNumber: 1, startedAt: '2026-10-07T00:00:00.000Z', openedBagCount: 0 },
+  activeAttempt: { roundNumber: 1, startedAt: '2026-10-07T00:00:00.000Z', openedBagCount: 0, openedBags: [], provisionalCoins: 0 as const },
 }
-const interruptedState = { ...initialState, completedRounds: 1, nextRoundNumber: 2 }
+const restoredState = {
+  ...activeState,
+  activeAttempt: {
+    ...activeState.activeAttempt,
+    openedBagCount: 2,
+    openedBags: [
+      { bagNumber: 1, openOrder: 1, outcome: 'coins' as const, coinsFound: 1 as const },
+      { bagNumber: 3, openOrder: 2, outcome: 'empty' as const, coinsFound: 0 as const },
+    ],
+    provisionalCoins: 1 as const,
+  },
+}
+const terminalState = {
+  ...initialState,
+  completedRounds: 1,
+  nextRoundNumber: 2,
+  latestTerminalAttempt: {
+    roundNumber: 1,
+    endReason: 'cashed_out' as const,
+    capturedCoins: 1 as const,
+    openedBagCount: 1,
+    openedBags: [{ bagNumber: 1, openOrder: 1, outcome: 'coins' as const, coinsFound: 1 as const }],
+  },
+}
 const placements = {
   groupId,
   totalRounds: 2,
@@ -75,7 +99,7 @@ const placements = {
 assert.deepEqual(await readGroupPlayState(auth, { getState: async () => initialState }), initialState)
 assert.deepEqual(await readGroupPlayPlacements(auth, { getPlacements: async () => placements }), placements)
 assert.deepEqual(await beginGroupRound({ ...auth, requestId }, { start: async () => activeState }), activeState)
-assert.deepEqual(await explicitlyResumeGroupPlay({ ...auth, requestId }, { resume: async () => interruptedState }), interruptedState)
+assert.deepEqual(await explicitlyResumeGroupPlay({ ...auth, requestId }, { resume: async () => restoredState }), restoredState)
 await assert.rejects(() => beginGroupRound({ ...auth, requestId }, { start: async () => null }), (error: unknown) => error instanceof GroupPlayError && error.code === 'CANNOT_START')
 await assert.rejects(() => readGroupPlayPlacements(auth, { getPlacements: async () => ({ ...placements, placements: placements.placements.slice(0, 1) }) }), GroupPlayError)
 
@@ -85,7 +109,7 @@ const placementResponse = await createGroupPlacementsHandler(async () => placeme
 assert.equal(placementResponse.status, 200); assert.equal(placementResponse.headers.get('cache-control'), 'no-store')
 const startResponse = await createStartGroupRoundHandler(async () => activeState)(new Request(`https://example.test/api/group/matches/${groupId}/rounds/start`, { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Idempotency-Key': requestId } }))
 assert.equal(startResponse.status, 200)
-const resumeResponse = await createResumeGroupPlayHandler(async () => interruptedState)(new Request(`https://example.test/api/group/matches/${groupId}/play/resume`, { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Idempotency-Key': requestId } }))
+const resumeResponse = await createResumeGroupPlayHandler(async () => restoredState)(new Request(`https://example.test/api/group/matches/${groupId}/play/resume`, { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Idempotency-Key': requestId } }))
 assert.equal(resumeResponse.status, 200)
 for (const response of [playResponse, placementResponse, startResponse, resumeResponse]) {
   const text = await response.clone().text()
@@ -119,7 +143,7 @@ const fetcher: typeof fetch = async (input, init) => {
   if (url.endsWith('/play')) return Response.json(initialState)
   if (url.endsWith('/placements')) return Response.json(placements)
   if (url.endsWith('/rounds/start')) { starts += 1; assert.match(requestHeaders(init)['Idempotency-Key']!, UUID_V4_LOCAL); return Response.json(activeState) }
-  if (url.endsWith('/play/resume')) return Response.json(interruptedState)
+  if (url.endsWith('/play/resume')) return Response.json(restoredState)
   return new Response('', { status: 404 })
 }
 const UUID_V4_LOCAL = /^[0-9a-f-]{36}$/i
@@ -134,14 +158,29 @@ assert.deepEqual(calls, [`GET:/api/group/matches/${groupId}/play`, `GET:/api/gro
 const resumeCalls: string[] = []
 const resumeClient = createGroupPlayClient({ storage, crypto: { randomUUID: () => requestId as `${string}-${string}-${string}-${string}-${string}` }, fetch: async (input, init) => {
   const url = String(input); resumeCalls.push(`${init?.method}:${url}`)
-  if (url.endsWith('/play/resume')) return Response.json(interruptedState)
+  if (url.endsWith('/play/resume')) return Response.json(restoredState)
   if (url.endsWith('/placements')) return Response.json(placements)
   if (url.endsWith('/rounds/start')) return Response.json({ ...activeState, completedRounds: 1, nextRoundNumber: 2, activeAttempt: { ...activeState.activeAttempt!, roundNumber: 2 } })
   return new Response('', { status: 404 })
 } })
 const resumed = await createGroupPlayBootstrapCoordinator(resumeClient).run(groupId, true)
-assert.equal(resumed.state.activeAttempt?.roundNumber, 2)
+assert.equal(resumed.state.activeAttempt?.roundNumber, 1)
+assert.equal(resumed.state.activeAttempt?.openedBags.length, 2)
+assert.equal(resumed.state.activeAttempt?.provisionalCoins, 1)
+assert.equal(resumeCalls.some((call) => call.includes('/rounds/start')), false)
 assert.equal(resumeCalls[0], `POST:/api/group/matches/${groupId}/play/resume`)
+
+const terminalCalls: string[] = []
+const terminalClient = createGroupPlayClient({ storage, crypto: { randomUUID: () => requestId as `${string}-${string}-${string}-${string}-${string}` }, fetch: async (input, init) => {
+  const url = String(input); terminalCalls.push(`${init?.method}:${url}`)
+  if (url.endsWith('/play/resume')) return Response.json(terminalState)
+  if (url.endsWith('/placements')) return Response.json(placements)
+  return new Response('', { status: 404 })
+} })
+const terminalReady = await createGroupPlayBootstrapCoordinator(terminalClient).run(groupId, true)
+assert.equal(terminalReady.state.activeAttempt, null)
+assert.equal(terminalReady.state.latestTerminalAttempt?.roundNumber, 1)
+assert.equal(terminalCalls.some((call) => call.includes('/rounds/start')), false)
 
 let startAttempts = 0
 const retryIds: string[] = []
@@ -164,20 +203,16 @@ assert.deepEqual(retryIds, [requestId, requestId])
 const dbSource = readFileSync(resolve(root, 'server/db/groupPlay.ts'), 'utf8')
 assert.match(dbSource, /participant\.auth_token_hash/)
 assert.match(dbSource, /for update/)
-assert.match(dbSource, /status = 'interrupted'/)
-assert.match(dbSource, /captured_coins = 0/)
+const resumeSource = dbSource.slice(dbSource.indexOf('export async function resumeGroupPlay'))
+assert.doesNotMatch(resumeSource, /status = 'interrupted'/)
+assert.doesNotMatch(resumeSource, /captured_coins = 0/)
 assert.match(dbSource, /opened_bag_count/)
+assert.match(dbSource, /as active_round/)
 assert.match(dbSource, /match\.status = 'open'/)
 assert.match(dbSource, /participant\.excluded_at is null/)
 assert.match(dbSource, /participant\.completed_at is null/)
 assert.match(dbSource, /progress\.terminal_count \+ 1/)
-// resumeGroupPlay must project match.status/total_rounds (and completed_at) into locked_participant;
-// otherwise PostgreSQL rejects participant.group_status / locked.total_rounds and PLAY resume 500s.
-assert.match(
-  dbSource,
-  /export async function resumeGroupPlay[\s\S]*?with locked_participant as materialized \(\s*select participant\.id, participant\.group_id, participant\.completed_at,\s*match\.total_rounds, match\.status group_status\s*from group_participants participant\s*inner join group_matches match on match\.id = participant\.group_id/,
-)
-assert.match(dbSource, /for update of match, participant/)
+assert.match(resumeSource, /return getGroupPlayState/)
 const clientSource = readFileSync(resolve(root, 'src/group/groupPlayClient.ts'), 'utf8')
 for (const forbidden of ['localStorage', 'sessionStorage', 'indexedDB', 'server/db']) assert.equal(clientSource.includes(forbidden), false)
 const uiSource = readFileSync(resolve(root, 'src/components/GroupEntryShell.tsx'), 'utf8')

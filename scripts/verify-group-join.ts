@@ -108,6 +108,28 @@ assert.deepEqual(Object.keys(first.response).sort(), [
 await assert.rejects(
   () => joinGroupParticipant(valid, {
     deriveParticipantToken: () => participantToken,
+    persist: async () => ({
+      groupId,
+      participantId,
+      displayNickname: '桃3',
+      acceptedAt,
+      completedAt: null,
+      excludedAt: null,
+      participantVersion: 0,
+      totalRounds: 3,
+      playerLimit: 8,
+      groupStatus: 'open',
+      joined: false,
+      isHost: false,
+    }),
+  }),
+  (error: unknown) =>
+    error instanceof JoinGroupParticipantError && error.code === 'JOIN_UNAVAILABLE',
+)
+
+await assert.rejects(
+  () => joinGroupParticipant(valid, {
+    deriveParticipantToken: () => participantToken,
     persist: async () => { throw Object.assign(new Error('atomic'), { code: '22012' }) },
   }),
   (error: unknown) => error instanceof JoinGroupParticipantError && error.code === 'JOIN_UNAVAILABLE',
@@ -143,15 +165,6 @@ const routeResponse = await handler(new Request(
 assert.equal(routeResponse.status, 201)
 assert.equal(routeResponse.headers.get('cache-control'), 'no-store')
 assert.deepEqual(await routeResponse.json(), first.response)
-const resumedResponse = await createJoinGroupParticipantHandler(async () => ({
-  ...first,
-  joined: false,
-}))(new Request(`https://example.test/api/group/matches/${groupId}/join`, {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ invitationToken: creation.invitationToken, nickname: '桃3' }),
-}))
-assert.equal(resumedResponse.status, 200)
 const conflict = await createJoinGroupParticipantHandler(async () => {
   throw new JoinGroupParticipantError('JOIN_UNAVAILABLE')
 })(new Request(`https://example.test/api/group/matches/${groupId}/join`, {
@@ -286,7 +299,7 @@ assert.equal(readGroupHost(badHostStorage, groupId), null)
 const dbSource = readFileSync(resolve(root, 'server/db/joinGroupParticipant.ts'), 'utf8')
 assert.match(dbSource, /accepted_count = match\.accepted_count \+ case/)
 assert.match(dbSource, /match\.accepted_count < match\.player_limit/)
-assert.match(dbSource, /on conflict \(group_id, nickname_key\) do update/)
+assert.match(dbSource, /on conflict \(group_id, nickname_key\) do nothing/)
 assert.match(dbSource, /invite_token_hash = \$\{input\.invitationTokenHash\}\s+for update/)
 assert.match(dbSource, /match\.status = 'open'/)
 assert.match(dbSource, /match\.host_participant_id is null/)
@@ -297,8 +310,28 @@ for (const persistence of ['sessionStorage', 'indexedDB']) {
   assert.equal(clientSource.includes(persistence), false)
 }
 const uiSource = readFileSync(resolve(root, 'src/components/GroupEntryShell.tsx'), 'utf8')
+const enSource = readFileSync(resolve(root, 'src/i18n/en.ts'), 'utf8')
+const jaSource = readFileSync(resolve(root, 'src/i18n/ja.ts'), 'utf8')
 assert.match(uiSource, /groupNicknameLabel/)
 assert.match(uiSource, /groupJoin/)
 assert.doesNotMatch(uiSource, />\s*PLAY\s*</)
+assert.match(uiSource, /useState\(storedParticipant !== null\)/)
+assert.match(uiSource, /restoreRef\.current \?\?=/)
+assert.match(uiSource, /storedParticipant && error === 'join'/)
+assert.match(uiSource, /storedParticipant && error === 'join'[\s\S]*?t\.groupRestoreError/)
+assert.match(uiSource, /error === 'nickname' \? t\.groupNicknameError : t\.groupJoinError/)
+assert.match(
+  jaSource,
+  /groupJoinError: '参加できませんでした。通信エラー、または締め切られている可能性があります。'/,
+)
+assert.match(jaSource, /groupRestoreError: '確認できませんでした。もう一度お試しください。'/)
+assert.match(
+  enSource,
+  /groupJoinError: 'Could not join this GROUP\. It may be full or closed\. Please try again\.'/,
+)
+assert.match(
+  enSource,
+  /groupRestoreError: 'Could not join this GROUP\. It may be full or closed\. Please try again\.'/,
+)
 
 console.log('verify:group-join OK')

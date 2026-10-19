@@ -20,7 +20,26 @@ export interface GroupPlayState {
   readonly participant: { readonly id: string; readonly displayNickname: string; readonly completed: boolean; readonly excluded: boolean }
   readonly completedRounds: number
   readonly nextRoundNumber: number | null
-  readonly activeAttempt: { readonly roundNumber: number; readonly startedAt: string; readonly openedBagCount: number } | null
+  readonly activeAttempt: {
+    readonly roundNumber: number
+    readonly startedAt: string
+    readonly openedBagCount: number
+    readonly openedBags: readonly GroupOpenedBag[]
+    readonly provisionalCoins: 0 | 1 | 2 | 3
+  } | null
+  readonly latestTerminalAttempt: {
+    readonly roundNumber: number
+    readonly endReason: 'bombed' | 'cashed_out' | 'cleared' | 'interrupted'
+    readonly capturedCoins: 0 | 1 | 2 | 3
+    readonly openedBagCount: number
+    readonly openedBags: readonly GroupOpenedBag[]
+  } | null
+}
+export interface GroupOpenedBag {
+  readonly bagNumber: number
+  readonly openOrder: number
+  readonly outcome: 'empty' | 'coins' | 'bomb'
+  readonly coinsFound: 0 | 1 | 2 | 3
 }
 export interface GroupPlacementSet {
   readonly groupId: string
@@ -99,7 +118,7 @@ function iso(value: unknown): string {
 
 export function parseGroupPlayState(value: unknown, expectedGroupId: string): GroupPlayState {
   const state = record(value)
-  exact(state, ['groupId', 'totalRounds', 'groupStatus', 'participant', 'completedRounds', 'nextRoundNumber', 'activeAttempt'])
+  exact(state, ['groupId', 'totalRounds', 'groupStatus', 'participant', 'completedRounds', 'nextRoundNumber', 'activeAttempt', 'latestTerminalAttempt'])
   const participant = record(state.participant)
   exact(participant, ['id', 'displayNickname', 'completed', 'excluded'])
   const groupId = uuid(state.groupId)
@@ -108,11 +127,45 @@ export function parseGroupPlayState(value: unknown, expectedGroupId: string): Gr
   const completedRounds = integer(state.completedRounds, 0, totalRounds)
   if ((state.groupStatus !== 'open' && state.groupStatus !== 'closed') || typeof participant.displayNickname !== 'string' || typeof participant.completed !== 'boolean' || typeof participant.excluded !== 'boolean') return fail()
   const active = state.activeAttempt === null ? null : record(state.activeAttempt)
-  if (active) exact(active, ['roundNumber', 'startedAt', 'openedBagCount'])
-  const activeAttempt = active ? { roundNumber: integer(active.roundNumber, 1, totalRounds), startedAt: iso(active.startedAt), openedBagCount: integer(active.openedBagCount, 0, 8) } : null
+  if (active) exact(active, ['roundNumber', 'startedAt', 'openedBagCount', 'openedBags', 'provisionalCoins'])
+  const parseOpened = (value: unknown, bagCount: number): readonly GroupOpenedBag[] => {
+    if (!Array.isArray(value)) return fail()
+    const seen = new Set<number>()
+    return value.map((item, index) => {
+      const opened = record(item)
+      exact(opened, ['bagNumber', 'openOrder', 'outcome', 'coinsFound'])
+      const bagNumber = integer(opened.bagNumber, 1, bagCount)
+      if (seen.has(bagNumber) || opened.openOrder !== index + 1 ||
+        (opened.outcome !== 'empty' && opened.outcome !== 'coins' && opened.outcome !== 'bomb')) return fail()
+      seen.add(bagNumber)
+      return { bagNumber, openOrder: index + 1, outcome: opened.outcome, coinsFound: integer(opened.coinsFound, 0, 3) as 0 | 1 | 2 | 3 }
+    })
+  }
+  const activeRoundNumber = active ? integer(active.roundNumber, 1, totalRounds) : null
+  const activeOpened = active ? parseOpened(active.openedBags, 8) : []
+  const activeAttempt = active ? {
+    roundNumber: activeRoundNumber!,
+    startedAt: iso(active.startedAt),
+    openedBagCount: integer(active.openedBagCount, 0, 8),
+    openedBags: activeOpened,
+    provisionalCoins: integer(active.provisionalCoins, 0, 3) as 0 | 1 | 2 | 3,
+  } : null
+  if (activeAttempt && activeAttempt.openedBagCount !== activeAttempt.openedBags.length) return fail()
+  const terminal = state.latestTerminalAttempt === null ? null : record(state.latestTerminalAttempt)
+  if (terminal) exact(terminal, ['roundNumber', 'endReason', 'capturedCoins', 'openedBagCount', 'openedBags'])
+  const terminalRoundNumber = terminal ? integer(terminal.roundNumber, 1, totalRounds) : null
+  if (terminal && terminal.endReason !== 'bombed' && terminal.endReason !== 'cashed_out' && terminal.endReason !== 'cleared' && terminal.endReason !== 'interrupted') return fail()
+  const latestTerminalAttempt = terminal ? {
+    roundNumber: terminalRoundNumber!,
+    endReason: terminal.endReason as 'bombed' | 'cashed_out' | 'cleared' | 'interrupted',
+    capturedCoins: integer(terminal.capturedCoins, 0, 3) as 0 | 1 | 2 | 3,
+    openedBagCount: integer(terminal.openedBagCount, 0, 8),
+    openedBags: parseOpened(terminal.openedBags, 8),
+  } : null
+  if (latestTerminalAttempt && latestTerminalAttempt.openedBagCount !== latestTerminalAttempt.openedBags.length) return fail()
   const nextRoundNumber = state.nextRoundNumber === null ? null : integer(state.nextRoundNumber, 1, totalRounds)
   if ((activeAttempt && activeAttempt.roundNumber !== completedRounds + 1) || (activeAttempt && nextRoundNumber !== activeAttempt.roundNumber) || (((!activeAttempt && participant.completed) || participant.excluded || state.groupStatus === 'closed') && nextRoundNumber !== null)) return fail()
-  return { groupId, totalRounds, groupStatus: state.groupStatus, participant: { id: uuid(participant.id), displayNickname: participant.displayNickname, completed: participant.completed, excluded: participant.excluded }, completedRounds, nextRoundNumber, activeAttempt }
+  return { groupId, totalRounds, groupStatus: state.groupStatus, participant: { id: uuid(participant.id), displayNickname: participant.displayNickname, completed: participant.completed, excluded: participant.excluded }, completedRounds, nextRoundNumber, activeAttempt, latestTerminalAttempt }
 }
 
 export function parseGroupPlacementSet(value: unknown, expectedGroupId: string): GroupPlacementSet {
@@ -338,14 +391,15 @@ export function createGroupPlayBootstrapCoordinator(client: ReturnType<typeof cr
         state = await client.getState(groupId)
       }
       const placements = cached?.groupId === groupId ? cached : await client.getPlacements(groupId); cached = placements
-      if (!state.activeAttempt && state.nextRoundNumber !== null) {
+      if (!state.activeAttempt && state.nextRoundNumber === 1 && state.completedRounds === 0) {
         startRequestId ??= client.createRequestId()
         state = await client.startRound(groupId, startRequestId)
         startRequestId = null
       }
-      if (!state.activeAttempt) return fail()
-      const currentPlacement = placements.placements[state.activeAttempt.roundNumber - 1]
-      if (!currentPlacement || currentPlacement.roundNumber !== state.activeAttempt.roundNumber) return fail()
+      const displayedAttempt = state.activeAttempt ?? state.latestTerminalAttempt
+      if (!displayedAttempt) return fail()
+      const currentPlacement = placements.placements[displayedAttempt.roundNumber - 1]
+      if (!currentPlacement || currentPlacement.roundNumber !== displayedAttempt.roundNumber) return fail()
       return { state, placements, currentPlacement }
     })().finally(() => { inFlight = null })
     return inFlight

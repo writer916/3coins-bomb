@@ -132,6 +132,7 @@ export type AppStrings = {
   groupJoin: string
   groupJoining: string
   groupJoinError: string
+  groupRestoreError: string
   groupParticipantReady: string
   groupPlayPreparing: string
   groupPlayReady: string
