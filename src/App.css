@@ -1997,10 +1997,11 @@
 }
 
 .daily-result__provisional-note {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: block;
   flex: 0 0 auto;
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
   margin: 0;
   color: #c4b49a;
   font-family: Georgia, 'Times New Roman', serif;
@@ -2008,7 +2009,8 @@
   letter-spacing: 0.02em;
   line-height: 1.35;
   text-align: left;
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 .app--daily-result .group-result-detail-status {
