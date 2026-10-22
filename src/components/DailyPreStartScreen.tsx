@@ -328,65 +328,71 @@ export function DailyPreStartScreen({
             {withDuelNums(t.dailySameBrowserRule)}
           </p>
         </div>
-        <p className="daily-prestart__period">
-          <span className="daily-prestart__period-label">
-            {t.dailyPeriodLabel(period.timeZoneName)}
-          </span>
-          <span className="daily-prestart__period-value">
-            {withDuelNums(
-              t.dailyPeriodRange(
-                period.startsAt,
-                period.endsAt,
-                period.timeZoneName,
-              ),
-            )}
-          </span>
-        </p>
-        {entryState === 'checking' ? (
-          <p
-            className="daily-prestart__joined"
-            aria-hidden="true"
-            data-daily-status-placeholder=""
-          />
-        ) : joined && entryState === 'playing' ? (
-          <p className="daily-prestart__joined" role="status">
-            {withDuelNums(t.dailyPlayingStatus(joined.nickname))}
+        <div className="daily-prestart__details">
+          <p className="daily-prestart__period">
+            <span className="daily-prestart__period-label">
+              {t.dailyPeriodLabel(period.timeZoneName)}
+            </span>
+            <span className="daily-prestart__period-value">
+              {withDuelNums(
+                t.dailyPeriodRange(
+                  period.startsAt,
+                  period.endsAt,
+                  period.timeZoneName,
+                ),
+              )}
+            </span>
           </p>
-        ) : joined && entryState === 'completed' ? (
-          <p className="daily-prestart__joined" role="status">
-            {withDuelNums(t.dailyCompletedStatus(joined.nickname))}
-          </p>
-        ) : entryState === 'unjoined' ? (
-          <>
-            <p className="duel-instruction daily-prestart__nickname-lead">
-              {t.dailyNicknameLead}
-            </p>
-            <div className="duel-field">
-              <input
-                id="daily-nickname"
-                className="group-nickname-input"
-                value={nickname}
-                onChange={(event) => setNickname(event.target.value)}
-                autoComplete="nickname"
-                autoCapitalize="none"
-                spellCheck={false}
-                placeholder={t.dailyNicknamePlaceholder}
-                aria-label={t.dailyNicknameLabel}
-                disabled={busy}
+          <div className="daily-prestart__state">
+            {entryState === 'checking' ? (
+              <p
+                className="daily-prestart__joined"
+                aria-hidden="true"
+                data-daily-status-placeholder=""
               />
-            </div>
-          </>
-        ) : null}
-        {storageError ? (
-          <p className="duel-lock-error" role="alert">
-            {t.dailyStorageReadError}
-          </p>
-        ) : null}
-        {error ? (
-          <p className="duel-lock-error" role="alert">
-            {t.dailyPlayError}
-          </p>
-        ) : null}
+            ) : joined && entryState === 'playing' ? (
+              <p className="daily-prestart__joined" role="status">
+                {withDuelNums(t.dailyPlayingStatus(joined.nickname))}
+              </p>
+            ) : joined && entryState === 'completed' ? (
+              <p className="daily-prestart__joined" role="status">
+                {withDuelNums(t.dailyCompletedStatus(joined.nickname))}
+              </p>
+            ) : entryState === 'unjoined' ? (
+              <>
+                <p className="duel-instruction daily-prestart__nickname-lead">
+                  {t.dailyNicknameLead}
+                </p>
+                <div className="duel-field">
+                  <input
+                    id="daily-nickname"
+                    className="group-nickname-input"
+                    value={nickname}
+                    onChange={(event) => setNickname(event.target.value)}
+                    autoComplete="nickname"
+                    autoCapitalize="none"
+                    spellCheck={false}
+                    placeholder={t.dailyNicknamePlaceholder}
+                    aria-label={t.dailyNicknameLabel}
+                    disabled={busy}
+                  />
+                </div>
+              </>
+            ) : null}
+          </div>
+          <div className="daily-prestart__errors">
+            {storageError ? (
+              <p className="duel-lock-error" role="alert">
+                {t.dailyStorageReadError}
+              </p>
+            ) : null}
+            {error ? (
+              <p className="duel-lock-error" role="alert">
+                {t.dailyPlayError}
+              </p>
+            ) : null}
+          </div>
+        </div>
       </div>
       <div className="duel-setup-spacer duel-setup-spacer--mid" aria-hidden="true" />
       <div className="duel-btn-area duel-button-field">

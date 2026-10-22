@@ -237,17 +237,24 @@ assert.match(css, /url\('\/duel\/3cb-duel-stone-wall-background\.webp'\)/)
 assert.match(css, /:not\(\.group-completion-waiting\)/)
 assert.doesNotMatch(css, /\.app--daily-play[\s\S]{0,160}3cb-duel-stone-wall/)
 assert.match(prestart, /className="daily-prestart__prose"/)
+assert.match(prestart, /className="daily-prestart__details"/)
+assert.match(prestart, /className="daily-prestart__state"/)
+assert.match(prestart, /className="daily-prestart__errors"/)
 assert.match(
   css,
-  /\.daily-prestart__prose\s*\{[^}]*display:\s*flex;[^}]*flex-direction:\s*column;[^}]*align-items:\s*center;[^}]*width:\s*100%;[^}]*min-block-size:\s*17\.75rem;/s,
+  /\.daily-prestart__prose\s*\{[^}]*flex:\s*1 1 auto;[^}]*min-height:\s*0;[^}]*overflow-y:\s*auto;/s,
 )
-assert.doesNotMatch(css, /\.daily-prestart__prose\s*\{[^}]*\bheight\s*:/s)
+assert.doesNotMatch(css, /\.daily-prestart__prose\s*\{[^}]*(?:^|[;{])\s*height\s*:/s)
+assert.match(css, /\.app--daily-prestart\s*\{[^}]*height:\s*100dvh;[^}]*overflow-y:\s*hidden;/s)
+assert.match(css, /\.daily-prestart__details\s*\{[^}]*flex:\s*0 0 13\.75rem;/s)
+assert.match(css, /\.daily-prestart__state\s*\{[^}]*flex:\s*0 0 5rem;/s)
 assert.match(css, /\.daily-prestart__period\s*\{[^}]*display:\s*flex;/s)
 assert.match(css, /\.daily-prestart__period\s*\{[^}]*flex-wrap:\s*wrap;/s)
 assert.match(css, /\.daily-prestart__period\s*\{[^}]*gap:\s*0\.15rem\s+1\.1rem;/s)
 assert.match(css, /\.daily-prestart__period\s*\{[^}]*text-align:\s*left;/s)
 assert.match(css, /line-height:\s*1\.68/)
 assert.match(css, /padding-bottom:\s*max\([^;]*safe-area-inset-bottom/)
+assert.match(css, /\.mode-card-desc\s*\{[^}]*min-height:\s*calc\(0\.92rem \* 1\.35 \* 2\)/s)
 
 // Existing modes untouched by this screen.
 assert.doesNotMatch(prestart, /SoloPlay|handleBagTap/)
