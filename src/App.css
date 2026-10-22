@@ -1882,7 +1882,7 @@
   flex: 1 1 auto;
   flex-direction: column;
   align-items: center;
-  gap: clamp(0.65rem, 2vh, 1rem);
+  gap: clamp(0.4rem, 1.35vh, 0.75rem);
   /*
     Session score:
     ROUNDS [pair-gap] value [group-gap] COINS [pair-gap] value
@@ -1911,11 +1911,6 @@
 /* DUEL/GROUP PLAY: shared two-line settled score block. */
 .duel-play .duel-play-session-metrics {
   margin-top: auto;
-  padding-top: clamp(0.6rem, 2vh, 1rem);
-  padding-bottom: max(
-    clamp(2rem, 7.5vh, 4rem),
-    calc(1.25rem + env(safe-area-inset-bottom, 0px))
-  );
 }
 
 .duel-play-session-metrics .score-stack {
@@ -2403,8 +2398,6 @@
 /* Bottom-pinned provisional stats: SOLO score-stack, both rows left-aligned. */
 .app--daily-play .daily-play__session {
   margin-top: 0;
-  padding-top: clamp(0.35rem, 1.4vh, 0.75rem);
-  padding-bottom: clamp(0.45rem, 2.8vh, 1.35rem);
   justify-content: center;
 }
 
@@ -3564,6 +3557,36 @@
 .duel-flow--complete .duel-field--stack-actions {
   flex: 0 0 auto;
   margin-top: 0;
+}
+
+/*
+  Keep the complete PLAY footer inside short dynamic viewports. SOLO remains
+  the baseline; modes with a ROUND/timer band reserve that extra height before
+  sizing the board. The action and score slots retain their intrinsic size.
+*/
+@media (max-height: 700px) {
+  .app--solo .field-bag .bag-board {
+    max-height: min(58dvh, clamp(10rem, calc(100dvh - 15.875rem), 30rem));
+  }
+
+  :is(
+    .app--duel:has(.duel-play),
+    .app--group-entry:has(.duel-play)
+  ) .duel-play-board .bag-board {
+    min-height: 0;
+    max-height: min(
+      calc(58dvh - 2.75rem),
+      clamp(10rem, calc(100dvh - 18.5rem), 30rem)
+    );
+  }
+
+  .app--daily-play .daily-play__board .bag-board {
+    min-height: 0;
+    max-height: min(
+      calc(58dvh - 4.375rem),
+      clamp(10rem, calc(100dvh - 20.125rem), 30rem)
+    );
+  }
 }
 
 @media (max-height: 600px) {
