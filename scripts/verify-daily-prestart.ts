@@ -242,12 +242,19 @@ assert.match(prestart, /className="daily-prestart__state"/)
 assert.match(prestart, /className="daily-prestart__errors"/)
 assert.match(
   css,
-  /\.daily-prestart__prose\s*\{[^}]*flex:\s*1 1 auto;[^}]*min-height:\s*0;[^}]*overflow-y:\s*auto;/s,
+  /\.daily-prestart__prose\s*\{[^}]*flex:\s*0 0 auto;[^}]*min-height:\s*17rem;/s,
 )
+assert.doesNotMatch(css, /\.daily-prestart__prose\s*\{[^}]*overflow(?:-y)?:\s*(?:auto|scroll)/s)
+assert.match(css, /\.daily-prestart__prose > \*\s*\{[^}]*flex-shrink:\s*0;/s)
 assert.doesNotMatch(css, /\.daily-prestart__prose\s*\{[^}]*(?:^|[;{])\s*height\s*:/s)
-assert.match(css, /\.app--daily-prestart\s*\{[^}]*height:\s*100dvh;[^}]*overflow-y:\s*hidden;/s)
-assert.match(css, /\.daily-prestart__details\s*\{[^}]*flex:\s*0 0 13\.75rem;/s)
+assert.doesNotMatch(css, /\.app--daily-prestart\s*\{[^}]*overflow-y:\s*hidden;/s)
+assert.match(css, /\.app\.app--daily-prestart:has\(\.daily-prestart\)::before\s*\{[^}]*position:\s*fixed;/s)
+assert.match(css, /@media \(max-width:\s*767px\)[\s\S]*?\.daily-prestart__prose\s*\{[^}]*min-height:\s*16\.75rem;/s)
+assert.match(css, /\.daily-prestart__details\s*\{[^}]*flex:\s*0 0 auto;[^}]*min-height:\s*0;/s)
+assert.doesNotMatch(css, /\.daily-prestart__details\s*\{[^}]*(?:^|[;{])\s*height\s*:/s)
 assert.match(css, /\.daily-prestart__state\s*\{[^}]*flex:\s*0 0 5rem;/s)
+assert.match(css, /\.daily-prestart__errors\s*\{[^}]*flex:\s*0 0 auto;[^}]*min-height:\s*0;/s)
+assert.doesNotMatch(css, /\.daily-prestart__errors\s*\{[^}]*(?:^|[;{])\s*height\s*:/s)
 assert.match(css, /\.daily-prestart__period\s*\{[^}]*display:\s*flex;/s)
 assert.match(css, /\.daily-prestart__period\s*\{[^}]*flex-wrap:\s*wrap;/s)
 assert.match(css, /\.daily-prestart__period\s*\{[^}]*gap:\s*0\.15rem\s+1\.1rem;/s)
