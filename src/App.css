@@ -18,6 +18,23 @@
   font-family: Georgia, 'Times New Roman', serif;
   background: #1a1510;
   color: #e8dcc8;
+  /* Game UI is interactive, but its labels are not document copy. */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* Keep editing and intentional URL copy available inside the non-selectable shell. */
+.app :is(input, textarea, [contenteditable='true'], .duel-invite-url-text) {
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+}
+
+/* Prevent Safari's image save/copy callout without cancelling taps or scrolling. */
+.app :is(img, svg) {
+  -webkit-user-drag: none;
+  -webkit-touch-callout: none;
 }
 
 /*
