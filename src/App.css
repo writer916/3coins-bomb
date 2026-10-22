@@ -722,8 +722,8 @@
 
 /* TOP only: ~10% shorter cards via padding / min-height — not font or gap. */
 .app--top .mode-card {
-  padding-top: 0.765rem;
-  padding-bottom: 0.855rem;
+  padding-top: 0.69rem;
+  padding-bottom: 0.69rem;
   min-height: 3.6rem;
 }
 
