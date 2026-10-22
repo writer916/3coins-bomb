@@ -34,7 +34,7 @@ export const ja: AppStrings = {
   resetConfirm: '成績を0に戻して新しいROUNDを始めますか？',
   // Mode names are English commands; descriptions localize.
   modeSoloName: 'SOLO',
-  modeSoloDesc: '3枚のコインが隠された袋を当てる',
+  modeSoloDesc: '袋に隠されたコイン3枚を探す',
   modeDuelName: 'DUEL',
   modeDuelDesc: '互いにコインを隠して当てる2人対戦',
   modeGroupName: 'GROUP',

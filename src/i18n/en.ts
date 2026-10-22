@@ -33,7 +33,7 @@ export const en: AppStrings = {
   reset: 'RESET',
   resetConfirm: 'Reset solo stats to 0 and start a new ROUND?',
   modeSoloName: 'SOLO',
-  modeSoloDesc: 'Find the 3 hidden coins',
+  modeSoloDesc: 'Find the three coins hidden in the bags.',
   modeDuelName: 'DUEL',
   modeDuelDesc: 'Hide & find — 1 vs 1',
   modeGroupName: 'GROUP',

@@ -46,7 +46,7 @@ assert.deepEqual(
   },
 )
 
-assert.equal(ja.modeSoloDesc, '3枚のコインが隠された袋を当てる')
+assert.equal(ja.modeSoloDesc, '袋に隠されたコイン3枚を探す')
 assert.equal(ja.modeDuelDesc, '互いにコインを隠して当てる2人対戦')
 assert.equal(ja.modeGroupDesc, '同じ出題をそれぞれ解いてスコアを競う')
 assert.equal(ja.modeDailyName, 'DAILY CHALLENGE')
@@ -59,7 +59,7 @@ assert.equal(ja.duelBagsLabel, 'BAGS（3-8）')
 assert.equal(en.duelBagsLabel, 'BAGS（3-8）')
 
 // Confirmed EN copy and intentionally unchanged command labels.
-assert.equal(en.modeSoloDesc, 'Find the 3 hidden coins')
+assert.equal(en.modeSoloDesc, 'Find the three coins hidden in the bags.')
 assert.equal(en.modeDuelDesc, 'Hide & find — 1 vs 1')
 assert.equal(en.modeGroupDesc, 'Same challenge — highest score wins')
 assert.equal(en.modeDailyName, 'DAILY CHALLENGE')

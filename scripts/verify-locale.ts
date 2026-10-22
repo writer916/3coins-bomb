@@ -93,7 +93,7 @@ assert.equal(autoWrites, 0, 'automatic browser choice must not be persisted')
 
 // --- JA copy (mode names / commands) ---
 assert.equal(ja.modeSoloName, 'SOLO')
-assert.equal(ja.modeSoloDesc, '3枚のコインが隠された袋を当てる')
+assert.equal(ja.modeSoloDesc, '袋に隠されたコイン3枚を探す')
 assert.equal(ja.modeDuelName, 'DUEL')
 assert.equal(ja.modeDuelDesc, '互いにコインを隠して当てる2人対戦')
 assert.equal(ja.modeGroupName, 'GROUP')
@@ -137,7 +137,7 @@ assert.ok(!ja.modeDuelName.includes('2人対戦'))
 
 // --- EN: other command labels unchanged ---
 assert.equal(en.modeSoloName, 'SOLO')
-assert.equal(en.modeSoloDesc, 'Find the 3 hidden coins')
+assert.equal(en.modeSoloDesc, 'Find the three coins hidden in the bags.')
 assert.equal(en.modeDuelName, 'DUEL')
 assert.equal(en.modeDuelDesc, 'Hide & find — 1 vs 1')
 assert.equal(en.modeGroupName, 'GROUP')
