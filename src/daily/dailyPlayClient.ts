@@ -1,5 +1,10 @@
 import { randomUuid, type RandomUuidCrypto } from '../browser/randomUuid'
 import type { BagId } from '../game/assets'
+import {
+  fetchWithTimeout,
+  PlayRequestTimeoutError,
+  PLAY_REQUEST_TIMEOUT_MS,
+} from '../game/fetchWithTimeout'
 import { DAILY_CHALLENGE_ROUNDS } from './dailyQuestionSet'
 import type { DailyChallengeDate } from './dailyChallengeDate'
 import {
@@ -33,6 +38,7 @@ const UUID_V4 =
 
 export type DailyPlayClientErrorCode =
   | 'NETWORK_FAILURE'
+  | 'TIMEOUT'
   | 'TEMPORARY_FAILURE'
   | 'AUTHENTICATION_FAILED'
   | 'UNAVAILABLE'
@@ -610,11 +616,25 @@ export function createDailyPlayClient(dependencies: {
   readonly storage: DailyStorageAdapter
   readonly fetch: typeof fetch
   readonly crypto: RandomUuidCrypto
+  readonly requestTimeoutMs?: number
 }) {
   // Native window.fetch requires the Window receiver in some browsers.
   // Calling it as dependencies.fetch(...) binds the dependencies object and
   // causes Chrome to throw "Illegal invocation" before sending the request.
   const fetcher = dependencies.fetch.bind(globalThis)
+  const requestTimeoutMs = dependencies.requestTimeoutMs ?? PLAY_REQUEST_TIMEOUT_MS
+
+  async function request(
+    input: RequestInfo | URL,
+    init: RequestInit,
+  ): Promise<Response> {
+    try {
+      return await fetchWithTimeout(fetcher, input, init, requestTimeoutMs)
+    } catch (error) {
+      if (error instanceof PlayRequestTimeoutError) return fail('TIMEOUT')
+      return fail('NETWORK_FAILURE')
+    }
+  }
 
   function participant(challengeDate: string): JoinedDailyParticipantRecord {
     const record = readDailyParticipant(dependencies.storage, challengeDate)
@@ -639,11 +659,12 @@ export function createDailyPlayClient(dependencies: {
     async getPlay(challengeDate: string): Promise<DailyPlayState> {
       let response: Response
       try {
-        response = await fetcher(
+        response = await request(
           `/api/daily/challenges/${encodeURIComponent(challengeDate)}/play`,
           { method: 'GET', headers: auth(challengeDate) },
         )
-      } catch {
+      } catch (error) {
+        if (error instanceof DailyPlayClientError && error.code === 'TIMEOUT') throw error
         return fail('NETWORK_FAILURE')
       }
       if (!response.ok) return fail(classifyHttp(response.status))
@@ -656,7 +677,7 @@ export function createDailyPlayClient(dependencies: {
     ): Promise<DailyPlayState> {
       let response: Response
       try {
-        response = await fetcher(
+        response = await request(
           `/api/daily/challenges/${encodeURIComponent(challengeDate)}/rounds/start`,
           {
             method: 'POST',
@@ -666,7 +687,8 @@ export function createDailyPlayClient(dependencies: {
             },
           },
         )
-      } catch {
+      } catch (error) {
+        if (error instanceof DailyPlayClientError && error.code === 'TIMEOUT') throw error
         return fail('NETWORK_FAILURE')
       }
       if (!response.ok) return fail(classifyHttp(response.status))
@@ -689,7 +711,7 @@ export function createDailyPlayClient(dependencies: {
     async openBag(command: DailyOpenCommand): Promise<DailyOpenResult> {
       let response: Response
       try {
-        response = await fetcher(
+        response = await request(
           `/api/daily/challenges/${encodeURIComponent(command.challengeDate)}/rounds/open`,
           {
             method: 'POST',
@@ -704,7 +726,8 @@ export function createDailyPlayClient(dependencies: {
             }),
           },
         )
-      } catch {
+      } catch (error) {
+        if (error instanceof DailyPlayClientError && error.code === 'TIMEOUT') throw error
         return fail('NETWORK_FAILURE')
       }
       if (!response.ok) return fail(classifyHttp(response.status))
@@ -725,7 +748,7 @@ export function createDailyPlayClient(dependencies: {
     async cashOut(command: DailyCashOutCommand): Promise<DailyCashOutResult> {
       let response: Response
       try {
-        response = await fetcher(
+        response = await request(
           `/api/daily/challenges/${encodeURIComponent(command.challengeDate)}/rounds/cash-out`,
           {
             method: 'POST',
@@ -739,7 +762,8 @@ export function createDailyPlayClient(dependencies: {
             }),
           },
         )
-      } catch {
+      } catch (error) {
+        if (error instanceof DailyPlayClientError && error.code === 'TIMEOUT') throw error
         return fail('NETWORK_FAILURE')
       }
       if (!response.ok) return fail(classifyHttp(response.status))
@@ -749,11 +773,12 @@ export function createDailyPlayClient(dependencies: {
     async getPlacements(challengeDate: string): Promise<DailyPlacementsSet> {
       let response: Response
       try {
-        response = await fetcher(
+        response = await request(
           `/api/daily/challenges/${encodeURIComponent(challengeDate)}/placements`,
           { method: 'GET', headers: auth(challengeDate) },
         )
-      } catch {
+      } catch (error) {
+        if (error instanceof DailyPlayClientError && error.code === 'TIMEOUT') throw error
         return fail('NETWORK_FAILURE')
       }
       if (!response.ok) return fail(classifyHttp(response.status))

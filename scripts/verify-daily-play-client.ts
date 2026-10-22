@@ -124,6 +124,26 @@ const receiverSafeClient = createDailyPlayClient({
 })
 assert.equal((await receiverSafeClient.getPlacements(date)).placements.length, 20)
 
+let dailyTimeoutSignalAborted = false
+const timeoutClient = createDailyPlayClient({
+  storage: {
+    getItem: () => participantStorageJson,
+    setItem: () => undefined,
+  },
+  requestTimeoutMs: 10,
+  fetch: ((_input: RequestInfo | URL, init?: RequestInit) => {
+    init?.signal?.addEventListener('abort', () => { dailyTimeoutSignalAborted = true })
+    return new Promise<Response>(() => undefined)
+  }) as typeof fetch,
+  crypto: globalThis.crypto,
+})
+await assert.rejects(
+  () => timeoutClient.getPlacements(date),
+  (error: unknown) =>
+    error instanceof DailyPlayClientError && error.code === 'TIMEOUT',
+)
+assert.equal(dailyTimeoutSignalAborted, true)
+
 function makePlacementsDto(challengeDate: string) {
   return {
     challengeDate,

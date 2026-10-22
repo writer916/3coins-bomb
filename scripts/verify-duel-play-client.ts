@@ -140,6 +140,19 @@ assert.equal(playCalls[0]?.init?.method, 'GET')
 assert.equal(new Headers(playCalls[0]?.init?.headers).get('Authorization'), `Bearer ${TOKEN}`)
 assert(!playCalls[0]?.url.includes(TOKEN))
 
+let duelTimeoutSignalAborted = false
+const duelTimeoutClient = createDuelPlayClient({
+  storage: storageWithParticipant(),
+  crypto: { randomUUID: () => REQUEST_ID },
+  requestTimeoutMs: 10,
+  fetch: ((_input: RequestInfo | URL, init?: RequestInit) => {
+    init?.signal?.addEventListener('abort', () => { duelTimeoutSignalAborted = true })
+    return new Promise<Response>(() => undefined)
+  }) as typeof fetch,
+})
+await expectKind(() => duelTimeoutClient.getPlayState(MATCH_ID), 'timeout')
+assert.equal(duelTimeoutSignalAborted, true)
+
 for (const malformed of [
   { ...playResponse, matchId: 'bad' },
   { ...playResponse, role: 'C' },

@@ -1,5 +1,10 @@
 import { randomUuid, type RandomUuidCrypto } from '../browser/randomUuid'
 import {
+  fetchWithTimeout,
+  PlayRequestTimeoutError,
+  PLAY_REQUEST_TIMEOUT_MS,
+} from '../game/fetchWithTimeout'
+import {
   GROUP_FORMATION_VERSION,
   GROUP_ROUNDS_MAX,
   GROUP_RULE_VERSION,
@@ -92,10 +97,12 @@ export interface GroupResultDetailRound {
 }
 export interface GroupResultDetail { readonly groupId:string;readonly entryKey:string;readonly nickname:string;readonly isSelf:boolean;readonly totalCoins:number;readonly threeCoinsComplete:number;readonly coinBagHits:number;readonly totalOpens:number;readonly coinBagHitRate:{readonly numerator:number;readonly denominator:number};readonly rounds:readonly GroupResultDetailRound[] }
 const ENTRY_KEY=/^[A-Za-z0-9_-]{22}$/
+export type GroupPlayClientErrorKind = 'request' | 'network' | 'timeout' | 'server'
 export class GroupPlayClientError extends Error {
-  constructor() { super('GROUP play could not be prepared.'); this.name = 'GroupPlayClientError' }
+  readonly kind: GroupPlayClientErrorKind
+  constructor(kind: GroupPlayClientErrorKind = 'request') { super('GROUP play could not be prepared.'); this.name = 'GroupPlayClientError'; this.kind = kind }
 }
-function fail(): never { throw new GroupPlayClientError() }
+function fail(kind: GroupPlayClientErrorKind = 'request'): never { throw new GroupPlayClientError(kind) }
 function record(value: unknown): Record<string, unknown> {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return fail()
   return value as Record<string, unknown>
@@ -332,45 +339,50 @@ export function parseGroupResultDetail(
   }
 }
 
-async function json(fetcher: typeof fetch, url: string, init: RequestInit): Promise<unknown> {
-  const response = await fetcher(url, init); if (!response.ok) return fail()
+async function request(fetcher: typeof fetch, url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
+  try { return await fetchWithTimeout(fetcher, url, init, timeoutMs) }
+  catch (error) { return fail(error instanceof PlayRequestTimeoutError ? 'timeout' : 'network') }
+}
+async function json(fetcher: typeof fetch, url: string, init: RequestInit, timeoutMs: number): Promise<unknown> {
+  const response = await request(fetcher, url, init, timeoutMs); if (!response.ok) return fail('server')
   try { return await response.json() as unknown } catch { return fail() }
 }
 
-export function createGroupPlayClient(dependencies: { readonly storage: GroupStorageAdapter; readonly fetch: typeof fetch; readonly crypto: RandomUuidCrypto }) {
+export function createGroupPlayClient(dependencies: { readonly storage: GroupStorageAdapter; readonly fetch: typeof fetch; readonly crypto: RandomUuidCrypto; readonly requestTimeoutMs?: number }) {
+  const requestTimeoutMs = dependencies.requestTimeoutMs ?? PLAY_REQUEST_TIMEOUT_MS
   function access(groupId: string) {
     const participant = readGroupParticipant(dependencies.storage, groupId); if (!participant) return fail()
     return { Authorization: `Bearer ${participant.token}` }
   }
   return {
     createRequestId() { return randomUuid(dependencies.crypto) },
-    async getState(groupId: string) { return parseGroupPlayState(await json(dependencies.fetch, `/api/group/matches/${encodeURIComponent(groupId)}/play`, { method: 'GET', headers: access(groupId) }), groupId) },
-    async getPlacements(groupId: string) { return parseGroupPlacementSet(await json(dependencies.fetch, `/api/group/matches/${encodeURIComponent(groupId)}/placements`, { method: 'GET', headers: access(groupId) }), groupId) },
-    async startRound(groupId: string, requestId: string = randomUuid(dependencies.crypto)) { return parseGroupPlayState(await json(dependencies.fetch, `/api/group/matches/${encodeURIComponent(groupId)}/rounds/start`, { method: 'POST', headers: { ...access(groupId), 'Idempotency-Key': requestId } }), groupId) },
-    async resume(groupId: string, requestId: string = randomUuid(dependencies.crypto)) { return parseGroupPlayState(await json(dependencies.fetch, `/api/group/matches/${encodeURIComponent(groupId)}/play/resume`, { method: 'POST', headers: { ...access(groupId), 'Idempotency-Key': requestId } }), groupId) },
+    async getState(groupId: string) { return parseGroupPlayState(await json(dependencies.fetch, `/api/group/matches/${encodeURIComponent(groupId)}/play`, { method: 'GET', headers: access(groupId) }, requestTimeoutMs), groupId) },
+    async getPlacements(groupId: string) { return parseGroupPlacementSet(await json(dependencies.fetch, `/api/group/matches/${encodeURIComponent(groupId)}/placements`, { method: 'GET', headers: access(groupId) }, requestTimeoutMs), groupId) },
+    async startRound(groupId: string, requestId: string = randomUuid(dependencies.crypto)) { return parseGroupPlayState(await json(dependencies.fetch, `/api/group/matches/${encodeURIComponent(groupId)}/rounds/start`, { method: 'POST', headers: { ...access(groupId), 'Idempotency-Key': requestId } }, requestTimeoutMs), groupId) },
+    async resume(groupId: string, requestId: string = randomUuid(dependencies.crypto)) { return parseGroupPlayState(await json(dependencies.fetch, `/api/group/matches/${encodeURIComponent(groupId)}/play/resume`, { method: 'POST', headers: { ...access(groupId), 'Idempotency-Key': requestId } }, requestTimeoutMs), groupId) },
     createOpenCommand(groupId: string, bagNumber: number): GroupOpenCommand {
       return { groupId: uuid(groupId), bagNumber: integer(bagNumber, 1, 8), requestId: randomUuid(dependencies.crypto) }
     },
     async openBag(command: GroupOpenCommand): Promise<GroupOpenResult> {
-      const response = await dependencies.fetch(`/api/group/matches/${encodeURIComponent(command.groupId)}/open`, {
+      const response = await request(dependencies.fetch, `/api/group/matches/${encodeURIComponent(command.groupId)}/open`, {
         method: 'POST',
         headers: { ...access(command.groupId), 'Idempotency-Key': command.requestId, 'Content-Type': 'application/json' },
         body: JSON.stringify({ bagNumber: command.bagNumber }),
-      })
-      if (!response.ok) return fail()
+      }, requestTimeoutMs)
+      if (!response.ok) return fail('server')
       let value: unknown
       try { value = await response.json() as unknown } catch { return fail() }
       return parseGroupOpenResult(value, command)
     },
     createCashOutCommand(groupId: string): GroupCashOutCommand { return { groupId: uuid(groupId), requestId: randomUuid(dependencies.crypto) } },
     async cashOut(command: GroupCashOutCommand): Promise<GroupCashOutResult> {
-      return parseGroupCashOutResult(await json(dependencies.fetch, `/api/group/matches/${encodeURIComponent(command.groupId)}/cash-out`, { method:'POST', headers:{ ...access(command.groupId), 'Idempotency-Key':command.requestId } }), command)
+      return parseGroupCashOutResult(await json(dependencies.fetch, `/api/group/matches/${encodeURIComponent(command.groupId)}/cash-out`, { method:'POST', headers:{ ...access(command.groupId), 'Idempotency-Key':command.requestId } }, requestTimeoutMs), command)
     },
-    async getProgress(groupId:string){return parseGroupProgress(await json(dependencies.fetch,`/api/group/matches/${encodeURIComponent(groupId)}/progress`,{method:'GET',headers:access(groupId)}),groupId)},
-    async getResult(groupId:string){return parseGroupResult(await json(dependencies.fetch,`/api/group/matches/${encodeURIComponent(groupId)}/result`,{method:'GET',headers:access(groupId)}),groupId)},
-    async getResultDetail(groupId:string,entryKey:string){if(!ENTRY_KEY.test(entryKey))return fail();return parseGroupResultDetail(await json(dependencies.fetch,`/api/group/matches/${encodeURIComponent(groupId)}/result/${encodeURIComponent(entryKey)}`,{method:'GET',headers:access(groupId)}),groupId,entryKey)},
+    async getProgress(groupId:string){return parseGroupProgress(await json(dependencies.fetch,`/api/group/matches/${encodeURIComponent(groupId)}/progress`,{method:'GET',headers:access(groupId)},requestTimeoutMs),groupId)},
+    async getResult(groupId:string){return parseGroupResult(await json(dependencies.fetch,`/api/group/matches/${encodeURIComponent(groupId)}/result`,{method:'GET',headers:access(groupId)},requestTimeoutMs),groupId)},
+    async getResultDetail(groupId:string,entryKey:string){if(!ENTRY_KEY.test(entryKey))return fail();return parseGroupResultDetail(await json(dependencies.fetch,`/api/group/matches/${encodeURIComponent(groupId)}/result/${encodeURIComponent(entryKey)}`,{method:'GET',headers:access(groupId)},requestTimeoutMs),groupId,entryKey)},
     hasHostCapability(groupId:string){return readGroupHost(dependencies.storage,groupId)!==null},
-    async closeGroup(groupId:string,requestId:string){const host=readGroupHost(dependencies.storage,groupId);if(!host)return fail();return parseGroupProgress(await json(dependencies.fetch,`/api/group/matches/${encodeURIComponent(groupId)}/close`,{method:'POST',headers:{Authorization:`Bearer ${host.hostToken}`,'Idempotency-Key':requestId}}),groupId)},
+    async closeGroup(groupId:string,requestId:string){const host=readGroupHost(dependencies.storage,groupId);if(!host)return fail();return parseGroupProgress(await json(dependencies.fetch,`/api/group/matches/${encodeURIComponent(groupId)}/close`,{method:'POST',headers:{Authorization:`Bearer ${host.hostToken}`,'Idempotency-Key':requestId}},requestTimeoutMs),groupId)},
   }
 }
 

@@ -1,6 +1,11 @@
 import { randomUuid, type RandomUuidCrypto } from '../browser/randomUuid'
 import type { BagId } from '../game/assets'
 import {
+  fetchWithTimeout,
+  PlayRequestTimeoutError,
+  PLAY_REQUEST_TIMEOUT_MS,
+} from '../game/fetchWithTimeout'
+import {
   readParticipant,
   type StorageAdapter,
 } from './duelPersistence'
@@ -18,6 +23,7 @@ export type DuelPlayClientErrorKind =
   | 'conflict'
   | 'malformed-response'
   | 'network'
+  | 'timeout'
   | 'server'
 
 export class DuelPlayClientError extends Error {
@@ -196,6 +202,7 @@ export interface DuelPlayClientDependencies {
   readonly storage: StorageAdapter
   readonly fetch: typeof fetch
   readonly crypto: RandomUuidCrypto
+  readonly requestTimeoutMs?: number
 }
 
 function fail(kind: DuelPlayClientErrorKind): never {
@@ -708,12 +715,14 @@ async function fetchJson(
   input: string,
   init: RequestInit,
   onResponse?: () => void,
+  timeoutMs: number = PLAY_REQUEST_TIMEOUT_MS,
 ): Promise<unknown> {
   let response: Response
   try {
-    response = await fetcher(input, init)
+    response = await fetchWithTimeout(fetcher, input, init, timeoutMs)
     onResponse?.()
-  } catch {
+  } catch (error) {
+    if (error instanceof PlayRequestTimeoutError) return fail('timeout')
     return fail('network')
   }
   if (!response.ok) {
@@ -765,6 +774,9 @@ export function bagIdToBagNumber(bagId: BagId): number {
 export function createDuelPlayClient(dependencies: DuelPlayClientDependencies) {
   const normalizedMatchId = (value: unknown) => matchId(value, 'invalid-request')
   const createRequestId = () => requestId(randomUuid(dependencies.crypto))
+  const requestTimeoutMs = dependencies.requestTimeoutMs ?? PLAY_REQUEST_TIMEOUT_MS
+  const fetcher: typeof fetch = (input, init) =>
+    fetchWithTimeout(dependencies.fetch, input, init, requestTimeoutMs)
 
   return {
     createOpenCommand(input: {
@@ -797,7 +809,7 @@ export function createDuelPlayClient(dependencies: DuelPlayClientDependencies) {
       const id = normalizedMatchId(matchIdValue)
       const token = participantToken(dependencies.storage, id)
       const json = await fetchJson(
-        dependencies.fetch,
+        fetcher,
         `/api/duel/matches/${encodeURIComponent(id)}/play`,
         { method: 'GET', headers: headers(token) },
       )
@@ -808,7 +820,7 @@ export function createDuelPlayClient(dependencies: DuelPlayClientDependencies) {
       const id = normalizedMatchId(matchIdValue)
       const token = participantToken(dependencies.storage, id)
       const json = await fetchJson(
-        dependencies.fetch,
+        fetcher,
         `/api/duel/matches/${encodeURIComponent(id)}/opponent-placements`,
         { method: 'GET', headers: headers(token) },
       )
@@ -830,7 +842,7 @@ export function createDuelPlayClient(dependencies: DuelPlayClientDependencies) {
       const token = participantToken(dependencies.storage, command.matchId)
       const requestStartedAtMs = performance.now()
       const json = await fetchJson(
-        dependencies.fetch,
+        fetcher,
         `/api/duel/matches/${encodeURIComponent(command.matchId)}/rounds/${command.roundNumber}/open`,
         {
           method: 'POST',
@@ -860,7 +872,7 @@ export function createDuelPlayClient(dependencies: DuelPlayClientDependencies) {
        * Do not send Content-Type or a JSON body (including {}).
        */
       const json = await fetchJson(
-        dependencies.fetch,
+        fetcher,
         `/api/duel/matches/${encodeURIComponent(command.matchId)}/rounds/${command.roundNumber}/cash-out`,
         { method: 'POST', headers: headers(token, command.requestId) },
       )
@@ -875,7 +887,7 @@ export function createDuelPlayClient(dependencies: DuelPlayClientDependencies) {
       const roundNumber = requestInteger(roundNumberValue, 1, 20)
       const token = participantToken(dependencies.storage, id)
       const json = await fetchJson(
-        dependencies.fetch,
+        fetcher,
         `/api/duel/matches/${encodeURIComponent(id)}/rounds/${roundNumber}/reveal`,
         { method: 'GET', headers: headers(token) },
       )
@@ -886,7 +898,7 @@ export function createDuelPlayClient(dependencies: DuelPlayClientDependencies) {
       const id = normalizedMatchId(matchIdValue)
       const token = participantToken(dependencies.storage, id)
       const json = await fetchJson(
-        dependencies.fetch,
+        fetcher,
         `/api/duel/matches/${encodeURIComponent(id)}/result`,
         { method: 'GET', headers: headers(token) },
       )
@@ -897,7 +909,7 @@ export function createDuelPlayClient(dependencies: DuelPlayClientDependencies) {
       const id = normalizedMatchId(matchIdValue)
       const token = participantToken(dependencies.storage, id)
       const json = await fetchJson(
-        dependencies.fetch,
+        fetcher,
         `/api/duel/matches/${encodeURIComponent(id)}/detail`,
         { method: 'GET', headers: headers(token) },
       )

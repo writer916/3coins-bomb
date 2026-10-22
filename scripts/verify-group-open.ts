@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { createGroupOpenHandler } from '../api/_group/matches/[groupId]/open.ts'
 import { validateGroupOpenRequest, openGroupBag, GroupOpenError } from '../server/group/openBag.ts'
-import { createGroupPlayBootstrapCoordinator, createGroupPlayClient, parseGroupOpenResult } from '../src/group/groupPlayClient.ts'
+import { createGroupPlayBootstrapCoordinator, createGroupPlayClient, GroupPlayClientError, parseGroupOpenResult } from '../src/group/groupPlayClient.ts'
 import { groupParticipantStorageKey } from '../src/group/groupPersistence.ts'
 import { judgeGroupBag } from '../src/group/groupDomain.ts'
 
@@ -43,6 +43,23 @@ const coordinator = createGroupPlayBootstrapCoordinator(client)
 await assert.rejects(() => coordinator.open(groupId, 2))
 assert.deepEqual(await coordinator.open(groupId, 2), view)
 assert.deepEqual(ids, [requestId, requestId])
+
+let groupTimeoutSignalAborted = false
+const timeoutClient = createGroupPlayClient({
+  storage,
+  crypto: { randomUUID: () => requestId as `${string}-${string}-${string}-${string}-${string}` },
+  requestTimeoutMs: 10,
+  fetch: ((_input: RequestInfo | URL, init?: RequestInit) => {
+    init?.signal?.addEventListener('abort', () => { groupTimeoutSignalAborted = true })
+    return new Promise<Response>(() => undefined)
+  }) as typeof fetch,
+})
+await assert.rejects(
+  () => timeoutClient.openBag({ groupId, bagNumber: 2, requestId }),
+  (error: unknown) =>
+    error instanceof GroupPlayClientError && error.kind === 'timeout',
+)
+assert.equal(groupTimeoutSignalAborted, true)
 
 const db = readFileSync(resolve(root, 'server/db/openGroupBag.ts'), 'utf8')
 for (const fragment of ['with candidate as materialized', 'for update', 'insert into group_round_opens', 'on conflict do nothing', "status = 'active'", 'terminal_request_id', 'unnest(target.coin_bag_numbers)']) assert.ok(db.includes(fragment), fragment)

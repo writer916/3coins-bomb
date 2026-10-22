@@ -1065,11 +1065,14 @@ export function DailyPlayScreen({
         setFx(null)
         setCoinFxSample(null)
         setRetryBag(bagId)
-        await reconcileAfterMutationFailure('open')
-        if (gate.fxDone) unlock()
-        else {
-          lockRef.current = false
-          setRequestPending(false)
+        try {
+          await reconcileAfterMutationFailure('open')
+        } finally {
+          if (gate.fxDone) unlock()
+          else {
+            lockRef.current = false
+            setRequestPending(false)
+          }
         }
       }
     },
